@@ -26,17 +26,31 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         response = requests.request(
             method, url, headers=headers, json=data, timeout=timeout, stream=stream
         )
-        if response.status_code == 200:
+        if response.status_code == 200:  # Only 200 is success
             if stream:
                 return True, response
             else:
                 return True, response.json()
+        elif response.status_code == 404:
+            try:
+                error_msg = response.json().get('message', 'Resource not found')
+                print(f"Not found: {error_msg}")
+            except json.JSONDecodeError:
+                print(f"Not found: {response.text}")
+            return False, None
         elif response.status_code == 401:
             print("Authentication failed: Unauthorized access.")
             try:
                 print(f"Response: {response.json()}")
             except json.JSONDecodeError:
                 print(f"Response: {response.text}")
+            return False, None
+        elif response.status_code == 403:
+            try:
+                error_msg = response.json().get('message', 'Access forbidden')
+                print(f"Access forbidden: {error_msg}")
+            except json.JSONDecodeError:
+                print(f"Access forbidden: {response.text}")
             return False, None
         elif response.status_code == 422:
             print(f"Validation Error: {response.json()}")
@@ -46,11 +60,8 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
             print(f"Response: {response.text}")
             return False, None
     except requests.exceptions.ConnectionError:
-        print(
-            f"Connection error: Could not connect to {
-                url.split('/v3/')[0] if '/v3/' in url else url
-            }"
-        )
+        base_url = url.split('/v3/')[0] if '/v3/' in url else url
+        print(f"Connection error: Could not connect to {base_url}")
         return False, None
     except requests.exceptions.Timeout:
         print("Connection timeout: The server took too long to respond.")
@@ -63,541 +74,295 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         return False, None
 
 
-""" Contoller """
+class GNS3APIClient:
+    def __init__(self, server_url, key=None):
+        self.server_url = server_url.rstrip('/')
+        self.key = key
+        
+    def _get_headers(self):
+        headers = {'accept': 'application/json'}
+        if self.key:
+            headers['Authorization'] = f'Bearer {self.key["access_token"]}'
+        return headers
+    
+    def _api_call(self, endpoint, stream=False, method="GET", data=None):
+        url = f"{self.server_url}/v3/{endpoint}"
+        return _handle_request(url, headers=self._get_headers(), stream=stream, method=method, data=data)
+    
+    def _stream_notifications(self, endpoint, timeout_seconds=60):
+        success, response = self._api_call(endpoint, stream=True)
+        
+        if success:
+            def close_stream():
+                try:
+                    print(f"Closing stream after {timeout_seconds} seconds.")
+                    response.close()
+                except Exception as e:
+                    print(f"Error closing stream: {e}")
 
+            timer = threading.Timer(timeout_seconds, close_stream)
+            timer.start()
 
-def version(server_url):
-    url = f"{server_url}/v3/version"
-    headers = {
-        "accept": "application/json",
-    }
-    return _handle_request(url, headers=headers)
-
-
-def iou_license(key, server_url):
-    url = f"{server_url}/v3/iou_license"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def statistics(key, server_url):
-    url = f"{server_url}/v3/statistics"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def notifications(key, server_url, timeout_seconds=60):
-    """
-    Handles the notifications stream from the server with a timeout.
-
-    Args:
-        key (dict): Authentication key.
-        server_url (str): The base URL of the server.
-        timeout_seconds (int, optional): Timeout in seconds. Defaults to 60.
-    """
-    url = f"{server_url}/v3/notifications"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    success, response = _handle_request(url, headers=headers, stream=True)
-
-    if success:
-        def close_stream():
             try:
-                print(f"Closing stream after {timeout_seconds} seconds.")
-                response.close()
+                for line in response.iter_lines():
+                    if line:
+                        decoded_line = line.decode('utf-8')
+                        try:
+                            notification = json.loads(decoded_line)
+                            print(f"Received notification: {notification}")
+                        except json.JSONDecodeError:
+                            print(f"Received non-JSON line: {decoded_line}")
+            except requests.exceptions.ChunkedEncodingError:
+                print("Stream ended unexpectedly.")
             except Exception as e:
-                print(f"Error closing stream: {e}")
-
-        timer = threading.Timer(timeout_seconds, close_stream)
-        timer.start()
-
-        try:
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    try:
-                        notification = json.loads(decoded_line)
-                        print(f"Received notification: {notification}")
-                    except json.JSONDecodeError:
-                        print(f"Received non-JSON line: {decoded_line}")
-        except requests.exceptions.ChunkedEncodingError:
-            print("Stream ended unexpectedly.")
-        except Exception as e:
-            if not isinstance(e, AttributeError) or "NoneType" not in str(e):
-                print(f"Error processing stream: {e}")
-        finally:
-            if timer.is_alive():
-                timer.cancel()
-            if not response.raw.closed:
-                response.close()
-
-    else:
-        print("Failed to start notifications stream.")
-
-
-""" Users """
-
-
-def currentUserInfo(key, server_url):
-    url = f"{server_url}/v3/access/users/me"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def users(key, server_url):
-    url = f"{server_url}/v3/access/users"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def user(key, server_url, user_id):
-    url = f"{server_url}/v3/access/users/{user_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def usersGroups(key, server_url, user_id):
-    url = f"{server_url}/v3/access/users/{user_id}/groups"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-""" Users groups """
-
-
-def groups(key, server_url):
-    url = f"{server_url}/v3/access/groups"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def groupsById(key, server_url, group_id):
-    url = f"{server_url}/v3/access/groups/{group_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def groupMembers(key, server_url, group_id):
-    url = f"{server_url}/v3/access/groups/{group_id}/members"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-""" Roles """
-
-
-def roles(key, server_url):
-    url = f"{server_url}/v3/access/roles"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def roleById(key, server_url, role_id):
-    url = f"{server_url}/v3/access/roles/{role_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def rolePriviledges(key, server_url, role_id):
-    url = f"{server_url}/v3/access/roles/{role_id}/privileges"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-""" Privileges """
-
-
-def priviledges(key, server_url):
-    url = f"{server_url}/v3/access/privileges"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-""" ACLS """
-
-
-def aclEndpoints(key, server_url):
-    url = f"{server_url}/v3/access/acl/endpoints"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def acl(key, server_url):
-    url = f"{server_url}/v3/access/acl"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def aclById(key, server_url, ace_id):
-    url = f"{server_url}/v3/access/acl/{ace_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-"""Templates"""
-
-
-def templates(key, server_url):
-    url = f"{server_url}/v3/templates"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def templateByID(key, server_url, template_id):
-    url = f"{server_url}/v3/templates/{template_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-""" Projects """
-
-
-def projects(key, server_url):
-    url = f"{server_url}/v3/projects"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def projectByID(key, server_url, project_id):
-    url = f"{server_url}/v3/projects/{project_id}"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def projectStatsByID(key, server_url, project_id):
-    url = f"{server_url}/v3/projects/{project_id}/stats"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def projectNotificationsByID(key, server_url, project_id, timeout_seconds=60):
-    url = f"{server_url}/v3/projects/{project_id}/notifications"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    success, response = _handle_request(url, headers=headers, stream=True)
-
-    if success:
-        def close_stream():
-            try:
-                print(f"Closing stream after {timeout_seconds} seconds.")
-                response.close()
-            except Exception as e:
-                print(f"Error closing stream: {e}")
-
-        timer = threading.Timer(timeout_seconds, close_stream)
-        timer.start()
-
-        try:
-            for line in response.iter_lines():
-                if line:
-                    decoded_line = line.decode('utf-8')
-                    try:
-                        notification = json.loads(decoded_line)
-                        print(f"Received notification: {notification}")
-                    except json.JSONDecodeError:
-                        print(f"Received non-JSON line: {decoded_line}")
-        except requests.exceptions.ChunkedEncodingError:
-            print("Stream ended unexpectedly.")
-        except Exception as e:
-            if not isinstance(e, AttributeError) or "NoneType" not in str(e):
-                print(f"Error processing stream: {e}")
-        finally:
-            if timer.is_alive():
-                timer.cancel()
-            if not response.raw.closed:
-                response.close()
-
-    else:
-        print("Failed to start notifications stream.")
-
-
-def projectLockedByID(key, server_url, project_id):
-    url = f"{server_url}/v3/projects/{project_id}/locked"
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    return _handle_request(url, headers=headers)
-
-
-def projectExportByID(key, server_url, project_id, include_snapshots, include_images, reset_mac_addresses, keep_compute_ids, compression, compression_level):
-    # ?include_snapshots=false&include_images=false&reset_mac_addresses=false&keep_compute_ids=false&compression=zstd&compression_level=3
-    """
-    Avalaible Compression types:
-    zip,
-    bzip2,
-    lzma,
-    zstd
-    """
-    url = f"{server_url}/v3/projects/{project_id}/export"
-
-    params = {
-        "include_snapshots": str(include_snapshots).lower(),
-        "include_images": str(include_images).lower(),
-        "reset_mac_addresses": str(reset_mac_addresses).lower(),
-        "keep_compute_ids": str(keep_compute_ids).lower(),
-        "compression": compression,
-        "compression_level": compression_level,
-    }
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-    try:
-        response = requests.get(
-            url, params=params, headers=headers, stream=True)
-        response.raise_for_status()
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error during request: {e}")
-        return None
-
-
-def download_exported_project(key, server_url, project_id, export_params):
-    """
-    Downloads the exported project and handles the response.
-
-    Args:
-        key (dict): A dictionary containing the 'access_token'.
-        server_url (str): The base URL of the server.
-        project_id (str): The UUID of the project.
-        export_params (dict): A dictionary containing the export parameters.
-    """
-
-    response = projectExportByID(key, server_url, project_id, **export_params)
-
-    if response:
-        if response.status_code == 200:
-            filename = response.headers.get('content-disposition')
-            if filename:
-                filename = filename.split("filename=")[1].replace('"', '')
-            else:
-                # default name if content-disposition is missing.
-                filename = "exported_project.gns3project"
-
-            with open(filename, 'wb') as f:
-                # 8kb chunks
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            print(f"Project exported successfully to {filename}")
-
+                if not isinstance(e, AttributeError) or "NoneType" not in str(e):
+                    print(f"Error processing stream: {e}")
+            finally:
+                if timer.is_alive():
+                    timer.cancel()
+                if not response.raw.closed:
+                    response.close()
         else:
-            print(f"Failed to export project. Status code: {
-                  response.status_code}")
-            print(response.text)
+            print("Failed to start notifications stream.")
 
+    # Controller endpoints
+    def version(self):
+        return self._api_call("version")
+    
+    def iou_license(self):
+        return self._api_call("iou_license")
+    
+    def statistics(self):
+        return self._api_call("statistics")
+    
+    def notifications(self, timeout_seconds=60):
+        self._stream_notifications("notifications", timeout_seconds)
 
-def ProjectFile(key, server_url, project_id, file_path):
-    """
-    Returns a file from a project.
+    # User endpoints
+    def current_user_info(self):
+        return self._api_call("access/users/me")
+    
+    def users(self):
+        return self._api_call("access/users")
+    
+    def user(self, user_id):
+        return self._api_call(f"access/users/{user_id}")
+    
+    def users_groups(self, user_id):
+        return self._api_call(f"access/users/{user_id}/groups")
 
-    Args:
-        key (dict): A dictionary containing the 'access_token'.
-        server_url (str): The base URL of the server (e.g., "http://10.21.34.222:3080").
-        project_id (str): The UUID of the project.
-        file_path (str): The path to the file within the project.
+    # Project endpoints
+    def projects(self):
+        return self._api_call("projects")
+    
+    def project(self, project_id):
+        return self._api_call(f"projects/{project_id}")
+    
+    def project_stats(self, project_id):
+        return self._api_call(f"projects/{project_id}/stats")
+    
+    def project_notifications(self, project_id, timeout_seconds=60):
+        self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
 
-    Returns:
-        requests.Response: The response from the server.
-    """
+    def project_open(self, project_id):
+        """Open a project. Required before checking lock status."""
+        return self._api_call(f"projects/{project_id}/open", method="POST")
 
-    # URL encode the file path to handle special characters
-    encoded_file_path = urllib.parse.quote(file_path)
+    def project_close(self, project_id):
+        """Close a project."""
+        return self._api_call(f"projects/{project_id}/close", method="POST")
 
-    url = f"{server_url}/v3/projects/{project_id}/files/{encoded_file_path}"
+    def project_locked(self, project_id):
+        """Check if a project is locked."""
+        success, response = self._api_call(f"projects/{project_id}/locked")
+        if not success:
+            return None
+        return response if isinstance(response, bool) else False
 
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    try:
-        response = requests.get(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return response
-    except requests.exceptions.RequestException as e:
-        print(f"Error during request: {e}")
-        return None
-
-
-def download_project_file(key, server_url, project_id, file_path):
-    """
-    Downloads a file from a project and handles the response.
-
-    Args:
-        key (dict): A dictionary containing the 'access_token'.
-        server_url (str): The base URL of the server (e.g., "http://10.21.34.222:3080").
-        project_id (str): The UUID of the project.
-        file_path (str): The path to the file within the project.
-    """
-
-    response = ProjectFile(key, server_url, project_id, file_path)
-
-    if response:
+    def download_project_file(self, project_id, file_path):
+        encoded_file_path = urllib.parse.quote(file_path)
+        response = requests.get(
+            f"{self.server_url}/v3/projects/{project_id}/files/{encoded_file_path}",
+            headers=self._get_headers(),
+            stream=True
+        )
+        
         if response.status_code == 200:
-            # Extract filename from Content-Disposition header (if available)
-            # default to the passed in filename.
             filename = file_path.split("/")[-1]
-            content_disposition = response.headers.get('content-disposition')
-            if content_disposition:
-                filename = content_disposition.split(
-                    "filename=")[1].replace('"', '')
-
             with open(filename, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
             print(f"File downloaded successfully to {filename}")
         else:
-            print(f"Failed to download file. Status code: {
-                  response.status_code}")
+            print(f"Failed to download file. Status code: {response.status_code}")
             print(response.text)
 
+    def project_export(self, project_id, export_params):
+        """Export a project with the given parameters."""
+        params = {
+            "include_snapshots": str(export_params["include_snapshots"]).lower(),
+            "include_images": str(export_params["include_images"]).lower(),
+            "reset_mac_addresses": str(export_params["reset_mac_addresses"]).lower(),
+            "keep_compute_ids": str(export_params["keep_compute_ids"]).lower(),
+            "compression": export_params["compression"],
+            "compression_level": export_params["compression_level"],
+        }
+        url = f"{self.server_url}/v3/projects/{project_id}/export"
+        try:
+            response = requests.get(url, params=params, headers=self._get_headers(), stream=True)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            print(f"Error during request: {e}")
+            return None
 
-url = "http://10.21.34.222:3080"
-key = auth.loadKey("/home/stefiii/.gns3key")
-userID = "49570cf3-e9a7-4bc2-a1cc-3738937bf232"
-groupID = "3e671ebb-3f53-4548-9c34-cf30619544bc"
-roleID = "db9c15bf-871d-4526-ba22-2a7e5ea8c5af"
-templateID = "e231aa90-d1cf-421b-8b3b-2358ff9d7cc2"
-projectID = "c7acc43b-63fe-4d7c-a149-2e687cb73098"
-# projectID = "c4d51906-70cc-41f7-9a8a-9602a5ed8577"
-export_params = {
-    "include_snapshots": False,
-    "include_images": False,
-    "reset_mac_addresses": False,
-    "keep_compute_ids": False,
-    "compression": "zstd",
-    "compression_level": 3
-}
-filePath = "12-FUS-TRJ-Übung-6-DHCPv4.gns3"
-# aceID = "no acls set yet so untested"
-print("-------Controller-------")
-print(version(url))
-print(iou_license(key, url))
-print(statistics(key, url))
-# notifications(key, url, timeout_seconds=3)
-print("-------Users-------")
-print(currentUserInfo(key, url))
-print(users(key, url))
-print(user(key, url, userID))
-print(usersGroups(key, url, userID))
-print("-------Users Groups-------")
-print(groups(key, url))
-print(groupsById(key, url, groupID))
-print(groupMembers(key, url, groupID))
-print("-------Roles-------")
-# print(roles(key, url))
-# print(roleById(key, url, roleID))
-# print(roleById(key, url, roleID))
-print("too much output so commeted out lol")
-print("-------Priviledges-------")
-# print(priviledges(key, url))
-print("too much output so commeted out lol")
-print("-------ACLS-------")
-# print(aclEndpoints(key, url))
-print("too much output so commeted out lol")
-print(acl(key, url))
-# print(aclById(key, url, aceID))
-print("-------Templates-------")
-# print(templates(key, url))
-print("too much output so commeted out lol")
-print(templateByID(key, url, templateID))
-print("-------Projects-------")
-print(projects(key, url))
-print(projectByID(key, url, projectID))
-print(projectLockedByID(key, url, projectID))
-download_project_file(key, url, projectID, filePath)
-download_exported_project(key, url, projectID, export_params)
+    def download_exported_project(self, project_id, export_params):
+        """Downloads an exported project and saves it to a file."""
+        response = self.project_export(project_id, export_params)
+        
+        if response and response.status_code == 200:
+            filename = response.headers.get('content-disposition')
+            if filename:
+                filename = filename.split("filename=")[1].replace('"', '')
+            else:
+                filename = "exported_project.gns3project"
+
+            with open(filename, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"Project exported successfully to {filename}")
+        else:
+            print(f"Failed to export project. Status code: {response.status_code if response else 'N/A'}")
+            if response:
+                print(response.text)
+
+    # Group endpoints
+    def groups(self):
+        return self._api_call("access/groups")
+    
+    def groupsById(self, group_id):
+        return self._api_call(f"access/groups/{group_id}")
+    
+    def groupMembers(self, group_id):
+        return self._api_call(f"access/groups/{group_id}/members")
+
+    # Role endpoints
+    def roles(self):
+        return self._api_call("access/roles")
+    
+    def roleById(self, role_id):
+        return self._api_call(f"access/roles/{role_id}")
+    
+    def rolePrivileges(self, role_id):
+        return self._api_call(f"access/roles/{role_id}/privileges")
+
+    # Privilege endpoints
+    def privileges(self):
+        return self._api_call("access/privileges")
+
+    # ACL endpoints
+    def aclEndpoints(self):
+        return self._api_call("access/acl/endpoints")
+    
+    def acl(self):
+        return self._api_call("access/acl")
+    
+    def aclById(self, ace_id):
+        return self._api_call(f"access/acl/{ace_id}")
+
+    # Template endpoints
+    def templates(self):
+        return self._api_call("templates")
+    
+    def templateByID(self, template_id):
+        return self._api_call(f"templates/{template_id}")
+
+# Example usage
+if __name__ == "__main__":
+    url = "http://10.21.34.222:3080"
+    key = auth.loadKey("/home/stefiii/.gns3key")
+    userID = "49570cf3-e9a7-4bc2-a1cc-3738937bf232"
+    groupID = "3e671ebb-3f53-4548-9c34-cf30619544bc"
+    roleID = "db9c15bf-871d-4526-ba22-2a7e5ea8c5af"
+    templateID = "e231aa90-d1cf-421b-8b3b-2358ff9d7cc2"
+    projectID = "c7acc43b-63fe-4d7c-a149-2e687cb73098"
+    export_params = {
+        "include_snapshots": False,
+        "include_images": False,
+        "reset_mac_addresses": False,
+        "keep_compute_ids": False,
+        "compression": "zstd",
+        "compression_level": 3
+    }
+    filePath = "12-FUS-TRJ-Übung-6-DHCPv4.gns3"
+    
+    client = GNS3APIClient(url, key)
+    
+    print("\n-------Controller-------")
+    print("Getting controller version...")
+    print(client.version())
+    print("\nChecking IOU license...")
+    print(client.iou_license())
+    print("\nGetting controller statistics...")
+    print(client.statistics())
+    print("\nListening for notifications (commented out)...")
+    # client.notifications(timeout_seconds=3)
+    
+    print("\n-------Users-------")
+    print("Getting current user info...")
+    print(client.current_user_info())
+    print("\nGetting all users...")
+    print(client.users())
+    print(f"\nGetting user with ID {userID}...")
+    print(client.user(userID))
+    print(f"\nGetting groups for user {userID}...")
+    print(client.users_groups(userID))
+    
+    print("\n-------Users Groups-------")
+    print("Getting all groups...")
+    print(client.groups())
+    print(f"\nGetting group with ID {groupID}...")
+    print(client.groupsById(groupID))
+    print(f"\nGetting members of group {groupID}...")
+    print(client.groupMembers(groupID))
+    
+    print("\n-------Roles-------")
+    print("Getting roles and role details (commented out due to large output)...")
+    # print(client.roles())
+    # print(client.roleById(roleID))
+    print("too much output so commented out lol")
+    
+    print("\n-------Privileges-------")
+    print("Getting privileges (commented out due to large output)...")
+    # print(client.privileges())
+    print("too much output so commented out lol")
+    
+    print("\n-------ACLS-------")
+    print("Getting ACL endpoints (commented out due to large output)...")
+    # print(client.aclEndpoints())
+    print("too much output so commented out lol")
+    print("\nGetting ACL rules...")
+    print(client.acl())
+    
+    print("\n-------Templates-------")
+    print("Getting all templates (commented out due to large output)...")
+    # print(client.templates())
+    print("too much output so commented out lol")
+    print(f"\nGetting template with ID {templateID}...")
+    print(client.templateByID(templateID))
+    
+    print("\n-------Projects-------")
+    print("Getting all projects...")
+    print(client.projects())
+    print(f"\nGetting project with ID {projectID}...")
+    print(client.project(projectID))
+    print(f"\nChecking if project {projectID} is locked...")
+    lock_status = client.project_locked(projectID)
+    if lock_status is None:
+        print("Could not determine lock status")
+    else:
+        print(f"Project is {'locked' if lock_status else 'unlocked'}")
+    print(f"\nDownloading project file {filePath}...")
+    client.download_project_file(projectID, filePath)
+    print("\nExporting project...")
+    client.download_exported_project(projectID, export_params)
