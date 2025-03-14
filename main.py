@@ -1,3 +1,0 @@
-import authenticate
-
-authenticate.authenticate()
