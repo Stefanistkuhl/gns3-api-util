@@ -164,20 +164,9 @@ class GNS3APIClient:
     def project_notifications(self, project_id, timeout_seconds=60):
         self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
 
-    def project_open(self, project_id):
-        """Open a project. Required before checking lock status."""
-        return self._api_call(f"projects/{project_id}/open", method="POST")
-
-    def project_close(self, project_id):
-        """Close a project."""
-        return self._api_call(f"projects/{project_id}/close", method="POST")
-
     def project_locked(self, project_id):
         """Check if a project is locked."""
-        success, response = self._api_call(f"projects/{project_id}/locked")
-        if not success:
-            return None
-        return response if isinstance(response, bool) else False
+        return self._api_call(f"projects/{project_id}/locked")
 
     def download_project_file(self, project_id, file_path):
         encoded_file_path = urllib.parse.quote(file_path)
@@ -357,11 +346,7 @@ if __name__ == "__main__":
     print(f"\nGetting project with ID {projectID}...")
     print(client.project(projectID))
     print(f"\nChecking if project {projectID} is locked...")
-    lock_status = client.project_locked(projectID)
-    if lock_status is None:
-        print("Could not determine lock status")
-    else:
-        print(f"Project is {'locked' if lock_status else 'unlocked'}")
+    print(client.project_locked(projectID))
     print(f"\nDownloading project file {filePath}...")
     client.download_project_file(projectID, filePath)
     print("\nExporting project...")
