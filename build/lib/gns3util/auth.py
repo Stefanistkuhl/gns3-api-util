@@ -1,4 +1,5 @@
 import click
+from auto_click_auto import enable_click_shell_completion_option
 import requests
 import json
 import os
@@ -119,12 +120,14 @@ def tryKey(key, server_url):
         return False, None
 
 
+@enable_click_shell_completion_option(program_name="gns3util")
 @click.group()
 def auth():
     """Authentication commands."""
     pass
 
 
+@enable_click_shell_completion_option(program_name="gns3util")
 @auth.command()
 def authenticate():
     """Perform authentication."""
@@ -163,6 +166,7 @@ def authenticate():
         sys.exit(1)
 
 
+@enable_click_shell_completion_option(program_name="gns3util")
 @auth.command()
 def status():
     """Display authentication status."""

@@ -1,2 +1,3 @@
 venv/
 src/gns3util.egg-info/
+*.gns3project
