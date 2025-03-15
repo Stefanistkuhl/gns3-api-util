@@ -59,13 +59,14 @@ def authenticate_user(username, password, server_url):
         return None
 
 
-def save_auth_data(auth_data, username, key_file):
+def save_auth_data(auth_data, server_url, username, key_file):
     """Save authentication data to a file."""
     try:
         os.makedirs(os.path.dirname(os.path.abspath(key_file)), exist_ok=True)
 
         with open(key_file, "w") as f:
             resp_dic = insert_as_first_val(auth_data, "user", username)
+            resp_dic = insert_as_first_val(resp_dic, "server_url", server_url)
             json.dump(resp_dic, f, indent=4)
             return resp_dic
     except IOError as e:
@@ -149,7 +150,7 @@ def login(ctx):
         if not auth_data:
             sys.exit(1)
 
-        saved_data = save_auth_data(auth_data, username, key_file)
+        saved_data = save_auth_data(auth_data, server_url, username, key_file)
         if saved_data:
             print("Authentication successful. Credentials saved.")
             print(saved_data)
