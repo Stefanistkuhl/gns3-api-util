@@ -125,13 +125,16 @@ def auth():
     pass
 
 
+auth = click.Group('auth')
+
+
 @auth.command()
-def authenticate():
+@click.pass_context
+def login(ctx):
     """Perform authentication."""
     try:
         key_file = os.path.expanduser("~/.gns3key")
-        server_url = 'http://10.21.34.222:3080'
-
+        server_url = ctx.parent.obj['server']
         keyData = loadKey(key_file)
         if keyData:
             resp, usr = tryKey(keyData, server_url)
@@ -164,12 +167,12 @@ def authenticate():
 
 
 @auth.command()
-def status():
+@click.pass_context
+def status(ctx):
     """Display authentication status."""
     try:
         key_file = os.path.expanduser("~/.gns3key")
-        server_url = 'http://10.21.34.222:3080'
-
+        server_url = ctx.parent.obj['server']
         keyData = loadKey(key_file)
         if keyData:
             resp, usr = tryKey(keyData, server_url)
