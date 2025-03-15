@@ -2,9 +2,10 @@ import click
 import time
 import urllib.parse
 import threading
-import auth
+from . import auth
 import requests
 import json
+import os
 
 
 def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False):
@@ -350,19 +351,19 @@ class GNS3APIClient:
         return self._api_call(f"projects/{project_id}/nodes")
 
     def nodeByID(self, project_id, node_id):
-        return self._api_call(f"projects/{project_id}/nodes/{nodeID}")
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}")
 
     def nodeLinksByID(self, project_id, node_id):
-        return self._api_call(f"projects/{project_id}/nodes/{nodeID}/links")
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/links")
 
     def nodeDynamipsAutoIdlepc(self, project_id, node_id):
-        return self._api_call(f"projects/{project_id}/nodes/{nodeID}/dynamips/auto_idlepc")
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/dynamips/auto_idlepc")
 
     def nodeDynaimipsIdlecpcProposals(self, project_id, node_id):
-        return self._api_call(f"projects/{project_id}/nodes/{nodeID}/dynamips/idlepc_proposals")
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/dynamips/idlepc_proposals")
 
     def nodeGetFile(self, project_id, node_id, file_path):
-        return self._api_call(f"projects/{project_id}/nodes/{nodeID}/files/{file_path}")
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/files/{file_path}")
 
     # Link endpoints
 
@@ -441,130 +442,431 @@ class GNS3APIClient:
     def poolResources(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}/resources")
 
+@click.group()
+def get():
+    """Get information from GNS3 server."""
+    pass
 
-# Example usage
-if __name__ == "__main__":
-    url = "http://10.21.34.222:3080"
-    key = auth.loadKey("/home/stefiii/.gns3key")
-    userID = "49570cf3-e9a7-4bc2-a1cc-3738937bf232"
-    groupID = "3e671ebb-3f53-4548-9c34-cf30619544bc"
-    roleID = "db9c15bf-871d-4526-ba22-2a7e5ea8c5af"
-    templateID = "e231aa90-d1cf-421b-8b3b-2358ff9d7cc2"
-    projectID = "c7acc43b-63fe-4d7c-a149-2e687cb73098"
-    nodeID = "bf5e7bcb-e068-4b06-8efa-9611307a12cc"
-    export_params = {
-        "include_snapshots": False,
-        "include_images": False,
-        "reset_mac_addresses": False,
-        "keep_compute_ids": False,
-        "compression": "zstd",
-        "compression_level": 3
-    }
-    filePath = "12-FUS-TRJ-Übung-6-DHCPv4.gns3"
-    nodeFile = "some_file"
-    linkID = "a9888151-e1e4-49cf-bbbd-b3d1e76b780c"
-    cap = "capture.pcap"
-    drawingID = "e9a246bd-6c74-4602-bfe5-6116f7c9a53a"
-    symbolID = "/symbols/affinity/square/green/rj45.svg"
-    applienceID = "3b65c68f-cdde-4dde-a0e7-5ef8c9b7ec2c"
+def get_client():
+    """Helper function to create GNS3APIClient instance."""
+    key_file = os.path.expanduser("~/.gns3key")
+    server_url = 'http://10.21.34.222:3080'
+    key = auth.loadKey(key_file)
+    return GNS3APIClient(server_url, key)
 
-    client = GNS3APIClient(url, key)
+# Controller commands
+@get.command()
+def version():
+    """Get controller version."""
+    client = get_client()
+    success, data = client.version()
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Controller-------")
-    print("Getting controller version...")
-    print(client.version())
-    print("\nChecking IOU license...")
-    print(client.iou_license())
-    print("\nGetting controller statistics...")
-    print(client.statistics())
-    print("\nListening for notifications (commented out)...")
-    # client.notifications(timeout_seconds=3)
+@get.command()
+def iou_license():
+    """Get IOU license."""
+    client = get_client()
+    success, data = client.iou_license()
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Users-------")
-    print("Getting current user info...")
-    print(client.current_user_info())
-    print("\nGetting all users...")
-    print(client.users())
-    print(f"\nGetting user with ID {userID}...")
-    print(client.user(userID))
-    print(f"\nGetting groups for user {userID}...")
-    print(client.users_groups(userID))
+@get.command()
+def statistics():
+    """Get controller statistics."""
+    client = get_client()
+    success, data = client.statistics()
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Users Groups-------")
-    print("Getting all groups...")
-    print(client.groups())
-    print(f"\nGetting group with ID {groupID}...")
-    print(client.groupsById(groupID))
-    print(f"\nGetting members of group {groupID}...")
-    print(client.groupMembers(groupID))
+@get.command()
+@click.option('--timeout', default=60, help='Notification stream timeout in seconds')
+def notifications(timeout):
+    """Stream notifications."""
+    client = get_client()
+    client.notifications(timeout)
 
-    print("\n-------Roles-------")
-    print("Getting roles and role details (commented out due to large output)...")
-    # print(client.roles())
-    # print(client.roleById(roleID))
-    print("too much output so commented out lol")
+# User commands
+@get.command()
+def me():
+    """Get current user info."""
+    client = get_client()
+    success, data = client.current_user_info()
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Privileges-------")
-    print("Getting privileges (commented out due to large output)...")
-    # print(client.privileges())
-    print("too much output so commented out lol")
+@get.command()
+def users():
+    """Get all users."""
+    client = get_client()
+    success, data = client.users()
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------ACLS-------")
-    print("Getting ACL endpoints (commented out due to large output)...")
-    # print(client.aclEndpoints())
-    print("too much output so commented out lol")
-    print("\nGetting ACL rules...")
-    print(client.acl())
+@get.command()
+@click.argument('user_id')
+def user(user_id):
+    """Get user by ID."""
+    client = get_client()
+    success, data = client.user(user_id)
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Templates-------")
-    print("Getting all templates (commented out due to large output)...")
-    # print(client.templates())
-    print("too much output so commented out lol")
-    print(f"\nGetting template with ID {templateID}...")
-    print(client.templateByID(templateID))
+@get.command()
+@click.argument('user_id')
+def user_groups(user_id):
+    """Get groups for a user."""
+    client = get_client()
+    success, data = client.users_groups(user_id)
+    if success:
+        print(json.dumps(data, indent=2))
 
-    print("\n-------Projects-------")
-    print("Getting all projects...")
-    print(client.projects())
-    print(f"\nGetting project with ID {projectID}...")
-    print(client.project(projectID))
-    print(f"\nChecking if project {projectID} is locked...")
-    print(client.project_locked(projectID))
-    print(f"\nDownloading project file {filePath}...")
-    # client.download_project_file(projectID, filePath)
-    print("\nExporting project...")
-    # client.download_exported_project(projectID, export_params)
-    print("\n-------Nodes-------")
-    print(f"Getting all nodes for {projectID}...")
-    print("outut issue")
-    # print(client.nodes(projectID))
-    print(f"Getting info abt node{nodeID} in project {projectID}...")
-    print(client.nodeByID(projectID, nodeID))
-    print(
-        f"Getting info abt the links of node{nodeID} in project {projectID}...")
-    print(client.nodeLinksByID(projectID, nodeID))
-    print(client.nodeDynamipsAutoIdlepc(projectID, nodeID))
-    print(client.nodeDynaimipsIdlecpcProposals(projectID, nodeID))
-    print(client.nodeGetFile(projectID, nodeID, nodeFile))
-    print("\n-------Links-------")
-    print(client.links(projectID))
-    print(client.linkFilters(projectID, linkID))
-    print(client.link(projectID, linkID))
-    # print(client.link_capture_stream(projectID, linkID, cap, timeout=30))
-    print("\n-------Drawings-------")
-    print(client.drawings(projectID))
-    print(client.drawing(projectID, drawingID))
-    print("\n-------Symbols-------")
-    # print(client.symbols())
-    # print(client.symbol(symbolID))
-    print(client.symbolDimensions(symbolID))
-    print(client.defaultSymbols())
-    print("\n-------Snapshots-------")
-    print(client.snapshots(projectID))
-    print("\n-------Computes-------")
-    print(client.computes())
-    print("\n-------Applieances-------")
-    # print(client.appliances())
-    print(client.appliance(applienceID))
-    print("\n-------Ressouce Pools-------")
-    print(client.pools())
+# Project commands
+@get.command()
+def projects():
+    """Get all projects."""
+    client = get_client()
+    success, data = client.projects()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+def project(project_id):
+    """Get project by ID."""
+    client = get_client()
+    success, data = client.project(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+def project_stats(project_id):
+    """Get project statistics."""
+    client = get_client()
+    success, data = client.project_stats(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.option('--timeout', default=60, help='Notification stream timeout in seconds')
+def project_notifications(project_id, timeout):
+    """Stream project notifications."""
+    client = get_client()
+    client.project_notifications(project_id, timeout)
+
+@get.command()
+@click.argument('project_id')
+def project_locked(project_id):
+    """Check if project is locked."""
+    client = get_client()
+    success, data = client.project_locked(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Group commands
+@get.command()
+def groups():
+    """Get all groups."""
+    client = get_client()
+    success, data = client.groups()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('group_id')
+def group(group_id):
+    """Get group by ID."""
+    client = get_client()
+    success, data = client.groupsById(group_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('group_id')
+def group_members(group_id):
+    """Get group members."""
+    client = get_client()
+    success, data = client.groupMembers(group_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Role commands
+@get.command()
+def roles():
+    """Get all roles."""
+    client = get_client()
+    success, data = client.roles()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('role_id')
+def role(role_id):
+    """Get role by ID."""
+    client = get_client()
+    success, data = client.roleById(role_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('role_id')
+def role_privileges(role_id):
+    """Get role privileges."""
+    client = get_client()
+    success, data = client.rolePrivileges(role_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Privilege commands
+@get.command()
+def privileges():
+    """Get all privileges."""
+    client = get_client()
+    success, data = client.privileges()
+    if success:
+        print(json.dumps(data, indent=2))
+
+# ACL commands
+@get.command()
+def acl_endpoints():
+    """Get ACL endpoints."""
+    client = get_client()
+    success, data = client.aclEndpoints()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+def acl():
+    """Get all ACL rules."""
+    client = get_client()
+    success, data = client.acl()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('ace_id')
+def acl_rule(ace_id):
+    """Get ACL rule by ID."""
+    client = get_client()
+    success, data = client.aclById(ace_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Template commands
+@get.command()
+def templates():
+    """Get all templates."""
+    client = get_client()
+    success, data = client.templates()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('template_id')
+def template(template_id):
+    """Get template by ID."""
+    client = get_client()
+    success, data = client.templateByID(template_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Node commands
+@get.command()
+@click.argument('project_id')
+def nodes(project_id):
+    """Get all nodes in a project."""
+    client = get_client()
+    success, data = client.nodes(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.argument('node_id')
+def node(project_id, node_id):
+    """Get node by ID."""
+    client = get_client()
+    success, data = client.nodeByID(project_id, node_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.argument('node_id')
+def node_links(project_id, node_id):
+    """Get node links."""
+    client = get_client()
+    success, data = client.nodeLinksByID(project_id, node_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Link commands
+@get.command()
+@click.argument('project_id')
+def links(project_id):
+    """Get all links in a project."""
+    client = get_client()
+    success, data = client.links(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.argument('link_id')
+def link(project_id, link_id):
+    """Get link by ID."""
+    client = get_client()
+    success, data = client.link(project_id, link_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.argument('link_id')
+def link_filters(project_id, link_id):
+    """Get available filters for a link."""
+    client = get_client()
+    success, data = client.linkFilters(project_id, link_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Drawing commands
+@get.command()
+@click.argument('project_id')
+def drawings(project_id):
+    """Get all drawings in a project."""
+    client = get_client()
+    success, data = client.drawings(project_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('project_id')
+@click.argument('drawing_id')
+def drawing(project_id, drawing_id):
+    """Get drawing by ID."""
+    client = get_client()
+    success, data = client.drawing(project_id, drawing_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Symbol commands
+@get.command()
+def symbols():
+    """Get all symbols."""
+    client = get_client()
+    success, data = client.symbols()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('symbol_id')
+def symbol(symbol_id):
+    """Get symbol by ID."""
+    client = get_client()
+    success, data = client.symbol(symbol_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+def default_symbols():
+    """Get default symbols."""
+    client = get_client()
+    success, data = client.defaultSymbols()
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Compute commands
+@get.command()
+def computes():
+    """Get all compute nodes."""
+    client = get_client()
+    success, data = client.computes()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('compute_id')
+def compute(compute_id):
+    """Get compute node by ID."""
+    client = get_client()
+    success, data = client.computeByID(compute_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('compute_id')
+def docker_images(compute_id):
+    """Get Docker images for a compute node."""
+    client = get_client()
+    success, data = client.computeByIDDockerImages(compute_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('compute_id')
+def virtualbox_vms(compute_id):
+    """Get VirtualBox VMs for a compute node."""
+    client = get_client()
+    success, data = client.computeByIDVirtualvoxVms(compute_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('compute_id')
+def vmware_vms(compute_id):
+    """Get VMware VMs for a compute node."""
+    client = get_client()
+    success, data = client.computeByIDVmwareVms(compute_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Appliance commands
+@get.command()
+def appliances():
+    """Get all appliances."""
+    client = get_client()
+    success, data = client.appliances()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('appliance_id')
+def appliance(appliance_id):
+    """Get appliance by ID."""
+    client = get_client()
+    success, data = client.appliance(appliance_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+# Resource pool commands
+@get.command()
+def pools():
+    """Get all resource pools."""
+    client = get_client()
+    success, data = client.pools()
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('pool_id')
+def pool(pool_id):
+    """Get resource pool by ID."""
+    client = get_client()
+    success, data = client.pool(pool_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+@get.command()
+@click.argument('pool_id')
+def pool_resources(pool_id):
+    """Get resources in a pool."""
+    client = get_client()
+    success, data = client.poolResources(pool_id)
+    if success:
+        print(json.dumps(data, indent=2))
+
+if __name__ == '__main__':
+    get()
