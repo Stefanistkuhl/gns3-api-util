@@ -213,8 +213,6 @@ class GNS3APIClient:
 
     def notifications(self, timeout_seconds=60):
         self._stream_notifications("notifications", timeout_seconds)
-        # self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
-
 
     # User endpoints
     def current_user_info(self):
@@ -473,7 +471,7 @@ _zero_arg = {
     "groups": "groups",
     "roles": "roles",
     "privileges": "privileges",
-    "acl-endpoints": "aclEndpoints",  # updated key with hyphen
+    "acl-endpoints": "aclEndpoints",
     "acl": "acl",
     "templates": "templates",
     "symbols": "symbols",
@@ -543,7 +541,6 @@ for cmd, func in _two_arg.items():
     get.command(name=cmd)(make_cmd())
 
 # Special commands with timeout options
-
 @get.command()
 @click.option('--timeout', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
