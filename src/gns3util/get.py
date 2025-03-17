@@ -427,8 +427,8 @@ class GNS3APIClient:
     def appliances(self):
         return self._api_call(f"appliances")
 
-    def appliance(self, applience_id):
-        return self._api_call(f"appliances/{applience_id}")
+    def appliance(self, appliance_id):
+        return self._api_call(f"appliances/{appliance_id}")
 
     # Ressource pools endoint
 
@@ -458,7 +458,7 @@ def execute_and_print(ctx, func):
     if success:
         print(json.dumps(data, indent=2))
 
-# Unified CLI command registrations
+# CLI command registrations
 
 # Commands with no arguments
 _zero_arg = {
@@ -480,6 +480,7 @@ _zero_arg = {
     "appliances": "appliances",
     "pools": "pools"
 }
+# Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
     def make_cmd(func=func):
         @click.pass_context
@@ -513,6 +514,7 @@ _one_arg = {
     "links": "links",
     "nodes": "nodes"
 }
+# Create click commands with one argument
 for cmd, func in _one_arg.items():
     def make_cmd(func=func):
         @click.argument('arg')
@@ -530,6 +532,7 @@ _two_arg = {
     "link-filters": "linkFilters",
     "drawing": "drawing"
 }
+# Create click commands with two arguments
 for cmd, func in _two_arg.items():
     def make_cmd(func=func):
         @click.argument('project_id')
@@ -542,14 +545,14 @@ for cmd, func in _two_arg.items():
 
 # Special commands with timeout options
 @get.command()
-@click.option('--timeout', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
+@click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
 def notifications(ctx, timeout_seconds):
     get_client(ctx).notifications(timeout_seconds)
 
 @get.command()
 @click.argument('project_id')
-@click.option('--timeout', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
+@click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
 def project_notifications(ctx, project_id, timeout_seconds):
     get_client(ctx).project_notifications(project_id, timeout_seconds)
