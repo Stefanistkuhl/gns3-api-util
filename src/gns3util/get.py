@@ -213,6 +213,8 @@ class GNS3APIClient:
 
     def notifications(self, timeout_seconds=60):
         self._stream_notifications("notifications", timeout_seconds)
+        # self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
+
 
     # User endpoints
     def current_user_info(self):
@@ -238,8 +240,7 @@ class GNS3APIClient:
         return self._api_call(f"projects/{project_id}/stats")
 
     def project_notifications(self, project_id, timeout_seconds=60):
-        self._stream_notifications(
-            f"projects/{project_id}/notifications", timeout_seconds)
+        self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
 
     def project_locked(self, project_id):
         """Check if a project is locked."""
@@ -442,13 +443,7 @@ class GNS3APIClient:
     def poolResources(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}/resources")
 
-
-# def get(ctx):
-#     """Get information from GNS3 server."""
-#     pass
-
 get = click.Group('get')
-
 
 def get_client(ctx):
     """Helper function to create GNS3APIClient instance."""
@@ -458,527 +453,106 @@ def get_client(ctx):
     key = auth.loadKey(key_file)
     return GNS3APIClient(server_url, key)
 
-# Controller commands
-
-
-@get.command()
-@click.pass_context
-def version(ctx):
-    """Get controller version."""
+# Add helper to reduce duplication
+def execute_and_print(ctx, func):
     client = get_client(ctx)
-    success, data = client.version()
+    success, data = func(client)
     if success:
         print(json.dumps(data, indent=2))
 
+# Unified CLI command registrations
+
+# Commands with no arguments
+_zero_arg = {
+    "version": "version",
+    "iou-license": "iou_license",
+    "statistics": "statistics",
+    "me": "current_user_info",
+    "users": "users",
+    "projects": "projects",
+    "groups": "groups",
+    "roles": "roles",
+    "privileges": "privileges",
+    "acl-endpoints": "aclEndpoints",  # updated key with hyphen
+    "acl": "acl",
+    "templates": "templates",
+    "symbols": "symbols",
+    "default-symbols": "defaultSymbols",
+    "computes": "computes",
+    "appliances": "appliances",
+    "pools": "pools"
+}
+for cmd, func in _zero_arg.items():
+    def make_cmd(func=func):
+        @click.pass_context
+        def cmd_func(ctx):
+            execute_and_print(ctx, lambda client: getattr(client, func)())
+        return cmd_func
+    get.command(name=cmd)(make_cmd())
+
+# Commands with one argument
+_one_arg = {
+    "user": "user",
+    "user-groups": "users_groups",
+    "project": "project",
+    "project-stats": "project_stats",
+    "project-locked": "project_locked",
+    "group": "groupsById",
+    "group-members": "groupMembers",
+    "role": "roleById",
+    "role-privileges": "rolePrivileges",
+    "template": "templateByID",
+    "compute": "computeByID",
+    "docker-images": "computeByIDDockerImages",
+    "virtualbox-vms": "computeByIDVirtualvoxVms",
+    "vmware-vms": "computeByIDVmwareVms",
+    "appliance": "appliance",
+    "pool": "pool",
+    "pool-resources": "poolResources",
+    "drawings": "drawings",
+    "symbol": "symbol",
+    "acl-rule": "aclById",
+    "links": "links",
+    "nodes": "nodes"
+}
+for cmd, func in _one_arg.items():
+    def make_cmd(func=func):
+        @click.argument('arg')
+        @click.pass_context
+        def cmd_func(ctx, arg):
+            execute_and_print(ctx, lambda client: getattr(client, func)(arg))
+        return cmd_func
+    get.command(name=cmd)(make_cmd())
+
+# Commands with two arguments (assumed: project_id and id)
+_two_arg = {
+    "node": "nodeByID",
+    "node-links": "nodeLinksByID",
+    "link": "link",
+    "link-filters": "linkFilters",
+    "drawing": "drawing"
+}
+for cmd, func in _two_arg.items():
+    def make_cmd(func=func):
+        @click.argument('project_id')
+        @click.argument('id')
+        @click.pass_context
+        def cmd_func(ctx, project_id, id):
+            execute_and_print(ctx, lambda client: getattr(client, func)(project_id, id))
+        return cmd_func
+    get.command(name=cmd)(make_cmd())
+
+# Special commands with timeout options
 
 @get.command()
+@click.option('--timeout', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
-def iou_license(ctx):
-    """Get IOU license."""
-    client = get_client(ctx)
-    success, data = client.iou_license()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-def statistics(ctx):
-    """Get controller statistics."""
-    client = get_client(ctx)
-    success, data = client.statistics()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-@click.option('--timeout', default=60, help='Notification stream timeout in seconds')
-def notifications(timeout, ctx):
-    """Stream notifications."""
-    client = get_client(ctx)
-    client.notifications(timeout)
-
-# User commands
-
-
-@get.command()
-@click.pass_context
-def me(ctx):
-    """Get current user info."""
-    client = get_client(ctx)
-    success, data = client.current_user_info()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-def users(ctx):
-    """Get all users."""
-    client = get_client(ctx)
-    success, data = client.users()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-@click.argument('user_id')
-def user(user_id, ctx):
-    """Get user by ID."""
-    client = get_client(ctx)
-    success, data = client.user(user_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('user_id')
-@click.pass_context
-def user_groups(user_id, ctx):
-    """Get groups for a user."""
-    client = get_client(ctx)
-    success, data = client.users_groups(user_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Project commands
-
-
-@get.command()
-@click.pass_context
-def projects(ctx):
-    """Get all projects."""
-    client = get_client(ctx)
-    success, data = client.projects()
-    if success:
-        print(json.dumps(data, indent=2))
-
+def notifications(ctx, timeout_seconds):
+    get_client(ctx).notifications(timeout_seconds)
 
 @get.command()
 @click.argument('project_id')
+@click.option('--timeout', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
-def project(ctx, project_id):
-    """Get project by ID."""
-    client = get_client(ctx)
-    success, data = client.project(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.pass_context
-def project_stats(ctx, project_id):
-    """Get project statistics."""
-    client = get_client(ctx)
-    success, data = client.project_stats(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.option('--timeout', default=60, help='Notification stream timeout in seconds')
-@click.pass_context
-def project_notifications(ctx, project_id, timeout):
-    """Stream project notifications."""
-    client = get_client(ctx)
-    client.project_notifications(project_id, timeout)
-
-
-@get.command()
-@click.argument('project_id')
-@click.pass_context
-def project_locked(ctx, project_id):
-    """Check if project is locked."""
-    client = get_client(ctx)
-    success, data = client.project_locked(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Group commands
-
-
-@get.command()
-@click.pass_context
-def groups(ctx):
-    """Get all groups."""
-    client = get_client(ctx)
-    success, data = client.groups()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('group_id')
-@click.pass_context
-def group(ctx, group_id):
-    """Get group by ID."""
-    client = get_client(ctx)
-    success, data = client.groupsById(group_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('group_id')
-@click.pass_context
-def group_members(ctx, group_id):
-    """Get group members."""
-    client = get_client(ctx)
-    success, data = client.groupMembers(group_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Role commands
-
-
-@get.command()
-@click.pass_context
-def roles(ctx):
-    """Get all roles."""
-    client = get_client(ctx)
-    success, data = client.roles()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('role_id')
-@click.pass_context
-def role(ctx, role_id):
-    """Get role by ID."""
-    client = get_client(ctx)
-    success, data = client.roleById(role_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('role_id')
-@click.pass_context
-def role_privileges(ctx, role_id):
-    """Get role privileges."""
-    client = get_client(ctx)
-    success, data = client.rolePrivileges(role_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Privilege commands
-
-
-@get.command()
-@click.pass_context
-def privileges(ctx):
-    """Get all privileges."""
-    client = get_client(ctx)
-    success, data = client.privileges()
-    if success:
-        print(json.dumps(data, indent=2))
-
-# ACL commands
-
-
-@get.command()
-@click.pass_context
-def acl_endpoints(ctx):
-    """Get ACL endpoints."""
-    client = get_client(ctx)
-    success, data = client.aclEndpoints()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-def acl(ctx):
-    """Get all ACL rules."""
-    client = get_client(ctx)
-    success, data = client.acl()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('ace_id')
-@click.pass_context
-def acl_rule(ctx, ace_id):
-    """Get ACL rule by ID."""
-    client = get_client(ctx)
-    success, data = client.aclById(ace_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Template commands
-
-
-@get.command()
-@click.pass_context
-def templates(ctx):
-    """Get all templates."""
-    client = get_client(ctx)
-    success, data = client.templates()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('template_id')
-@click.pass_context
-def template(ctx, template_id):
-    """Get template by ID."""
-    client = get_client(ctx)
-    success, data = client.templateByID(template_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Node commands
-
-
-@get.command()
-@click.argument('project_id')
-@click.pass_context
-def nodes(ctx, project_id):
-    """Get all nodes in a project."""
-    client = get_client(ctx)
-    success, data = client.nodes(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.argument('node_id')
-@click.pass_context
-def node(ctx, project_id, node_id):
-    """Get node by ID."""
-    client = get_client(ctx)
-    success, data = client.nodeByID(project_id, node_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.argument('node_id')
-@click.pass_context
-def node_links(ctx, project_id, node_id):
-    """Get node links."""
-    client = get_client(ctx)
-    success, data = client.nodeLinksByID(project_id, node_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Link commands
-
-
-@get.command()
-@click.argument('project_id')
-@click.pass_context
-def links(ctx, project_id):
-    """Get all links in a project."""
-    client = get_client(ctx)
-    success, data = client.links(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.argument('link_id')
-@click.pass_context
-def link(ctx, project_id, link_id):
-    """Get link by ID."""
-    client = get_client(ctx)
-    success, data = client.link(project_id, link_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.argument('link_id')
-@click.pass_context
-def link_filters(ctx, project_id, link_id):
-    """Get available filters for a link."""
-    client = get_client(ctx)
-    success, data = client.linkFilters(project_id, link_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Drawing commands
-
-
-@get.command()
-@click.argument('project_id')
-@click.pass_context
-def drawings(ctx, project_id):
-    """Get all drawings in a project."""
-    client = get_client(ctx)
-    success, data = client.drawings(project_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('project_id')
-@click.argument('drawing_id')
-@click.pass_context
-def drawing(ctx, project_id, drawing_id):
-    """Get drawing by ID."""
-    client = get_client(ctx)
-    success, data = client.drawing(project_id, drawing_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Symbol commands
-
-
-@get.command()
-@click.pass_context
-def symbols(ctx):
-    """Get all symbols."""
-    client = get_client(ctx)
-    success, data = client.symbols()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('symbol_id')
-@click.pass_context
-def symbol(ctx, symbol_id):
-    """Get symbol by ID."""
-    client = get_client(ctx)
-    success, data = client.symbol(symbol_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.pass_context
-def default_symbols(ctx):
-    """Get default symbols."""
-    client = get_client(ctx)
-    success, data = client.defaultSymbols()
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Compute commands
-
-
-@get.command()
-@click.pass_context
-def computes(ctx):
-    """Get all compute nodes."""
-    client = get_client(ctx)
-    success, data = client.computes()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('compute_id')
-@click.pass_context
-def compute(ctx, compute_id):
-    """Get compute node by ID."""
-    client = get_client(ctx)
-    success, data = client.computeByID(compute_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('compute_id')
-@click.pass_context
-def docker_images(ctx, compute_id):
-    """Get Docker images for a compute node."""
-    client = get_client(ctx)
-    success, data = client.computeByIDDockerImages(compute_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('compute_id')
-@click.pass_context
-def virtualbox_vms(ctx, compute_id):
-    """Get VirtualBox VMs for a compute node."""
-    client = get_client(ctx)
-    success, data = client.computeByIDVirtualvoxVms(compute_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('compute_id')
-@click.pass_context
-def vmware_vms(ctx, compute_id):
-    """Get VMware VMs for a compute node."""
-    client = get_client(ctx)
-    success, data = client.computeByIDVmwareVms(compute_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Appliance commands
-
-
-@get.command()
-@click.pass_context
-def appliances(ctx):
-    """Get all appliances."""
-    client = get_client(ctx)
-    success, data = client.appliances()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('appliance_id')
-@click.pass_context
-def appliance(ctx, appliance_id):
-    """Get appliance by ID."""
-    client = get_client(ctx)
-    success, data = client.appliance(appliance_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-# Resource pool commands
-
-
-@get.command()
-@click.pass_context
-def pools(ctx):
-    """Get all resource pools."""
-    client = get_client(ctx)
-    success, data = client.pools()
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('pool_id')
-@click.pass_context
-def pool(ctx, pool_id):
-    """Get resource pool by ID."""
-    client = get_client(ctx)
-    success, data = client.pool(pool_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-@get.command()
-@click.argument('pool_id')
-@click.pass_context
-def pool_resources(ctx, pool_id):
-    """Get resources in a pool."""
-    client = get_client(ctx)
-    success, data = client.poolResources(pool_id)
-    if success:
-        print(json.dumps(data, indent=2))
-
-
-if __name__ == '__main__':
-    get()
+def project_notifications(ctx, project_id, timeout_seconds):
+    get_client(ctx).project_notifications(project_id, timeout_seconds)
