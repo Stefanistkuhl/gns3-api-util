@@ -18,142 +18,99 @@ CAPTURE_FILE="capture.pcap"
 
 BASE_URL="http://10.21.34.222:3080"
 
-echo "Calling: acl"
-gns3util -s "$BASE_URL" get acl
+# Color definitions
+GREEN=$(tput setaf 2)
+RED=$(tput setaf 1)
+NC=$(tput sgr0)
+# Retry settings
+RETRY_COUNT=2
 
-echo "Calling: acl-endpoints"
-gns3util -s "$BASE_URL" get acl-endpoints
+# Function: call endpoint with retry and display colored output
+call_endpoint_with_retry() {
+    local desc="$1"
+    shift
+    local attempt=1
+    local exitcode=0
 
-echo "Calling: acl-rule (using dummy ID)"
-gns3util -s "$BASE_URL" get acl-rule 123
+    echo "Calling: ${desc}"
 
-echo "Calling: appliance (using APPLIANCE_ID)"
-gns3util -s "$BASE_URL" get appliance $APPLIANCE_ID
+    while [ $attempt -le $((RETRY_COUNT+1)) ]; do
+        if gns3util -s "$BASE_URL" get "$@"; then
+            echo "${GREEN}${desc}: Success (attempt ${attempt})${NC}"
+            return 0
+        else
+            echo "${RED}${desc}: Failed (attempt ${attempt})${NC}"
+            exitcode=1
+        fi
+        attempt=$((attempt+1))
+        sleep 1
+    done
+    return $exitcode
+}
 
-echo "Calling: appliances"
-gns3util -s "$BASE_URL" get appliances
+# A list to record endpoints statuses
+declare -A endpoint_status
 
-echo "Calling: compute (using dummy ID)"
-gns3util -s "$BASE_URL" get compute 123
+# Helper function to call an endpoint with a description and record status.
+call_and_record() {
+    local desc="$1"
+    shift
+    if call_endpoint_with_retry "$desc" "$@"; then
+        endpoint_status["$desc"]="Success"
+    else
+        endpoint_status["$desc"]="Failed"
+    fi
+}
 
-echo "Calling: computes"
-gns3util -s "$BASE_URL" get computes
+call_and_record "acl" "acl"
+call_and_record "acl-endpoints" "acl-endpoints"
+call_and_record "acl-rule (using dummy ID)" "acl-rule" "123"
+call_and_record "appliance (using APPLIANCE_ID)" "appliance" "$APPLIANCE_ID"
+call_and_record "appliances" "appliances"
+call_and_record "compute (using dummy ID)" "compute" "123"
+call_and_record "computes" "computes"
+call_and_record "default-symbols" "default-symbols"
+call_and_record "docker-images (using dummy compute node ID)" "docker-images" "123"
+call_and_record "drawing (using PROJECT_ID and DRAWING_ID)" "drawing" "$PROJECT_ID" "$DRAWING_ID"
+call_and_record "drawings (using PROJECT_ID)" "drawings" "$PROJECT_ID"
+call_and_record "group (using GROUP_ID)" "group" "$GROUP_ID"
+call_and_record "group-members (using GROUP_ID)" "group-members" "$GROUP_ID"
+call_and_record "groups" "groups"
+call_and_record "iou-license" "iou-license"
+call_and_record "link (using PROJECT_ID and LINK_ID)" "link" "$PROJECT_ID" "$LINK_ID"
+call_and_record "link-filters (using PROJECT_ID and LINK_ID)" "link-filters" "$PROJECT_ID" "$LINK_ID"
+call_and_record "links (using PROJECT_ID)" "links" "$PROJECT_ID"
+call_and_record "me" "me"
+call_and_record "node (using PROJECT_ID and NODE_ID)" "node" "$PROJECT_ID" "$NODE_ID"
+call_and_record "node-links (using PROJECT_ID and NODE_ID)" "node-links" "$PROJECT_ID" "$NODE_ID"
+call_and_record "nodes (using PROJECT_ID)" "nodes" "$PROJECT_ID"
+call_and_record "notifications" "notifications" --timeout "10"
+call_and_record "pool (using dummy ID)" "pool" "123"
+call_and_record "pool-resources (using dummy pool ID)" "pool-resources" "123"
+call_and_record "pools" "pools"
+call_and_record "privileges" "privileges"
+call_and_record "project (using PROJECT_ID)" "project" "$PROJECT_ID"
+call_and_record "project-locked (using PROJECT_ID)" "project-locked" "$PROJECT_ID"
+call_and_record "project-notifications (using PROJECT_ID)" "project-notifications" "$PROJECT_ID"
+call_and_record "project-stats (using PROJECT_ID)" "project-stats" "$PROJECT_ID"
+call_and_record "projects" "projects"
+call_and_record "role (using ROLE_ID)" "role" "$ROLE_ID"
+call_and_record "role-privileges (using ROLE_ID)" "role-privileges" "$ROLE_ID"
+call_and_record "roles" "roles"
+call_and_record "statistics" "statistics"
+call_and_record "symbol (using SYMBOL_ID)" "symbol" "$SYMBOL_ID"
+call_and_record "symbols" "symbols"
+call_and_record "template (using TEMPLATE_ID)" "template" "$TEMPLATE_ID"
+call_and_record "template (using
+call_and_record "user (using USER_ID)" "user" "$USER_ID"
+call_and_record "user-groups (using USER_ID)" "user-groups" "$USER_ID"
+call_and_record "users" "users"
+call_and_record "version" "version"
+call_and_record "virtualbox-vms (using dummy compute node ID)" "virtualbox-vms" "123"
+call_and_record "vmware-vms (using dummy compute node ID)" "vmware-vms" "123"
 
-echo "Calling: default-symbols"
-gns3util -s "$BASE_URL" get default-symbols
-
-echo "Calling: docker-images (using dummy compute node ID)"
-gns3util -s "$BASE_URL" get docker-images 123
-
-echo "Calling: drawing (using PROJECT_ID and DRAWING_ID)"
-gns3util -s "$BASE_URL" get drawing $PROJECT_ID $DRAWING_ID
-
-echo "Calling: drawings (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get drawings $PROJECT_ID
-
-echo "Calling: group (using GROUP_ID)"
-gns3util -s "$BASE_URL" get group $GROUP_ID
-
-echo "Calling: group-members (using GROUP_ID)"
-gns3util -s "$BASE_URL" get group-members $GROUP_ID
-
-echo "Calling: groups"
-gns3util -s "$BASE_URL" get groups
-
-echo "Calling: iou-license"
-gns3util -s "$BASE_URL" get iou-license
-
-echo "Calling: link (using PROJECT_ID and LINK_ID)"
-gns3util -s "$BASE_URL" get link $PROJECT_ID $LINK_ID
-
-echo "Calling: link-filters (using PROJECT_ID and LINK_ID)"
-gns3util -s "$BASE_URL" get link-filters $PROJECT_ID $LINK_ID
-
-echo "Calling: links (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get links $PROJECT_ID
-
-echo "Calling: me"
-gns3util -s "$BASE_URL" get me
-
-echo "Calling: node (using PROJECT_ID and NODE_ID)"
-gns3util -s "$BASE_URL" get node $PROJECT_ID $NODE_ID
-
-echo "Calling: node-links (using PROJECT_ID and NODE_ID)"
-gns3util -s "$BASE_URL" get node-links $PROJECT_ID $NODE_ID
-
-echo "Calling: nodes (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get nodes $PROJECT_ID
-
-echo "Calling: notifications"
-gns3util -s "$BASE_URL" get notifications --timeout 10
-
-echo "Calling: pool (using dummy ID)"
-gns3util -s "$BASE_URL" get pool 123
-
-echo "Calling: pool-resources (using dummy pool ID)"
-gns3util -s "$BASE_URL" get pool-resources 123
-
-echo "Calling: pools"
-gns3util -s "$BASE_URL" get pools
-
-echo "Calling: privileges"
-gns3util -s "$BASE_URL" get privileges
-
-echo "Calling: project (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get project $PROJECT_ID
-
-echo "Calling: project-locked (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get project-locked $PROJECT_ID
-
-echo "Calling: project-notifications (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get project-notifications $PROJECT_ID
-
-echo "Calling: project-stats (using PROJECT_ID)"
-gns3util -s "$BASE_URL" get project-stats $PROJECT_ID
-
-echo "Calling: projects"
-gns3util -s "$BASE_URL" get projects
-
-echo "Calling: role (using ROLE_ID)"
-gns3util -s "$BASE_URL" get role $ROLE_ID
-
-echo "Calling: role-privileges (using ROLE_ID)"
-gns3util -s "$BASE_URL" get role-privileges $ROLE_ID
-
-echo "Calling: roles"
-gns3util -s "$BASE_URL" get roles
-
-echo "Calling: statistics"
-gns3util -s "$BASE_URL" get statistics
-
-echo "Calling: symbol (using SYMBOL_ID)"
-gns3util -s "$BASE_URL" get symbol $SYMBOL_ID
-
-echo "Calling: symbols"
-gns3util -s "$BASE_URL" get symbols
-
-echo "Calling: template (using TEMPLATE_ID)"
-gns3util -s "$BASE_URL" get template $TEMPLATE_ID
-
-echo "Calling: templates"
-gns3util -s "$BASE_URL" get templates
-
-echo "Calling: user (using USER_ID)"
-gns3util -s "$BASE_URL" get user $USER_ID
-
-echo "Calling: user-groups (using USER_ID)"
-gns3util -s "$BASE_URL" get user-groups $USER_ID
-
-echo "Calling: users"
-gns3util -s "$BASE_URL" get users
-
-echo "Calling: version"
-gns3util -s "$BASE_URL" get version
-
-echo "Calling: virtualbox-vms (using dummy compute node ID)"
-gns3util -s "$BASE_URL" get virtualbox-vms 123
-
-echo "Calling: vmware-vms (using dummy compute node ID)"
-gns3util -s "$BASE_URL" get vmware-vms 123
-
-echo "All endpoints have been called."
+# Print summary of endpoint statuses
+echo "Summary of endpoint calls:"
+for key in "${!endpoint_status[@]}"; do
+  echo "${key}: ${endpoint_status[$key]}"
+done

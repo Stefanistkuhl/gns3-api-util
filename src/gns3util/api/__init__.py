@@ -6,7 +6,6 @@ import requests
 import json
 from .. import utils
 
-
 class GNS3APIClient:
     def __init__(self, server_url, key=None):
         self.server_url = server_url.rstrip('/')
@@ -57,6 +56,5 @@ class GNS3APIClient:
                     response.close()
         else:
             print("Failed to start notifications stream.")
-
 
 __all__ = ['GNS3APIClient']

@@ -1,4 +1,5 @@
 import click
+import rich
 import json
 import os
 from . import auth
@@ -19,7 +20,7 @@ def execute_and_print(ctx, func):
     client = get_client(ctx)
     success, data = func(client)
     if success:
-        print(json.dumps(data, indent=2))
+        rich.print_json(json.dumps(data, indent=2))
 
 
 # Commands with no arguments
