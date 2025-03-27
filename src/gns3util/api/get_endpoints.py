@@ -1,6 +1,5 @@
-from . import GNS3APIClient
+from ..api import GNS3APIClient
 import urllib.parse
-
 
 class GNS3GetAPI(GNS3APIClient):
     # Controller endpoints
@@ -11,7 +10,7 @@ class GNS3GetAPI(GNS3APIClient):
         return self._api_call("iou_license")
 
     def statistics(self):
-        return self._api_call("statistics")
+        return self._api_call("statistics") 
 
     def notifications(self, timeout_seconds=60):
         self._stream_notifications("notifications", timeout_seconds)
@@ -40,8 +39,7 @@ class GNS3GetAPI(GNS3APIClient):
         return self._api_call(f"projects/{project_id}/stats")
 
     def project_notifications(self, project_id, timeout_seconds=60):
-        self._stream_notifications(
-            f"projects/{project_id}/notifications", timeout_seconds)
+        self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
 
     def project_locked(self, project_id):
         return self._api_call(f"projects/{project_id}/locked")
