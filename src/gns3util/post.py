@@ -76,7 +76,7 @@ _two_arg_no_data = {
     "node_isolate": "isolate_node",
     "node_unisolate": "unisolate_node",
     "node_console_reset": "reset_node_console",
-    "link_reset": "reset_link",
+    "reset_link": "reset_link",
     "stop_link_capture": "stop_link_capture",
     "snapshot_restore": "restore_snapshot",
     "add_applience_version": "install_appliance_version"
@@ -94,7 +94,7 @@ _three_arg = {
 }
 
 _three_arg_no_data = {
-    "node_create_file": "create_node_file"
+    "create_node_file": "create_node_file"
 }
 
 
