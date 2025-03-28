@@ -22,7 +22,7 @@ A command-line utility for interacting with the GNS3 API. This tool streamlines 
    ```
 
    This will install the required packages:
-   
+
    - [click](https://click.palletsprojects.com/)
    - [requests](https://docs.python-requests.org/)
    - [rich](https://github.com/Textualize/rich)
@@ -69,8 +69,8 @@ This will display usage information and options for each command.
 
 Todo
 
-- [ ] Add shell completion
+-[ ] Add shell completion
 
-- [ ] Provide a help option for all commands
+-[ ] Provide a help option for all commands
 
-- [ ] Store multiple keys at once and select a server more easily
+-[ ] Store multiple keys at once and select a server more easily
