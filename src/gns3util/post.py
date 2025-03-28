@@ -43,7 +43,7 @@ _one_arg = {
     "snapshot_create": "create_snapshot",
     "create_compute": "create_compute",
     "auto_idlepc": "set_auto_idlepc",
-    "add_applience_version": "appliance_create_version"
+    "add_applience_version": "create_appliance_version"
 }
 
 """
@@ -79,12 +79,12 @@ _two_arg_no_data = {
     "link_reset": "reset_link",
     "stop_link_capture": "stop_link_capture",
     "snapshot_restore": "restore_snapshot",
-    "add_applience_version": "appliance_install"
+    "add_applience_version": "install_appliance_version"
 }
 
 
 _two_arg = {
-    "project_node_from_template": "create_node_from_template",
+    "project_node_from_template": "create_project_node_from_template",
     "duplicate_node": "duplicate_node",
     "start_link_capture": "start_link_capture"
 }
