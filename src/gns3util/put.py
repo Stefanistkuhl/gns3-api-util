@@ -36,7 +36,7 @@ Has data: False
 """
 _two_arg_no_data = {
     "add_group_member": "add_group_member",
-    "add_ressouce_to_pool": "add_ressouce_to_pool",
+    "add_ressouce_to_pool": "add_resource_to_pool",  # updated value
     "update_role_privs": "update_role_privs"
 }
 
@@ -63,7 +63,7 @@ def get_client(ctx):
     """Helper function to create GNS3PutAPI instance."""
     key_file = os.path.expanduser("~/.gns3key")
     server_url = ctx.parent.obj['server']
-    key = auth.loadKey(key_file)
+    key = auth.load_key(key_file)  # updated from loadKey to load_key
     return GNS3PutAPI(server_url, key)
 
 

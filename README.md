@@ -22,7 +22,7 @@ A command-line utility for interacting with the GNS3 API. This tool streamlines 
    ```
 
    This will install the required packages:
-   
+
    - [click](https://click.palletsprojects.com/)
    - [requests](https://docs.python-requests.org/)
    - [rich](https://github.com/Textualize/rich)
