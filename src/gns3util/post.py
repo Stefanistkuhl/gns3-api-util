@@ -10,15 +10,15 @@ Number of arguments: 0
 Has data: True
 """
 _zero_arg = {
-    "check-version": "version_check",
-    "user": "user_create",
-    "group": "group_create",
-    "role": "role_create",
-    "acl": "acl_create",
-    "template": "template_create",
-    "project": "project_create",
-    "project_load": "project_load",
-    "add_pool": "add_pool"
+    "check-version": "check_version",
+    "user": "create_user",
+    "group": "create_group",
+    "role": "create_role",
+    "acl": "create_acl",
+    "template": "create_template",
+    "project": "create_project",
+    "project_load": "load_project",
+    "add_pool": "create_pool"
 }
 
 """
@@ -26,9 +26,9 @@ Number of arguments: 0
 Has data: False
 """
 _zero_arg_no_data = {
-    "reload": "node_reload",
-    "shutdown": "controller_shutdown",
-    "install_img": "image_install"
+    "reload": "reload_node",
+    "shutdown": "shutdown_controller",
+    "install_img": "install_image"
 }
 
 """
@@ -36,14 +36,14 @@ Number of arguments: 1
 Has data: True
 """
 _one_arg = {
-    "qemu_img": "qemu_image_create",
-    "node": "node_create",
-    "link_create": "link_create",
-    "drawing_create": "drawing_create",
-    "snapshot_create": "snapshot_create",
+    "qemu_img": "create_qemu_image",
+    "node": "create_node",
+    "link_create": "create_link",
+    "drawing_create": "create_drawing",
+    "snapshot_create": "create_snapshot",
     "create_compute": "create_compute",
-    "auto_idlepc": "auto_idlepc",
-    "add_applience_version": "add_applience_version"
+    "auto_idlepc": "set_auto_idlepc",
+    "add_applience_version": "appliance_create_version"
 }
 
 """
@@ -51,17 +51,17 @@ Number of arguments: 1
 Has data: False
 """
 _one_arg_no_data = {
-    "duplicate_template": "template_duplicate",
-    "project_close": "project_close",
-    "project_open": "project_open",
-    "project_lock": "project_lock",
-    "project_unlock": "project_unlock",
-    "start_nodes": "node_start",
-    "stop_nodes": "node_stop",
-    "suspend_nodes": "node_suspend",
-    "reload_nodes": "node_reload",
-    "nodes_console_reset": "nodes_console_reset",
-    "symbol_create": "symbol_create",
+    "duplicate_template": "duplicate_template",
+    "project_close": "close_project",
+    "project_open": "open_project",
+    "project_lock": "lock_project",
+    "project_unlock": "unlock_project",
+    "start_nodes": "start_node",
+    "stop_nodes": "stop_node",
+    "suspend_nodes": "suspend_node",
+    "reload_nodes": "reload_node",
+    "nodes_console_reset": "reset_nodes_console",
+    "symbol_create": "create_symbol",
     "connect_compute": "connect_compute"
 }
 
@@ -70,31 +70,31 @@ Number of arguments: 2
 Has data: False
 """
 _two_arg_no_data = {
-    "upload_img": "image_upload",
-    "project_import": "project_import",
-    "project_write_file": "project_file_write",
-    "node_isolate": "node_isolate",
-    "node_unisolate": "node_unisolate",
-    "node_console_reset": "node_console_reset",
-    "link_reset": "link_reset",
+    "upload_img": "upload_image",
+    "project_import": "import_project",
+    "project_write_file": "write_project_file",
+    "node_isolate": "isolate_node",
+    "node_unisolate": "unisolate_node",
+    "node_console_reset": "reset_node_console",
+    "link_reset": "reset_link",
     "stop_link_capture": "stop_link_capture",
-    "snapshot_restore": "snapshot_restore",
-    "add_applience_version": "add_applience_version"
+    "snapshot_restore": "restore_snapshot",
+    "add_applience_version": "appliance_install"
 }
 
 
 _two_arg = {
-    "project_node_from_template": "project_node_create_from_template",
-    "duplicate_node": "node_duplicate",
+    "project_node_from_template": "create_node_from_template",
+    "duplicate_node": "duplicate_node",
     "start_link_capture": "start_link_capture"
 }
 
 _three_arg = {
-    "create_disk_img": "create_disk_img"
+    "create_disk_img": "create_disk_image"
 }
 
 _three_arg_no_data = {
-    "node_create_file": "node_create_file"
+    "node_create_file": "create_node_file"
 }
 
 
