@@ -108,7 +108,7 @@ def get_client(ctx):
     """Helper function to create GNS3PostAPI instance."""
     key_file = os.path.expanduser("~/.gns3key")
     server_url = ctx.parent.obj['server']
-    key = auth.loadKey(key_file)
+    key = auth.load_key(key_file)
     return GNS3PostAPI(server_url, key)
 
 

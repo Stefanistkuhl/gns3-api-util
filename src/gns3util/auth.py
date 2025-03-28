@@ -77,9 +77,9 @@ def save_auth_data(auth_data, server_url, username, key_file):
         return None
 
 
-def loadKey(keyFile):
+def load_key(key_file):  # renamed parameter from keyFile to key_file
     try:
-        with open(keyFile) as f:
+        with open(key_file) as f:
             data = f.read()
         data = json.loads(data)
         return data
@@ -87,7 +87,7 @@ def loadKey(keyFile):
         return False
 
 
-def tryKey(key, server_url):
+def try_key(key, server_url):  # renamed from tryKey
     url = f'{server_url}/v3/access/users/me'
     access_token = key["access_token"]
     headers = {
@@ -136,9 +136,9 @@ def login(ctx):
     try:
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
-        keyData = loadKey(key_file)
+        keyData = load_key(key_file)
         if keyData:
-            resp, usr = tryKey(keyData, server_url)
+            resp, usr = try_key(keyData, server_url)
             if resp:
                 print("API key works, logged in as",
                       usr.get("username", "unknown"))
@@ -174,9 +174,9 @@ def status(ctx):
     try:
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
-        keyData = loadKey(key_file)
+        keyData = load_key(key_file)
         if keyData:
-            resp, usr = tryKey(keyData, server_url)
+            resp, usr = try_key(keyData, server_url)
             if resp:
                 print("Logged in as:", usr.get("username", "unknown"))
                 sys.exit(0)
