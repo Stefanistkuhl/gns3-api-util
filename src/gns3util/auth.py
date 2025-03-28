@@ -77,7 +77,7 @@ def save_auth_data(auth_data, server_url, username, key_file):
         return None
 
 
-def load_key(key_file):  # renamed parameter from keyFile to key_file
+def load_key(key_file):
     try:
         with open(key_file) as f:
             data = f.read()
@@ -87,7 +87,7 @@ def load_key(key_file):  # renamed parameter from keyFile to key_file
         return False
 
 
-def try_key(key, server_url):  # renamed from tryKey
+def try_key(key, server_url):
     url = f'{server_url}/v3/access/users/me'
     access_token = key["access_token"]
     headers = {
