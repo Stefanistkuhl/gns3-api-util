@@ -10,7 +10,8 @@ Number of arguments: 0
 Has data: True
 """
 _zero_arg = {
-    "iou_license": "iou_license"
+    "iou_license": "iou_license",
+    "me": "me"
 }
 
 """
@@ -26,6 +27,14 @@ Number of arguments: 1
 Has data: True
 """
 _one_arg = {
+    "update_user": "update_user",
+    "update_group": "update_group",
+    "update_acl": "update_ace",
+    "update_template": "update_template",
+    "update_project": "update_project",
+    "update_compute": "update_compute",
+    "update_pool": "update_pool",
+    "update_role": "update_role"
 
 }
 
@@ -42,15 +51,21 @@ Number of arguments: 2
 Has data: False
 """
 _two_arg_no_data = {
-
+    "add_group_member": "add_group_member",
+    "add_ressouce_to_pool": "add_ressouce_to_pool",
+    "update_role_privs": "update_role_privs"
 }
 
 
 _two_arg = {
+    "update_node": "update_node",
+    "update_drawing": "update_drawing",
+    "update_link": "update_link"
 
 }
 
 _three_arg = {
+    "update_disk_image": "update_disk_image"
 
 }
 
