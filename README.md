@@ -69,8 +69,8 @@ This will display usage information and options for each command.
 
 Todo
 
-- [ ] Add shell completion
+-[ ] Add shell completion
 
-- [ ] Provide a help option for all commands
+-[ ] Provide a help option for all commands
 
-- [ ] Store multiple keys at once and select a server more easily
+-[ ] Store multiple keys at once and select a server more easily
