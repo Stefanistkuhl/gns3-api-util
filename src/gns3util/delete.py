@@ -7,25 +7,11 @@ from .api.delete_endpoints import GNS3DeleteAPI
 
 """
 Number of arguments: 0
-Has data: True
-"""
-_zero_arg = {
-
-}
-
-"""
-Number of arguments: 0
 Has data: False
 """
 _zero_arg_no_data = {
+    "prune_images": "prune_images"
 
-}
-
-"""
-Number of arguments: 1
-Has data: True
-"""
-_one_arg = {
 }
 
 """
@@ -33,7 +19,15 @@ Number of arguments: 1
 Has data: False
 """
 _one_arg_no_data = {
-    "user": "delete_user"
+    "user": "delete_user",
+    "compute": "compute",
+    "project": "project",
+    "template": "template",
+    "image": "image",
+    "acl": "acl",
+    "role": "role",
+    "group": "group",
+    "pool": "pool"
 }
 
 """
@@ -41,20 +35,13 @@ Number of arguments: 2
 Has data: False
 """
 _two_arg_no_data = {
-
-}
-
-
-_two_arg = {
-
-}
-
-_three_arg = {
-
-}
-
-_three_arg_no_data = {
-
+    "pool_resource": "pool_resource",
+    "link": "link",
+    "node": "node",
+    "drawing": "drawing",
+    "role_priv": "role_priv",
+    "user_from_group": "user_from_group",
+    "snapshot": "snapshot"
 }
 
 
@@ -79,22 +66,6 @@ def execute_and_print(ctx, func):
         rich.print_json(json.dumps(data, indent=2))
 
 
-# Create click commands with zero arguments
-for cmd, func in _zero_arg.items():
-    def make_cmd(func=func):
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, json_data):
-            try:
-                data = json.loads(json_data)
-                execute_and_print(
-                    ctx, lambda client: getattr(client, func)(data))
-            except json.JSONDecodeError:
-                print("Error: Invalid JSON input")
-                return
-        return cmd_func
-    delete.command(name=cmd)(make_cmd())
-
 # Create click commands with zero arguments and no data
 for cmd, func in _zero_arg_no_data.items():
     def make_cmd(func=func):
@@ -105,22 +76,6 @@ for cmd, func in _zero_arg_no_data.items():
         return cmd_func
     delete.command(name=cmd)(make_cmd())
 
-# Create click commands with one argument plus JSON
-for cmd, func in _one_arg.items():
-    def make_cmd(func=func):
-        @click.argument('arg')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg, json_data):
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg, data))
-            except json.JSONDecodeError:
-                print("Error: Invalid JSON indelete")
-                return
-        return cmd_func
-    delete.command(name=cmd)(make_cmd())
 
 # Create click commands with one argument minus JSON
 for cmd, func in _one_arg_no_data.items():
@@ -142,55 +97,5 @@ for cmd, func in _two_arg_no_data.items():
         def cmd_func(ctx, arg1, arg2):
             execute_and_print(ctx, lambda client: getattr(
                 client, func)(arg1, arg2))
-        return cmd_func
-    delete.command(name=cmd)(make_cmd())
-
-# Create click commands with two arguments plus JSON
-for cmd, func in _two_arg.items():
-    def make_cmd(func=func):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, json_data):
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg1, arg2, data))
-            except json.JSONDecodeError:
-                print("Error: Invalid JSON indelete")
-                return
-        return cmd_func
-    delete.command(name=cmd)(make_cmd())
-
-# Create click commands with three arguments plus JSON
-for cmd, func in _three_arg.items():
-    def make_cmd(func=func):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('arg3')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3, json_data):
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg1, arg2, arg3, data))
-            except json.JSONDecodeError:
-                print("Error: Invalid JSON indelete")
-                return
-        return cmd_func
-    delete.command(name=cmd)(make_cmd())
-
-# Create click commands with two arguments minus JSON
-for cmd, func in _three_arg_no_data.items():
-    def make_cmd(func=func):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('arg3')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3):
-            execute_and_print(ctx, lambda client: getattr(
-                client, func)(arg1, arg2, arg3))
         return cmd_func
     delete.command(name=cmd)(make_cmd())
