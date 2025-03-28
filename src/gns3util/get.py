@@ -68,6 +68,7 @@ _one_arg = {
     "docker-images": "computeByIDDockerImages",
     "virtualbox-vms": "computeByIDVirtualvoxVms",
     "vmware-vms": "computeByIDVmwareVms",
+    "snapshots": "snapshots",
     "appliance": "appliance",
     "pool": "pool",
     "pool-resources": "poolResources",
