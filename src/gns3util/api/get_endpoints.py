@@ -1,6 +1,7 @@
 from ..api import GNS3APIClient
 import urllib.parse
 
+
 class GNS3GetAPI(GNS3APIClient):
     # Controller endpoints
     def version(self):
@@ -10,7 +11,7 @@ class GNS3GetAPI(GNS3APIClient):
         return self._api_call("iou_license")
 
     def statistics(self):
-        return self._api_call("statistics") 
+        return self._api_call("statistics")
 
     def notifications(self, timeout_seconds=60):
         self._stream_notifications("notifications", timeout_seconds)
@@ -39,7 +40,8 @@ class GNS3GetAPI(GNS3APIClient):
         return self._api_call(f"projects/{project_id}/stats")
 
     def project_notifications(self, project_id, timeout_seconds=60):
-        self._stream_notifications(f"projects/{project_id}/notifications", timeout_seconds)
+        self._stream_notifications(
+            f"projects/{project_id}/notifications", timeout_seconds)
 
     def project_locked(self, project_id):
         return self._api_call(f"projects/{project_id}/locked")
@@ -165,6 +167,14 @@ class GNS3GetAPI(GNS3APIClient):
     # Resource pools endpoints
     def pools(self):
         return self._api_call("pools")
+
+    # images endpoints
+
+    def images(self, image_type):
+        return self._api_call(f"images?image_type={image_type}")
+
+    def imagesByPath(self, image_path):
+        return self._api_call(f"images/{image_path}")
 
     def pool(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}")
