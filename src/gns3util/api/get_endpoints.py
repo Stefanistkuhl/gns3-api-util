@@ -50,20 +50,20 @@ class GNS3GetAPI(GNS3APIClient):
     def groups(self):
         return self._api_call("access/groups")
 
-    def groupsById(self, group_id):
+    def groups_by_id(self, group_id):
         return self._api_call(f"access/groups/{group_id}")
 
-    def groupMembers(self, group_id):
+    def group_members(self, group_id):
         return self._api_call(f"access/groups/{group_id}/members")
 
     # Role endpoints
     def roles(self):
         return self._api_call("access/roles")
 
-    def roleById(self, role_id):
+    def role_by_id(self, role_id):
         return self._api_call(f"access/roles/{role_id}")
 
-    def rolePrivileges(self, role_id):
+    def role_privileges(self, role_id):
         return self._api_call(f"access/roles/{role_id}/privileges")
 
     # Privilege endpoints
@@ -71,46 +71,46 @@ class GNS3GetAPI(GNS3APIClient):
         return self._api_call("access/privileges")
 
     # ACL endpoints
-    def aclEndpoints(self):
+    def acl_endpoints(self):
         return self._api_call("access/acl/endpoints")
 
     def acl(self):
         return self._api_call("access/acl")
 
-    def aclById(self, ace_id):
+    def acl_by_id(self, ace_id):
         return self._api_call(f"access/acl/{ace_id}")
 
     # Template endpoints
     def templates(self):
         return self._api_call("templates")
 
-    def templateByID(self, template_id):
+    def template_by_id(self, template_id):
         return self._api_call(f"templates/{template_id}")
 
     # Nodes endpoints
     def nodes(self, project_id):
         return self._api_call(f"projects/{project_id}/nodes")
 
-    def nodeByID(self, project_id, node_id):
+    def node_by_id(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}")
 
-    def nodeLinksByID(self, project_id, node_id):
+    def node_links_by_id(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/links")
 
-    def nodeDynamipsAutoIdlepc(self, project_id, node_id):
+    def node_dynamips_auto_idlepc(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/dynamips/auto_idlepc")
 
-    def nodeDynaimipsIdlecpcProposals(self, project_id, node_id):
+    def node_dynamips_idlepc_proposals(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/dynamips/idlepc_proposals")
 
-    def nodeGetFile(self, project_id, node_id, file_path):
+    def node_get_file(self, project_id, node_id, file_path):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/files/{file_path}")
 
     # Link endpoints
     def links(self, project_id):
         return self._api_call(f"projects/{project_id}/links")
 
-    def linkFilters(self, project_id, link_id):
+    def link_filters(self, project_id, link_id):
         return self._api_call(f"projects/{project_id}/links/{link_id}/available_filters")
 
     def link(self, project_id, link_id):
@@ -131,10 +131,10 @@ class GNS3GetAPI(GNS3APIClient):
         encoded_symbol_id = urllib.parse.quote(symbol_id, safe='')
         return self._api_call(f"symbols/{encoded_symbol_id}/raw")
 
-    def symbolDimensions(self, symbol_id):
+    def symbol_dimensions(self, symbol_id):
         return self._api_call(f"symbols/{symbol_id}/dimensions")
 
-    def defaultSymbols(self):
+    def default_symbols(self):
         return self._api_call("symbols/default_symbols")
 
     # Snapshot endpoints
@@ -145,16 +145,16 @@ class GNS3GetAPI(GNS3APIClient):
     def computes(self):
         return self._api_call("computes")
 
-    def computeByID(self, compute_id):
+    def compute_by_id(self, compute_id):
         return self._api_call(f"computes/{compute_id}")
 
-    def computeByIDDockerImages(self, compute_id):
+    def compute_by_id_docker_images(self, compute_id):
         return self._api_call(f"computes/{compute_id}/docker/images")
 
-    def computeByIDVirtualvoxVms(self, compute_id):
+    def compute_by_id_virtualbox_vms(self, compute_id):
         return self._api_call(f"computes/{compute_id}/virtualbox/vms")
 
-    def computeByIDVmwareVms(self, compute_id):
+    def compute_by_id_vmware_vms(self, compute_id):
         return self._api_call(f"computes/{compute_id}/vmware/vms")
 
     # Appliance endpoints
@@ -168,18 +168,17 @@ class GNS3GetAPI(GNS3APIClient):
     def pools(self):
         return self._api_call("pools")
 
-    # images endpoints
-
+    # Images endpoints
     def images(self, image_type):
         return self._api_call(f"images?image_type={image_type}")
 
-    def imagesByPath(self, image_path):
+    def images_by_path(self, image_path):
         return self._api_call(f"images/{image_path}")
 
     def pool(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}")
 
-    def poolResources(self, resource_pool_id):
+    def pool_resources(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}/resources")
 
     # Project file and export methods
