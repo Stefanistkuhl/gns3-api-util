@@ -1,9 +1,11 @@
 import click
+import sys
 import rich
 import json
 import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
+from .utils import fzf_select
 
 get = click.Group('get')
 
@@ -66,6 +68,7 @@ _two_arg = {
     "drawing": "drawing"
 }
 
+
 def get_client(ctx):
     """Helper function to create GNS3GetAPI instance."""
     key_file = os.path.expanduser("~/.gns3key")
@@ -73,11 +76,13 @@ def get_client(ctx):
     key = auth.load_key(key_file)  # updated from loadKey to load_key
     return GNS3GetAPI(server_url, key)
 
+
 def execute_and_print(ctx, func):
     client = get_client(ctx)
     success, data = func(client)
     if success:
         rich.print_json(json.dumps(data, indent=2))
+
 
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
@@ -112,15 +117,63 @@ for cmd, func in _two_arg.items():
 
 # Special commands with timeout options
 
+
 @get.command()
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
 def notifications(ctx, timeout_seconds):
     get_client(ctx).notifications(timeout_seconds)
 
-@get.command()
+
+@get.command(name="project-id")
 @click.argument('project_id')
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
 def project_notifications(ctx, project_id, timeout_seconds):
     get_client(ctx).project_notifications(project_id, timeout_seconds)
+
+
+@get.command(name="usernames-and-ids", help="Listing all users and their ids")
+@click.pass_context
+def usernames_and_ids(ctx):
+    users_raw = get_client(ctx).users()
+    if not users_raw[0]:
+        sys.exit("An error occurred getting all the data for the users")
+    users = users_raw[1]
+    print("List of all users and their id:")
+    for user in users:
+        username = user.get('username', 'N/A')
+        user_id = user.get('user_id', 'N/A')
+        print(f"Username: {username}")
+        print(f"ID: {user_id}")
+        print("-" * 10)
+
+
+def fuzzy_user_info(ctx):
+    users_raw = get_client(ctx).users()
+    if not users_raw[0]:
+        sys.exit("An error occurred getting all the data for the users")
+    users_data = users_raw[1]
+    users = []
+    for user in users_data:
+        users.append(user['username'])
+    selected = fzf_select(users)
+    # print(selected)
+    for user in users_data:
+        if user['username'] in selected:
+            print("---")
+            for key, value in user.items():
+                print(f"{key}: {value}")
+            print("---")
+
+
+@get.command(name="find-user-info", help="find user info using fzf")
+@click.pass_context
+def find_user_info(ctx):
+    fuzzy_user_info(ctx)
+
+
+@get.command(name="fui", help="find user info using fzf")
+@click.pass_context
+def find_user_info_command_short(ctx):
+    fuzzy_user_info(ctx)

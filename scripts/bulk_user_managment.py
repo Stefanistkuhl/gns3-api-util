@@ -250,7 +250,7 @@ def _delete_single_user(
         subcommand='delete',
         action='user',
         args=[user_id],
-        gns3util_path=gns3util_path
+        gns3util_path=gns3util_path,
     )
     if not success:
         print(f"Error deleting user {username} ({user_id}). STDERR: {
