@@ -1,4 +1,5 @@
 import requests
+import subprocess
 import json
 
 
@@ -68,3 +69,42 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
     except Exception as e:
         print(f"Unexpected error during request: {str(e)}")
         return False, None
+
+
+def fzf_select(options):
+    """
+    Opens an fzf window with the given options and returns the selected option(s).
+
+    Args:
+        options: A list of strings representing the options to choose from.
+
+    Returns:
+        A list of strings containing the selected option(s), or an empty list if none were selected or if fzf is not found.
+    """
+    try:
+        fzf_process = subprocess.Popen(
+            ['fzf', '--multi'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        output, error = fzf_process.communicate('\n'.join(options))
+
+        if error:
+            if "fzf: command not found" in error:
+                print(
+                    "Error: fzf is not installed. Please install it to use this feature.")
+                return []
+            else:
+                print(f"Error running fzf: {error}")
+                return []
+
+        if output:
+            return [line.strip() for line in output.strip().split('\n')]
+        else:
+            return []
+
+    except FileNotFoundError:
+        print("Error: fzf executable not found in PATH. Please ensure it's installed and accessible.")
+        return []
