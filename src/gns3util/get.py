@@ -9,6 +9,10 @@ from .utils import fzf_select
 
 get = click.Group('get')
 
+GREY = "\033[90m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
 # Commands with no arguments
 _zero_arg = {
     "version": "version",
@@ -133,6 +137,8 @@ def project_notifications(ctx, project_id, timeout_seconds):
     get_client(ctx).project_notifications(project_id, timeout_seconds)
 
 
+# TODO refactor all fo this to have a general fuzzy functions and instead of the bool for the meber toggles have a flag
+
 @get.command(name="usernames-and-ids", help="Listing all users and their ids")
 @click.pass_context
 def usernames_and_ids(ctx):
@@ -149,7 +155,7 @@ def usernames_and_ids(ctx):
         print("-" * 10)
 
 
-def fuzzy_user_info(ctx):
+def fuzzy_user_info(ctx, show_groups=bool):
     users_raw = get_client(ctx).users()
     if not users_raw[0]:
         sys.exit("An error occurred getting all the data for the users")
@@ -158,13 +164,58 @@ def fuzzy_user_info(ctx):
     for user in users_data:
         users.append(user['username'])
     selected = fzf_select(users)
-    # print(selected)
     for user in users_data:
         if user['username'] in selected:
-            print("---")
+            print(f"{GREY}---{RESET}")
             for key, value in user.items():
-                print(f"{key}: {value}")
-            print("---")
+                print(f"{CYAN}{key}{RESET}: {value}")
+            print(f"{GREY}---{RESET}")
+            if show_groups:
+                groups_raw = get_client(ctx).users_groups(user['user_id'])
+                if not groups_raw[0]:
+                    sys.exit(
+                        "An error occurred getting all the data for the groups members")
+                groups = groups_raw[1]
+                if groups == []:
+                    sys.exit("this user is in no groups")
+                for group in groups:
+                    print(f"{GREY}---{RESET}")
+                    for key, value in group.items():
+                        print(f"{CYAN}{key}{RESET}: {value}")
+                    print(f"{GREY}---{RESET}")
+
+
+def fuzzy_group_info(ctx, show_members=bool):
+    groups_raw = get_client(ctx).groups()
+    if not groups_raw[0]:
+        sys.exit("An error occurred getting all the data for the groups")
+    groups_data = groups_raw[1]
+    groups = []
+    for group in groups_data:
+        groups.append(group['name'])
+    selected = fzf_select(groups)
+    for group in groups_data:
+        if group['name'] in selected:
+            print(f"{GREY}---{RESET}")
+            for key, value in group.items():
+                print(f"{CYAN}{key}{RESET}: {value}")
+            print(f"{GREY}---{RESET}")
+    if show_members:
+        for group in groups_data:
+            if group['name'] in selected:
+                group_members_raw = get_client(
+                    ctx).group_members(group['user_group_id'])
+                if not group_members_raw[0]:
+                    sys.exit(
+                        "An error occurred getting all the data for the groups members")
+                group_members = group_members_raw[1]
+                if group_members == []:
+                    sys.exit("this group has no members")
+                for group_member in group_members:
+                    print(f"{GREY}---{RESET}")
+                    for key, value in group_member.items():
+                        print(f"{CYAN}{key}{RESET}: {value}")
+                    print(f"{GREY}---{RESET}")
 
 
 @get.command(name="find-user-info", help="find user info using fzf")
@@ -176,4 +227,40 @@ def find_user_info(ctx):
 @get.command(name="fui", help="find user info using fzf")
 @click.pass_context
 def find_user_info_command_short(ctx):
+    fuzzy_user_info(ctx)
+
+
+@get.command(name="find-group-info", help="find group info using fzf")
+@click.pass_context
+def find_group_info(ctx):
+    fuzzy_group_info(ctx)
+
+
+@get.command(name="fgi", help="find group info using fzf")
+@click.pass_context
+def find_group_info_command_short(ctx):
+    fuzzy_group_info(ctx)
+
+
+@get.command(name="find-group-info-with-usernames", help="find group info with members using fzf")
+@click.pass_context
+def find_group_info_with_members(ctx):
+    fuzzy_group_info(ctx, True)
+
+
+@get.command(name="fgim", help="find group info with members using fzf")
+@click.pass_context
+def find_group_info_with_members_command_short(ctx):
+    fuzzy_group_info(ctx, True)
+
+
+@get.command(name="find-user-info-and-group-membership", help="find user info and group membership using fzf")
+@click.pass_context
+def find_user_info_and_groups(ctx):
+    fuzzy_user_info(ctx)
+
+
+@get.command(name="fuig", help="find user info and group membership using fzf")
+@click.pass_context
+def find_user_info_and_groups_short(ctx):
     fuzzy_user_info(ctx)
