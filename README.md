@@ -27,6 +27,8 @@ A command-line utility for interacting with the GNS3 API. This tool streamlines 
    - [requests](https://docs.python-requests.org/)
    - [rich](https://github.com/Textualize/rich)
 
+   Additionally [fzf](https://github.com/junegunn/fzf) can be be installed for interactive selections.
+
 ## Usage
 
 After installing, the utility can be executed directly from the command line using the entry point `gns3util`.
@@ -68,6 +70,8 @@ gns3util --help
 This will display usage information and options for each command.
 
 Todo
+
+-[ ] Cover most common tasks with fzf
 
 -[ ] Add shell completion
 
