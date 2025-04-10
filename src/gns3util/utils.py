@@ -1,6 +1,25 @@
 import requests
+from dataclasses import dataclass
+import sys
 import subprocess
 import json
+from typing import Callable, Any, Optional
+
+GREY = "\033[90m"
+CYAN = "\033[96m"
+RESET = "\033[0m"
+
+
+@dataclass
+class fuzzy_info_params:
+    ctx: Any
+    client: Callable[[Any], Any]
+    opt_method: Optional[str] = None
+    opt_key: Optional[str] = None
+    method: str = "str"
+    key: str = "str"
+    multi: bool = False
+    opt_data: bool = False
 
 
 def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False):
@@ -71,7 +90,7 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         return False, None
 
 
-def fzf_select(options):
+def fzf_select(options, multi=False):
     """
     Opens an fzf window with the given options and returns the selected option(s).
 
@@ -82,13 +101,23 @@ def fzf_select(options):
         A list of strings containing the selected option(s), or an empty list if none were selected or if fzf is not found.
     """
     try:
-        fzf_process = subprocess.Popen(
-            ['fzf', '--multi'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        if multi:
+            fzf_process = subprocess.Popen(
+                ['fzf', '--multi'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+        else:
+            fzf_process = subprocess.Popen(
+                ['fzf'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
         output, error = fzf_process.communicate('\n'.join(options))
 
         if error:
@@ -108,3 +137,42 @@ def fzf_select(options):
     except FileNotFoundError:
         print("Error: fzf executable not found in PATH. Please ensure it's installed and accessible.")
         return []
+
+
+def fuzzy_info(params=fuzzy_info_params):
+    # add real error handeling with returning error types
+    # raw_data = client(ctx).method()
+    raw_data = getattr(params.client(params.ctx), params.method)()
+    if not raw_data[0]:
+        sys.exit(f"An error occurred executing the method {params.method}")
+    api_data = raw_data[1]
+    fzf_input_data = []
+    for data in api_data:
+        fzf_input_data.append(data[params.key])
+    selected = fzf_select(fzf_input_data, multi=params.multi)
+    matched_users = set()
+    for selected_item in selected:
+        for a in api_data:
+            if a[params.key] == selected_item and a[params.key] not in matched_users:
+                print(f"{GREY}---{RESET}")
+                matched_users.add(a[params.key])
+                for k, v in a.items():
+                    print(f"{CYAN}{k}{RESET}: {v}")
+                print(f"{GREY}---{RESET}")
+                if params.opt_data:
+                    opt_raw = getattr(params.client(
+                        params.ctx), params.opt_method)(a[params.opt_key])
+                    if not opt_raw[0]:
+                        sys.exit(
+                            f"An error occurred getting all the data with this method {params.opt_method}")
+                    opt_data = opt_raw[1]
+                    if opt_data == []:
+                        print(f"Empty data returned from {
+                            params.opt_method} for {a[params.key]}")
+                    else:
+                        for d in opt_data:
+                            print(f"{GREY}---{RESET}")
+                            for k2, v2 in d.items():
+                                print(f"{CYAN}{k2}{RESET}: {v2}")
+                            print(f"{GREY}---{RESET}")
+                break
