@@ -1,9 +1,9 @@
 import click
 import json
-import rich
 import os
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
+from .utils import execute_and_print
 
 """
 Number of arguments: 0
@@ -112,23 +112,17 @@ def get_client(ctx):
     return GNS3PostAPI(server_url, key)
 
 
-def execute_and_print(ctx, func):
-    client = get_client(ctx)
-    success, data = func(client)
-    if success:
-        rich.print_json(json.dumps(data, indent=2))
-
-
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
     def make_cmd(func=func):
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, json_data):
+            api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
                 execute_and_print(
-                    ctx, lambda client: getattr(client, func)(data))
+                    ctx, api_post_client, lambda client: getattr(client, func)(data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -140,8 +134,9 @@ for cmd, func in _zero_arg_no_data.items():
     def make_cmd(func=func):
         @click.pass_context
         def cmd_func(ctx):
+            api_post_client = get_client(ctx)
             execute_and_print(
-                ctx, lambda client: getattr(client, func)())
+                ctx, api_post_client, lambda client: getattr(client, func)())
         return cmd_func
     post.command(name=cmd)(make_cmd())
 
@@ -152,9 +147,10 @@ for cmd, func in _one_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg, json_data):
+            api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
+                execute_and_print(ctx, api_post_client, lambda client: getattr(
                     client, func)(arg, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
@@ -168,7 +164,8 @@ for cmd, func in _one_arg_no_data.items():
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
-            execute_and_print(ctx, lambda client: getattr(
+            api_post_client = get_client(ctx)
+            execute_and_print(ctx, api_post_client, lambda client: getattr(
                 client, func)(arg))
         return cmd_func
     post.command(name=cmd)(make_cmd())
@@ -180,7 +177,8 @@ for cmd, func in _two_arg_no_data.items():
         @click.argument('arg2')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2):
-            execute_and_print(ctx, lambda client: getattr(
+            api_post_client = get_client(ctx)
+            execute_and_print(ctx, api_post_client, lambda client: getattr(
                 client, func)(arg1, arg2))
         return cmd_func
     post.command(name=cmd)(make_cmd())
