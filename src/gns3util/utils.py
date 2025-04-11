@@ -1,6 +1,7 @@
 import requests
+import rich
 import click
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import subprocess
 import json
 from typing import Callable, Any, Optional
@@ -8,13 +9,6 @@ from typing import Callable, Any, Optional
 GREY = "\033[90m"
 CYAN = "\033[96m"
 RESET = "\033[0m"
-
-
-@dataclass
-class fuzzy_error:
-    network: bool = False
-    missing_permissions: bool = False
-    empty_data: bool = False
 
 
 @dataclass
@@ -29,6 +23,11 @@ class request_error:
     timeout: bool = False
     request: bool = False
     unexpected: bool = False
+    encoding: bool = False
+    start: bool = False
+    empty_data: bool = False
+    other_code: int = 0
+    msg: str = ""
 
 
 @dataclass
@@ -44,7 +43,7 @@ class fuzzy_info_params:
 
 
 # change this to reutnr a error type to have more flexibility with printing
-def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False) -> request_error:
+def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False) -> (request_error, Any):
     """
     Handles HTTP requests with standardized error handling and response processing.
 
@@ -57,7 +56,7 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         stream (bool, optional): whether to stream the response. Defaults to False.
 
     Returns:
-        tuple: (success, response_data), where success is a boolean and response_data is the JSON response or None.
+        tuple: (error, response_data), where success is a boolean and response_data is the JSON response or None.
         If stream is true, returns response object.
     """
     error = request_error()
@@ -67,50 +66,62 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         )
         if response.status_code == 200:
             if stream:
-                return True, response
+                return error, response
             else:
-                return True, response.json()
+                return error, response.json()
         elif response.status_code == 404:
+            error.not_found = True
             try:
-                error_msg = response.json().get('message', 'Resource not found')
-                print(f"Not found: {error_msg}")
+                error.msg = response.json().get('message', 'Resource not found')
+                return error, None
             except json.JSONDecodeError:
-                print(f"Not found: {response.text}")
+                error.msg = response.text
+                error.json_decode = True
+                return error, None
             return False, None
         elif response.status_code == 401:
-            print("Authentication failed: Unauthorized access.")
+            error.unauthorized = True
             try:
-                print(f"Response: {response.json()}")
+                error.msg = response.json()
             except json.JSONDecodeError:
-                print(f"Response: {response.text}")
-            return False, None
+                error.json_decode = True
+                error.msg = response.text
+            return error, None
         elif response.status_code == 403:
+            error.forbidden = True
             try:
                 error_msg = response.json().get('message', 'Access forbidden')
-                print(f"Access forbidden: {error_msg}")
+                error.msg = error_msg
             except json.JSONDecodeError:
-                print(f"Access forbidden: {response.text}")
-            return False, None
+                error.json_decode = True
+                error.msg = response.text
+            return error, None
         elif response.status_code == 422:
-            print(f"Validation Error: {response.json()}")
-            return False, None
+            error.validation = True
+            error.msg = response.json()
+            return error, None
         else:
-            print(f"Server returned error: {response.status_code}")
-            print(f"Response: {response.text}")
-            return False, None
+            error.other = True
+            error.other_http_code = response.status_code
+            error.msg = response.text
+            return error, None
     except requests.exceptions.ConnectionError:
+        error.connection = True
         base_url = url.split('/v3/')[0] if '/v3/' in url else url
-        print(f"Connection error: Could not connect to {base_url}")
-        return False, None
+        error.msg = f"Connection error: Could not connect to {base_url}"
+        return error, None
     except requests.exceptions.Timeout:
-        print("Connection timeout: The server took too long to respond.")
-        return False, None
+        error.timeout = True
+        error.msg = "Connection timeout: The server took too long to respond."
+        return error, None
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")
-        return False, None
+        error.request = True
+        error.msg = str(e)
+        return error, None
     except Exception as e:
-        print(f"Unexpected error during request: {str(e)}")
-        return False, None
+        error.unexpected = True
+        error.msg = str(e)
+        return error, None
 
 
 def fzf_select(options, multi=False):
@@ -162,13 +173,13 @@ def fzf_select(options, multi=False):
         return []
 
 
-def fuzzy_info(params=fuzzy_info_params) -> fuzzy_error:
+def fuzzy_info(params=fuzzy_info_params) -> request_error:
     # maybe break this up into more functions
     # add real error handeling with returning error types
-    error = fuzzy_error()
+    error = request_error()
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
         params)
-    if get_fzf_input_error.network:
+    if has_error(get_fzf_input_error):
         return get_fzf_input_error
     selected = fzf_select(fzf_input_data, multi=params.multi)
     matched = set()
@@ -179,12 +190,11 @@ def fuzzy_info(params=fuzzy_info_params) -> fuzzy_error:
                     print(f"{CYAN}{k}{RESET}: {v}")
                 print(f"{GREY}---{RESET}")
                 if params.opt_data:
-                    opt_raw = getattr(params.client(
+                    opt_data_error, opt_data = getattr(params.client(
                         params.ctx), params.opt_method)(a[params.opt_key])
-                    if not opt_raw[0]:
+                    if has_error(opt_data_error):
                         error.request_network_error = True
                         return error
-                    opt_data = opt_raw[1]
                     if opt_data == []:
                         # either add callbacks for this in the future or print
                         # something better or use ifs to detierme it
@@ -200,13 +210,13 @@ def fuzzy_info(params=fuzzy_info_params) -> fuzzy_error:
     return error
 
 
-def get_values_for_fuzzy_input(params) -> (list, list, fuzzy_error):
-    error = fuzzy_error()
-    raw_data = getattr(params.client(params.ctx), params.method)()
-    if not raw_data[0]:
-        error.network = True
-        return None, None, error
-    api_data = raw_data[1]
+def get_values_for_fuzzy_input(params) -> (list, list, request_error):
+    fuzzy_error = request_error()
+    get_data_error, api_data = getattr(
+        params.client(params.ctx), params.method)()
+    if has_error(get_data_error):
+        fuzzy_error.connection = True
+        return None, None, fuzzy_error
     fzf_input_data = []
     for data in api_data:
         fzf_input_data.append(data[params.key])
@@ -219,6 +229,31 @@ def fuzzy_put():
 
 def fuzzy_info_wrapper(params):
     error = fuzzy_info(params)
-    if error.network:
+    if error.connection:
         click.echo(
             "Failed to fetch data from the API check your Network connection to the server", err=True)
+
+
+def has_error(error_instance: request_error) -> bool:
+    return any(getattr(error_instance, field) for field in [
+        'not_found',
+        'unauthorized',
+        'forbidden',
+        'validation',
+        'other_http_code',
+        'json_decode',
+        'connection',
+        'timeout',
+        'request',
+        'encoding',
+        'empty_data',
+        'start',
+        'unexpected'
+    ])
+
+
+def execute_and_print(ctx, client, func):
+    client = client(ctx)
+    error, data = func(client)
+    if not has_error(error):
+        rich.print_json(json.dumps(data, indent=2))

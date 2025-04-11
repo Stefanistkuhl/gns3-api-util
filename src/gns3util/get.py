@@ -1,11 +1,9 @@
 import click
 import sys
-import rich
-import json
 import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, has_error, execute_and_print
 
 get = click.Group('get')
 
@@ -77,15 +75,8 @@ def get_client(ctx):
     """Helper function to create GNS3GetAPI instance."""
     key_file = os.path.expanduser("~/.gns3key")
     server_url = ctx.parent.obj['server']
-    key = auth.load_key(key_file)  # updated from loadKey to load_key
+    key = auth.load_key(key_file)
     return GNS3GetAPI(server_url, key)
-
-
-def execute_and_print(ctx, func):
-    client = get_client(ctx)
-    success, data = func(client)
-    if success:
-        rich.print_json(json.dumps(data, indent=2))
 
 
 # Create click commands with zero arguments
@@ -93,7 +84,9 @@ for cmd, func in _zero_arg.items():
     def make_cmd(func=func):
         @click.pass_context
         def cmd_func(ctx):
-            execute_and_print(ctx, lambda client: getattr(client, func)())
+            api_get_client = get_client(ctx)
+            execute_and_print(
+                ctx, api_get_client, lambda client: getattr(client, func)())
         return cmd_func
     get.command(name=cmd)(make_cmd())
 
@@ -103,7 +96,9 @@ for cmd, func in _one_arg.items():
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
-            execute_and_print(ctx, lambda client: getattr(client, func)(arg))
+            api_get_client = get_client(ctx)
+            execute_and_print(
+                ctx, api_get_client, lambda client: getattr(client, func)(arg))
         return cmd_func
     get.command(name=cmd)(make_cmd())
 
@@ -114,7 +109,8 @@ for cmd, func in _two_arg.items():
         @click.argument('id')
         @click.pass_context
         def cmd_func(ctx, project_id, id):
-            execute_and_print(ctx, lambda client: getattr(
+            api_get_client = get_client(ctx)
+            execute_and_print(ctx, api_get_client, lambda client: getattr(
                 client, func)(project_id, id))
         return cmd_func
     get.command(name=cmd)(make_cmd())
@@ -140,10 +136,9 @@ def project_notifications(ctx, project_id, timeout_seconds):
 @get.command(name="usernames-and-ids", help="Listing all users and their ids")
 @click.pass_context
 def usernames_and_ids(ctx):
-    users_raw = get_client(ctx).users()
-    if not users_raw[0]:
+    error, users = get_client(ctx).users()
+    if has_error(error):
         sys.exit("An error occurred getting all the data for the users")
-    users = users_raw[1]
     print("List of all users and their id:")
     for user in users:
         username = user.get('username', 'N/A')
