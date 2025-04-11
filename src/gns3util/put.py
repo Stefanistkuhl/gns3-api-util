@@ -36,7 +36,7 @@ Has data: False
 """
 _two_arg_no_data = {
     "add_group_member": "add_group_member",
-    "add_ressouce_to_pool": "add_resource_to_pool",  # updated value
+    "add_ressouce_to_pool": "add_resource_to_pool",
     "update_role_privs": "update_role_privs"
 }
 
