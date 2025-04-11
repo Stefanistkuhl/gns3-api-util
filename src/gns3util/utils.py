@@ -1,6 +1,6 @@
 import requests
+import click
 from dataclasses import dataclass
-import sys
 import subprocess
 import json
 from typing import Callable, Any, Optional
@@ -8,6 +8,27 @@ from typing import Callable, Any, Optional
 GREY = "\033[90m"
 CYAN = "\033[96m"
 RESET = "\033[0m"
+
+
+@dataclass
+class fuzzy_error:
+    network: bool = False
+    missing_permissions: bool = False
+    empty_data: bool = False
+
+
+@dataclass
+class request_error:
+    not_found: bool = False
+    unauthorized: bool = False
+    forbidden: bool = False
+    validation: bool = False
+    other_http_code: bool = False
+    json_decode: bool = False
+    connection: bool = False
+    timeout: bool = False
+    request: bool = False
+    unexpected: bool = False
 
 
 @dataclass
@@ -22,7 +43,8 @@ class fuzzy_info_params:
     opt_data: bool = False
 
 
-def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False):
+# change this to reutnr a error type to have more flexibility with printing
+def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False) -> request_error:
     """
     Handles HTTP requests with standardized error handling and response processing.
 
@@ -38,6 +60,7 @@ def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stre
         tuple: (success, response_data), where success is a boolean and response_data is the JSON response or None.
         If stream is true, returns response object.
     """
+    error = request_error()
     try:
         response = requests.request(
             method, url, headers=headers, json=data, timeout=timeout, stream=stream
@@ -139,23 +162,19 @@ def fzf_select(options, multi=False):
         return []
 
 
-def fuzzy_info(params=fuzzy_info_params):
+def fuzzy_info(params=fuzzy_info_params) -> fuzzy_error:
+    # maybe break this up into more functions
     # add real error handeling with returning error types
-    # raw_data = client(ctx).method()
-    raw_data = getattr(params.client(params.ctx), params.method)()
-    if not raw_data[0]:
-        sys.exit(f"An error occurred executing the method {params.method}")
-    api_data = raw_data[1]
-    fzf_input_data = []
-    for data in api_data:
-        fzf_input_data.append(data[params.key])
+    error = fuzzy_error()
+    fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
+        params)
+    if get_fzf_input_error.network:
+        return get_fzf_input_error
     selected = fzf_select(fzf_input_data, multi=params.multi)
-    matched_users = set()
+    matched = set()
     for selected_item in selected:
         for a in api_data:
-            if a[params.key] == selected_item and a[params.key] not in matched_users:
-                print(f"{GREY}---{RESET}")
-                matched_users.add(a[params.key])
+            if a[params.key] == selected_item and a[params.key] not in matched:
                 for k, v in a.items():
                     print(f"{CYAN}{k}{RESET}: {v}")
                 print(f"{GREY}---{RESET}")
@@ -163,12 +182,14 @@ def fuzzy_info(params=fuzzy_info_params):
                     opt_raw = getattr(params.client(
                         params.ctx), params.opt_method)(a[params.opt_key])
                     if not opt_raw[0]:
-                        sys.exit(
-                            f"An error occurred getting all the data with this method {params.opt_method}")
+                        error.request_network_error = True
+                        return error
                     opt_data = opt_raw[1]
                     if opt_data == []:
-                        print(f"Empty data returned from {
-                            params.opt_method} for {a[params.key]}")
+                        # either add callbacks for this in the future or print
+                        # something better or use ifs to detierme it
+                        print(f"Empty data returned from method {
+                            params.opt_method} for the {a[params.key]} value")
                     else:
                         for d in opt_data:
                             print(f"{GREY}---{RESET}")
@@ -176,3 +197,28 @@ def fuzzy_info(params=fuzzy_info_params):
                                 print(f"{CYAN}{k2}{RESET}: {v2}")
                             print(f"{GREY}---{RESET}")
                 break
+    return error
+
+
+def get_values_for_fuzzy_input(params) -> (list, list, fuzzy_error):
+    error = fuzzy_error()
+    raw_data = getattr(params.client(params.ctx), params.method)()
+    if not raw_data[0]:
+        error.network = True
+        return None, None, error
+    api_data = raw_data[1]
+    fzf_input_data = []
+    for data in api_data:
+        fzf_input_data.append(data[params.key])
+    return fzf_input_data, api_data, fuzzy_error
+
+
+def fuzzy_put():
+    pass
+
+
+def fuzzy_info_wrapper(params):
+    error = fuzzy_info(params)
+    if error.network:
+        click.echo(
+            "Failed to fetch data from the API check your Network connection to the server", err=True)

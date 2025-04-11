@@ -5,7 +5,7 @@ import json
 import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper
 
 get = click.Group('get')
 
@@ -164,7 +164,7 @@ def find_user_info(ctx):
         multi=True,
         opt_data=False
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="fui", help="find user info using fzf")
@@ -178,7 +178,7 @@ def find_user_info_command_short(ctx):
         multi=True,
         opt_data=False
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="find-group-info", help="find group info using fzf")
@@ -192,7 +192,7 @@ def find_group_info(ctx):
         multi=True,
         opt_data=False
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="fgi", help="find group info using fzf")
@@ -206,7 +206,7 @@ def find_group_info_command_short(ctx):
         multi=True,
         opt_data=False
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="find-group-info-with-usernames", help="find group info with members using fzf")
@@ -222,7 +222,7 @@ def find_group_info_with_members(ctx):
         multi=True,
         opt_data=True
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="fgim", help="find group info with members using fzf")
@@ -238,7 +238,7 @@ def find_group_info_with_members_command_short(ctx):
         multi=True,
         opt_data=True
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="find-user-info-and-group-membership", help="find user info and group membership using fzf")
@@ -254,7 +254,7 @@ def find_user_info_and_groups(ctx):
         multi=True,
         opt_data=True
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
 
 
 @get.command(name="fuig", help="find user info and group membership using fzf")
@@ -270,4 +270,4 @@ def find_user_info_and_groups_short(ctx):
         multi=True,
         opt_data=True
     )
-    fuzzy_info(params)
+    fuzzy_info_wrapper(params)
