@@ -157,13 +157,16 @@ for cmd, func in _three_arg.items():
 
 
 @put.command(name="fchpw", help="find user info using fzf and change their password")
+@click.option(
+    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
+)
 @click.pass_context
-def find_user_info_and_groups_short(ctx):
+def find_user_info_and_groups_short(ctx, multi):
     params = fuzzy_password_params(
         ctx=ctx,
         client=get_client,
         method="users",
         key="username",
-        multi=False,
+        multi=multi,
     )
     fuzzy_put_wrapper(params)
