@@ -122,7 +122,7 @@ for cmd, func in _zero_arg.items():
             try:
                 data = json.loads(json_data)
                 execute_and_print(
-                    ctx, api_post_client, lambda client: getattr(client, func)(data))
+                    ctx, api_post_client, lambda client: getattr(api_post_client, func)(data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -136,7 +136,7 @@ for cmd, func in _zero_arg_no_data.items():
         def cmd_func(ctx):
             api_post_client = get_client(ctx)
             execute_and_print(
-                ctx, api_post_client, lambda client: getattr(client, func)())
+                ctx, api_post_client, lambda client: getattr(api_post_client, func)())
         return cmd_func
     post.command(name=cmd)(make_cmd())
 
@@ -151,7 +151,7 @@ for cmd, func in _one_arg.items():
             try:
                 data = json.loads(json_data)
                 execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    client, func)(arg, data))
+                    api_post_client, func)(arg, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -166,7 +166,7 @@ for cmd, func in _one_arg_no_data.items():
         def cmd_func(ctx, arg):
             api_post_client = get_client(ctx)
             execute_and_print(ctx, api_post_client, lambda client: getattr(
-                client, func)(arg))
+                api_post_client, func)(arg))
         return cmd_func
     post.command(name=cmd)(make_cmd())
 
@@ -179,7 +179,7 @@ for cmd, func in _two_arg_no_data.items():
         def cmd_func(ctx, arg1, arg2):
             api_post_client = get_client(ctx)
             execute_and_print(ctx, api_post_client, lambda client: getattr(
-                client, func)(arg1, arg2))
+                api_post_client, func)(arg1, arg2))
         return cmd_func
     post.command(name=cmd)(make_cmd())
 
@@ -191,10 +191,11 @@ for cmd, func in _two_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2, json_data):
+            api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg1, arg2, data))
+                execute_and_print(ctx, api_post_client, lambda client: getattr(
+                    api_post_client, func)(arg1, arg2, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -210,10 +211,11 @@ for cmd, func in _three_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2, arg3, json_data):
+            api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg1, arg2, arg3, data))
+                execute_and_print(ctx, api_post_client, lambda client: getattr(
+                    api_post_client, func)(arg1, arg2, arg3, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -228,7 +230,8 @@ for cmd, func in _three_arg_no_data.items():
         @click.argument('arg3')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2, arg3):
-            execute_and_print(ctx, lambda client: getattr(
-                client, func)(arg1, arg2, arg3))
+            api_post_client = get_client(ctx)
+            execute_and_print(ctx, api_post_client, lambda client: getattr(
+                api_post_client, func)(arg1, arg2, arg3))
         return cmd_func
     post.command(name=cmd)(make_cmd())

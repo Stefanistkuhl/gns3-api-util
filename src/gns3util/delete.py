@@ -64,9 +64,9 @@ for cmd, func in _zero_arg_no_data.items():
     def make_cmd(func=func):
         @click.pass_context
         def cmd_func(ctx):
-            api_delete_client = execute_and_print(ctx)
+            api_delete_client = get_client(ctx)
             execute_and_print(
-                ctx, api_delete_client, lambda client: getattr(client, func)())
+                ctx, api_delete_client, lambda client: getattr(api_delete_client, func)())
         return cmd_func
     delete.command(name=cmd)(make_cmd())
 
@@ -77,9 +77,9 @@ for cmd, func in _one_arg_no_data.items():
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
-            api_delete_client = execute_and_print(ctx)
+            api_delete_client = get_client(ctx)
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
-                client, func)(arg))
+                api_delete_client, func)(arg))
         return cmd_func
     delete.command(name=cmd)(make_cmd())
 
@@ -90,8 +90,8 @@ for cmd, func in _two_arg_no_data.items():
         @click.argument('arg2')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2):
-            api_delete_client = execute_and_print(ctx)
+            api_delete_client = get_client(ctx)
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
-                client, func)(arg1, arg2))
+                api_delete_client, func)(arg1, arg2))
         return cmd_func
     delete.command(name=cmd)(make_cmd())

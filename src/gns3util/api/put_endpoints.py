@@ -1,4 +1,5 @@
-from . import GNS3APIClient
+# from . import GNS3APIClient
+from .client import GNS3APIClient
 
 
 class GNS3PutAPI(GNS3APIClient):

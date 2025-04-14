@@ -1,9 +1,9 @@
-from .api.put_endpoints import GNS3PutAPI
-from . import auth
+import click
 import os
 import json
-import click
-from .utils import execute_and_print
+from . import auth
+from .api.put_endpoints import GNS3PutAPI
+from .utils import execute_and_print, fuzzy_password_params, fuzzy_put_wrapper
 
 """
 Number of arguments: 0
@@ -73,11 +73,11 @@ for cmd, func in _zero_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, json_data):
-            api_post_client = get_client(ctx)
+            api_put_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
                 execute_and_print(
-                    ctx, api_post_client, lambda client: getattr(client, func)(data))
+                    ctx, api_put_client, lambda client: getattr(api_put_client, func)(data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -91,11 +91,11 @@ for cmd, func in _one_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg, json_data):
-            api_post_client = get_client(ctx)
+            api_put_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    client, func)(arg, data))
+                execute_and_print(ctx, api_put_client, lambda client: getattr(
+                    api_put_client, func)(arg, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -110,9 +110,9 @@ for cmd, func in _two_arg_no_data.items():
         @click.argument('arg2')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2):
-            api_post_client = get_client(ctx)
-            execute_and_print(ctx, api_post_client, lambda client: getattr(
-                client, func)(arg1, arg2))
+            api_put_client = get_client(ctx)
+            execute_and_print(ctx, api_put_client, lambda client: getattr(
+                api_put_client, func)(arg1, arg2))
         return cmd_func
     put.command(name=cmd)(make_cmd())
 
@@ -124,10 +124,11 @@ for cmd, func in _two_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2, json_data):
+            api_put_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, lambda client: getattr(
-                    client, func)(arg1, arg2, data))
+                execute_and_print(ctx, api_put_client, lambda client: getattr(
+                    api_put_client, func)(arg1, arg2, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
@@ -143,13 +144,26 @@ for cmd, func in _three_arg.items():
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, arg1, arg2, arg3, json_data):
-            api_post_client = get_client(ctx)
+            api_put_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    client, func)(arg1, arg2, arg3, data))
+                execute_and_print(ctx, api_put_client, lambda client: getattr(
+                    api_put_client, func)(arg1, arg2, arg3, data))
             except json.JSONDecodeError:
                 print("Error: Invalid JSON input")
                 return
         return cmd_func
     put.command(name=cmd)(make_cmd())
+
+
+@put.command(name="fchpw", help="find user info using fzf and change their password")
+@click.pass_context
+def find_user_info_and_groups_short(ctx):
+    params = fuzzy_password_params(
+        ctx=ctx,
+        client=get_client,
+        method="users",
+        key="username",
+        multi=False,
+    )
+    fuzzy_put_wrapper(params)

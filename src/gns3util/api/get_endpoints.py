@@ -1,4 +1,5 @@
-from ..api import GNS3APIClient
+# from ..api import GNS3APIClient
+from .client import GNS3APIClient
 import urllib.parse
 
 

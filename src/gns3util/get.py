@@ -3,7 +3,7 @@ import sys
 import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, has_error, execute_and_print
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print
 
 get = click.Group('get')
 
@@ -86,7 +86,7 @@ for cmd, func in _zero_arg.items():
         def cmd_func(ctx):
             api_get_client = get_client(ctx)
             execute_and_print(
-                ctx, api_get_client, lambda client: getattr(client, func)())
+                ctx, api_get_client, lambda client: getattr(api_get_client, func)())
         return cmd_func
     get.command(name=cmd)(make_cmd())
 
@@ -98,7 +98,7 @@ for cmd, func in _one_arg.items():
         def cmd_func(ctx, arg):
             api_get_client = get_client(ctx)
             execute_and_print(
-                ctx, api_get_client, lambda client: getattr(client, func)(arg))
+                ctx, api_get_client, lambda client: getattr(api_get_client, func)(arg))
         return cmd_func
     get.command(name=cmd)(make_cmd())
 
@@ -111,7 +111,7 @@ for cmd, func in _two_arg.items():
         def cmd_func(ctx, project_id, id):
             api_get_client = get_client(ctx)
             execute_and_print(ctx, api_get_client, lambda client: getattr(
-                client, func)(project_id, id))
+                api_get_client, func)(project_id, id))
         return cmd_func
     get.command(name=cmd)(make_cmd())
 
