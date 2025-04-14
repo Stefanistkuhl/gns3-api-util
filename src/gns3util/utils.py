@@ -1,33 +1,18 @@
-import requests
+import os
+from . import auth
+import json
+import getpass
 import rich
 import click
 from dataclasses import dataclass, field
 import subprocess
 import json
 from typing import Callable, Any, Optional
+from .api.client import GNS3Error
 
 GREY = "\033[90m"
 CYAN = "\033[96m"
 RESET = "\033[0m"
-
-
-@dataclass
-class request_error:
-    not_found: bool = False
-    unauthorized: bool = False
-    forbidden: bool = False
-    validation: bool = False
-    other_http_code: bool = False
-    json_decode: bool = False
-    connection: bool = False
-    timeout: bool = False
-    request: bool = False
-    unexpected: bool = False
-    encoding: bool = False
-    start: bool = False
-    empty_data: bool = False
-    other_code: int = 0
-    msg: str = ""
 
 
 @dataclass
@@ -42,86 +27,13 @@ class fuzzy_info_params:
     opt_data: bool = False
 
 
-# change this to reutnr a error type to have more flexibility with printing
-def _handle_request(url, headers=None, method="GET", data=None, timeout=10, stream=False) -> (request_error, Any):
-    """
-    Handles HTTP requests with standardized error handling and response processing.
-
-    Args:
-        url (str): The URL to make the request to.
-        headers (dict, optional): HTTP headers. Defaults to None.
-        method (str, optional): HTTP method (GET, POST, etc.). Defaults to 'GET'.
-        data (dict, optional): Request payload. Defaults to None.
-        timeout (int, optional): Request timeout in seconds. Defaults to 10.
-        stream (bool, optional): whether to stream the response. Defaults to False.
-
-    Returns:
-        tuple: (error, response_data), where success is a boolean and response_data is the JSON response or None.
-        If stream is true, returns response object.
-    """
-    error = request_error()
-    try:
-        response = requests.request(
-            method, url, headers=headers, json=data, timeout=timeout, stream=stream
-        )
-        if response.status_code == 200:
-            if stream:
-                return error, response
-            else:
-                return error, response.json()
-        elif response.status_code == 404:
-            error.not_found = True
-            try:
-                error.msg = response.json().get('message', 'Resource not found')
-                return error, None
-            except json.JSONDecodeError:
-                error.msg = response.text
-                error.json_decode = True
-                return error, None
-            return False, None
-        elif response.status_code == 401:
-            error.unauthorized = True
-            try:
-                error.msg = response.json()
-            except json.JSONDecodeError:
-                error.json_decode = True
-                error.msg = response.text
-            return error, None
-        elif response.status_code == 403:
-            error.forbidden = True
-            try:
-                error_msg = response.json().get('message', 'Access forbidden')
-                error.msg = error_msg
-            except json.JSONDecodeError:
-                error.json_decode = True
-                error.msg = response.text
-            return error, None
-        elif response.status_code == 422:
-            error.validation = True
-            error.msg = response.json()
-            return error, None
-        else:
-            error.other = True
-            error.other_http_code = response.status_code
-            error.msg = response.text
-            return error, None
-    except requests.exceptions.ConnectionError:
-        error.connection = True
-        base_url = url.split('/v3/')[0] if '/v3/' in url else url
-        error.msg = f"Connection error: Could not connect to {base_url}"
-        return error, None
-    except requests.exceptions.Timeout:
-        error.timeout = True
-        error.msg = "Connection timeout: The server took too long to respond."
-        return error, None
-    except requests.exceptions.RequestException as e:
-        error.request = True
-        error.msg = str(e)
-        return error, None
-    except Exception as e:
-        error.unexpected = True
-        error.msg = str(e)
-        return error, None
+@dataclass
+class fuzzy_password_params:
+    ctx: Any
+    client: Callable[[Any], Any]
+    method: str = "str"
+    key: str = "str"
+    multi: bool = False
 
 
 def fzf_select(options, multi=False):
@@ -173,13 +85,11 @@ def fzf_select(options, multi=False):
         return []
 
 
-def fuzzy_info(params=fuzzy_info_params) -> request_error:
-    # maybe break this up into more functions
-    # add real error handeling with returning error types
-    error = request_error()
+def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
+    error = GNS3Error()
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
         params)
-    if has_error(get_fzf_input_error):
+    if GNS3Error.has_error(get_fzf_input_error):
         return get_fzf_input_error
     selected = fzf_select(fzf_input_data, multi=params.multi)
     matched = set()
@@ -192,14 +102,12 @@ def fuzzy_info(params=fuzzy_info_params) -> request_error:
                 if params.opt_data:
                     opt_data_error, opt_data = getattr(params.client(
                         params.ctx), params.opt_method)(a[params.opt_key])
-                    if has_error(opt_data_error):
+                    if GNS3Error.has_error(opt_data_error):
                         error.request_network_error = True
                         return error
                     if opt_data == []:
-                        # either add callbacks for this in the future or print
-                        # something better or use ifs to detierme it
                         print(f"Empty data returned from method {
-                            params.opt_method} for the {a[params.key]} value")
+                              params.opt_method} for the {a[params.key]} value")
                     else:
                         for d in opt_data:
                             print(f"{GREY}---{RESET}")
@@ -210,11 +118,12 @@ def fuzzy_info(params=fuzzy_info_params) -> request_error:
     return error
 
 
-def get_values_for_fuzzy_input(params) -> (list, list, request_error):
-    fuzzy_error = request_error()
+def get_values_for_fuzzy_input(params) -> (list, list, GNS3Error):
+    from . import get
+    fuzzy_error = GNS3Error()
     get_data_error, api_data = getattr(
-        params.client(params.ctx), params.method)()
-    if has_error(get_data_error):
+        get.get_client(params.ctx), params.method)()
+    if GNS3Error.has_error(get_data_error):
         fuzzy_error.connection = True
         return None, None, fuzzy_error
     fzf_input_data = []
@@ -223,8 +132,30 @@ def get_values_for_fuzzy_input(params) -> (list, list, request_error):
     return fzf_input_data, api_data, fuzzy_error
 
 
-def fuzzy_put():
-    pass
+def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
+    from . import put
+    error = GNS3Error()
+    fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
+        params)
+    if GNS3Error.has_error(get_fzf_input_error):
+        return get_fzf_input_error
+    selected = fzf_select(fzf_input_data, multi=params.multi)
+    matched = set()
+    for selected_item in selected:
+        for a in api_data:
+            if a[params.key] == selected_item and a[params.key] not in matched:
+                print(f"Changing the password for user {a['username']}")
+                pw = getpass.getpass("Enter the desired password:\n")
+                input_data = {"password": pw}
+                client = put.get_client(params.ctx)
+                change_password_error, result = client.update_user(
+                    a['user_id'], input_data)
+                if GNS3Error.has_error(change_password_error):
+                    return error
+                print(f"Successfully changed the password for user {
+                      a['username']}")
+                break
+    return error
 
 
 def fuzzy_info_wrapper(params):
@@ -234,26 +165,14 @@ def fuzzy_info_wrapper(params):
             "Failed to fetch data from the API check your Network connection to the server", err=True)
 
 
-def has_error(error_instance: request_error) -> bool:
-    return any(getattr(error_instance, field) for field in [
-        'not_found',
-        'unauthorized',
-        'forbidden',
-        'validation',
-        'other_http_code',
-        'json_decode',
-        'connection',
-        'timeout',
-        'request',
-        'encoding',
-        'empty_data',
-        'start',
-        'unexpected'
-    ])
+def fuzzy_put_wrapper(params):
+    error = fuzzy_change_password(params)
+    if error.connection:
+        click.echo(
+            "Failed to fetch data from the API check your Network connection to the server", err=True)
 
 
 def execute_and_print(ctx, client, func):
-    client = client(ctx)
     error, data = func(client)
-    if not has_error(error):
+    if not GNS3Error.has_error(error):
         rich.print_json(json.dumps(data, indent=2))
