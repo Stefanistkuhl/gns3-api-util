@@ -1,12 +1,9 @@
-import os
-from . import auth
 import json
 import getpass
 import rich
 import click
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import subprocess
-import json
 from typing import Callable, Any, Optional
 from .api.client import GNS3Error
 
@@ -155,6 +152,76 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
                 print(f"Successfully changed the password for user {
                       a['username']}")
                 break
+    return error
+
+
+def parse_json(filepath: str) -> tuple[bool, Any]:
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        return False, data
+    except FileNotFoundError:
+        return True, f"File not found: {filepath}"
+    except json.JSONDecodeError as e:
+        return True, f"Invalid JSON in {filepath}: {e}"
+    except Exception as e:
+        return True, f"An unexpected error occurred: {e}"
+
+
+def create_class(ctx, filename: str):
+    error_load, data = parse_json(filename)
+
+    if error_load:
+        click.echo(
+            f"Failed to load the file {filename}. Error: {data}", err=True
+        )
+        return
+
+    class_name = list(data.keys())[0]
+    class_obj = data[class_name]
+    create_group_error = create_user_group(ctx, class_name)
+    if GNS3Error.has_error(create_group_error):
+        print("handle this later")
+        return
+    for group_name, group_obj in class_obj.items():
+        create_group_error = create_user_group(ctx, group_name)
+        if GNS3Error.has_error(create_group_error):
+            print("handle this later")
+            return
+        students = group_obj["students"]
+        for student in students:
+            create_user_error = create_user(ctx, student)
+            if GNS3Error.has_error(create_user_error):
+                print("handle this later")
+                return
+
+
+def create_user_group(ctx, group_name) -> GNS3Error:
+    from . import post
+    error = GNS3Error()
+    input_data = {"name": group_name}
+    client = post.get_client(ctx)
+    create_group_error, result = client.create_group(input_data)
+    if GNS3Error.has_error(create_group_error):
+        return error
+    click.echo(f"Successfully created the group {group_name}")
+    return error
+
+
+def create_user(ctx, user_dict: dict) -> GNS3Error:
+    from . import post
+    error = GNS3Error()
+    if user_dict["fullName"] != "":
+        input_data = {
+            "username": user_dict["userName"], "full_name": user_dict["fullName"], "email": user_dict["email"], "password": user_dict["password"]}
+    else:
+        input_data = {
+            "username": user_dict["userName"], "email": user_dict["email"], "password": user_dict["password"]}
+    client = post.get_client(ctx)
+    create_user_error, result = client.create_user(input_data)
+    if GNS3Error.has_error(create_user_error):
+        return error
+    click.echo(f"Successfully created the uesr {input_data["username"]}")
     return error
 
 
