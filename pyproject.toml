@@ -5,6 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gns3util"
 version = "0.2.0"
+requires-python = ">=3.13"
+license = {file = "LICENSE.txt"}
 dependencies = [
     "click",
     "requests",

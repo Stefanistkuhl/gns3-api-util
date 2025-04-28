@@ -1,4 +1,13 @@
 # GNS3 API Util
+<center>
+<img width=256 src="https://i.imgur.com/t1PNyl4.gif" alt="surely a temporary logo" />
+</center>
+
+![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fimg.shields.io%2Fpython%2Frequired-version-toml%3Flink%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252FStefanistkuhl%252Fgns3-api-util%252Frefs%252Fheads%252Fmaster%252Fpyproject.toml)
+![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues/stefanistkuhl/gns3-api-util)
+![language count](https://img.shields.io/github/languages/count/stefanistkuhl/gns3-api-util)
+![repo size](https://img.shields.io/github/repo-size/stefanistkuhl/gns3-api-util)
+![erm](https://pride-badges.pony.workers.dev/static/v1?label=Code+works+as+well+as+queer++rights+in+the+USA&labelColor=%23555&stripeWidth=8&stripeColors=E40303%2CFF8C00%2CFFED00%2C008026%2C24408E%2C732982)
 
 A command-line utility for interacting with the GNS3 API. This tool streamlines common API operations—such as authentication, GET, POST, PUT, and DELETE requests—against a GNS3 server, making it easier to integrate and automate tasks in your network emulation environments.
 
