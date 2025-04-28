@@ -3,7 +3,7 @@
 <img width=256 src="https://i.imgur.com/t1PNyl4.gif" alt="surely a temporary logo" />
 </center>
 
-![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fimg.shields.io%2Fpython%2Frequired-version-toml%3Flink%3Dhttps%253A%252F%252Fraw.githubusercontent.com%252FStefanistkuhl%252Fgns3-api-util%252Frefs%252Fheads%252Fmaster%252Fpyproject.toml)
+![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FStefanistkuhl%2Fgns3-api-util%2Frefs%2Fheads%2Fmaster%2Fpyproject.toml)
 ![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues/stefanistkuhl/gns3-api-util)
 ![language count](https://img.shields.io/github/languages/count/stefanistkuhl/gns3-api-util)
 ![repo size](https://img.shields.io/github/repo-size/stefanistkuhl/gns3-api-util)
