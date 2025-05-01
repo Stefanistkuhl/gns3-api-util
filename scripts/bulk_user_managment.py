@@ -9,10 +9,11 @@ import sys
 from typing import List, Optional, Dict, Any, Tuple
 
 # --- Configuration ---
-DEFAULT_GNS3_SERVER_URL = "http://10.21.34.224:3080"  # dont keep this for commit
+DEFAULT_GNS3_SERVER_URL = "http://100.114.49.127:3080"  # dont keep this for commit
 DEFAULT_GNS3UTIL_PATH = 'gns3util'
 DEFAULT_MAX_DELETE_WORKERS = 20
 PROTECTED_USERNAMES = {"admin"}
+PROTECTED_GROUPS = {"Administrators", "Users"}
 
 # --- Core Utility ---
 
@@ -140,6 +141,56 @@ def get_user_id_map(
         return None
 
 
+def get_group_id_map(
+    server_url: str,
+    gns3util_path: str = DEFAULT_GNS3UTIL_PATH
+) -> Optional[Dict[str, str]]:
+    """
+    Fetches all groups from GNS3 and returns a dictionary mapping username to user_id.
+
+    Args:
+        server_url: The GNS3 server URL.
+        gns3util_path: Path to the gns3util executable.
+
+    Returns:
+        A dictionary {username: user_id} or None on failure.
+    """
+    print(f"\nFetching users from {server_url}...")
+    success, stdout, stderr = run_gns3util_command(
+        server_url=server_url,
+        subcommand='get',
+        action='groups',
+        gns3util_path=gns3util_path
+    )
+
+    if not success:
+        print(f"Error: Failed to fetch groups. STDERR: {
+              stderr}", file=sys.stderr)
+        return None
+    if not stdout:
+        print("Error: No output received when fetching groups.", file=sys.stderr)
+        return None
+
+    try:
+        groups_list = json.loads(stdout)
+        if not isinstance(groups_list, list):
+            print(f"Error: Expected a list of users, but got {
+                  type(groups_list)}. Output: {stdout}", file=sys.stderr)
+            return None
+
+        groups_map = {group['name']: group['user_group_id']
+                      for group in groups_list if 'name' in group and 'user_group_id' in group}
+        print(f"Successfully mapped {len(groups_list)} groups.")
+        return groups_map
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from get groups output: {
+              stdout}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"Error processing groups list: {e}", file=sys.stderr)
+        return None
+
+
 def create_user_and_add_to_group(
     server_url: str,
     group_id: str,
@@ -235,6 +286,27 @@ def create_user_and_add_to_group(
         print(f"Skipping add to group step as no group_id was provided.")
 
     return new_user_id
+
+
+def _delete_single_group(
+    server_url: str,
+    group_id: str,
+    groupname: str,
+    gns3util_path: str
+) -> Tuple[str, bool]:
+    """Helper function to delete one group."""
+    # print(f"Deleting user {username} ({user_id})...") # Verbose logging
+    success, stdout, stderr = run_gns3util_command(
+        server_url=server_url,
+        subcommand='delete',
+        action='group',
+        args=[group_id],
+        gns3util_path=gns3util_path,
+    )
+    if not success:
+        print(f"Error deleting group {groupname} ({group_id}). STDERR: {
+              stderr}", file=sys.stderr)
+    return group_id, success
 
 
 def _delete_single_user(
@@ -382,30 +454,111 @@ def delete_users_concurrently(
     return deleted_count, failed_count
 
 
+def delete_groups_sequentially(
+    server_url: str,
+    group_map: Dict[str, str],
+    gns3util_path: str = DEFAULT_GNS3UTIL_PATH,
+    skip_groupnames: set = PROTECTED_GROUPS,
+) -> Tuple[int, int]:
+    """
+    Deletes groups from the provided map sequentially (single-threaded).
+
+    Args:
+        server_url: The GNS3 server URL.
+        group_map: Dictionary {groupname: group_id} of groups to consider for
+            deletion.
+        gns3util_path: Path to the gns3util executable.
+        skip_groupnames: Set of groupnames to NOT delete.
+
+    Returns:
+        Tuple (deleted_count, failed_count).
+    """
+    groups_to_delete = {
+        group_id: groupname
+        for groupname, group_id in group_map.items()
+        if groupname not in skip_groupnames
+    }
+
+    if not groups_to_delete:
+        print("No groups eligible for deletion (after skipping protected groups).")
+        return 0, 0
+
+    print(f"\nStarting sequential deletion of {
+          len(groups_to_delete)} groups...")
+
+    deleted_count = 0
+    failed_count = 0
+    total_tasks = len(groups_to_delete)
+
+    for i, (group_id, groupname) in enumerate(groups_to_delete.items(), 1):
+        print(
+            f"\rProgress: Deleting group {i}/{total_tasks} ({groupname})...",
+            end="",
+        )
+        _group_id, success = _delete_single_group(
+            server_url, group_id, groupname, gns3util_path
+        )
+        if success:
+            deleted_count += 1
+        else:
+            failed_count += 1
+            print()
+
+    print()  # Newline after progress indicator
+    print(
+        f"\nSequential deletion complete. Successfully deleted: {
+            deleted_count},"
+        f" Failed: {failed_count}"
+    )
+    return deleted_count, failed_count
+
 # --- Helper Function for Deletion ---
+
 
 def _handle_deletion(delete_mode: str, server_url: str, gns3util_path: str):
     """Gets user map, confirms, and calls the appropriate deletion function."""
-    user_map = get_user_id_map(server_url, gns3util_path)
-    if not user_map:
-        print("Could not retrieve user map. Deletion aborted.")
-        return
+    if "user" in delete_mode:
+        user_map = get_user_id_map(server_url, gns3util_path)
+        if not user_map:
+            print("Could not retrieve user map. Deletion aborted.")
+            return
 
-    num_eligible = len([u for u in user_map if u not in PROTECTED_USERNAMES])
-    if num_eligible == 0:
-        print(f"No users found eligible for deletion (excluding {
-              ', '.join(PROTECTED_USERNAMES)}).")
-        return
+        num_eligible_user = len(
+            [u for u in user_map if u not in PROTECTED_USERNAMES])
+        if num_eligible_user == 0:
+            print(f"No users found eligible for deletion (excluding {
+                  ', '.join(PROTECTED_USERNAMES)}).")
+            return
 
-    confirm = input(f"Found {len(user_map)} total users. {num_eligible} are eligible for deletion "
-                    f"(excluding {', '.join(PROTECTED_USERNAMES)}). "
-                    f"Proceed with {delete_mode} deletion? (yes/no): ").strip().lower()
+        confirm_user = input(f"Found {len(user_map)} total users. {num_eligible_user} are eligible for deletion "
+                             f"(excluding {', '.join(PROTECTED_USERNAMES)}). "
+                             f"Proceed with {delete_mode} deletion? (yes/no): ").strip().lower()
+        if confirm_user != 'yes':
+            print("Deletion cancelled.")
+            return
 
-    if confirm != 'yes':
-        print("Deletion cancelled.")
-        return
+    if "group" in delete_mode:
+        group_map = get_group_id_map(server_url, gns3util_path)
+        if not group_map:
+            print("Could not retrieve group map. Deletion aborted.")
+            return
 
-    if delete_mode == 'multi-threaded':
+            num_eligible_group = len(
+                [u for u in group_map if u not in PROTECTED_GROUPS])
+            if num_eligible_user == 0:
+                print(f"No groups found eligible for deletion (excluding {
+                      ', '.join(PROTECTED_GROUPS)}).")
+                return
+            confirm_group = input(f"Found {len(group_map)} total groups. {num_eligible_group} are eligible for deletion "
+                                  f"(excluding {
+                ', '.join(PROTECTED_GROUPS)}). "
+                f"Proceed with {delete_mode} deletion? (yes/no): ").strip().lower()
+
+            if confirm_group != 'yes':
+                print("Deletion cancelled.")
+                return
+
+    if delete_mode == "user-multi-threaded":
         try:
             max_workers_str = input(f"Enter max concurrent deletions [{
                                     DEFAULT_MAX_DELETE_WORKERS}]: ").strip()
@@ -425,12 +578,19 @@ def _handle_deletion(delete_mode: str, server_url: str, gns3util_path: str):
             gns3util_path=gns3util_path,
             skip_usernames=PROTECTED_USERNAMES
         )
-    elif delete_mode == 'single-threaded':
+    elif delete_mode == "user-single-threaded":
         delete_users_sequentially(
             server_url=server_url,
             user_map=user_map,
             gns3util_path=gns3util_path,
             skip_usernames=PROTECTED_USERNAMES
+        )
+    elif delete_mode == "group-single-threaded":
+        delete_groups_sequentially(
+            server_url=server_url,
+            group_map=group_map,
+            gns3util_path=gns3util_path,
+            skip_groupnames=PROTECTED_GROUPS
         )
     else:
         print(f"Error: Unknown deletion mode '{delete_mode}'", file=sys.stderr)
@@ -458,9 +618,11 @@ def main():
         print("\nChoose an action:")
         print("  1. Create users (single-threaded)")
         print("  2. Delete users (multi-threaded, skips protected)")
-        print("  3. Delete users (single-threaded, skips protected)")  # New option
+        print("  3. Delete users (single-threaded, skips protected)")
+        print("  4. Delete groups (single-threaded, skips protected)")
         print("  q. Quit")
-        choice = input("Enter your choice (1, 2, 3, or q): ").strip().lower()
+        choice = input(
+            "Enter your choice (1, 2, 3, 4, or q): ").strip().lower()
 
         if choice == '1':
             # --- Create Users (Single-threaded) ---
@@ -521,7 +683,8 @@ def main():
         elif choice == '2':
             # --- Delete Users (Multi-threaded) ---
             start_time = time.monotonic()
-            _handle_deletion('multi-threaded', gns3_server_url, gns3util_path)
+            _handle_deletion('user-multi-threaded',
+                             gns3_server_url, gns3util_path)
             end_time = time.monotonic()
             duration = end_time - start_time
             print(f"Multi-threaded deletion duration: {duration:.2f} seconds")
@@ -530,17 +693,29 @@ def main():
         elif choice == '3':
             # --- Delete Users (Single-threaded) ---
             start_time = time.monotonic()
-            _handle_deletion('single-threaded', gns3_server_url, gns3util_path)
+            _handle_deletion('user-single-threaded',
+                             gns3_server_url, gns3util_path)
             end_time = time.monotonic()
             duration = end_time - start_time
             print(f"Single-threaded deletion duration: {duration:.2f} seconds")
+            print("-" * 30)
+
+        elif choice == '4':
+            # --- Delete Groups (Single-threaded) ---
+            start_time = time.monotonic()
+            _handle_deletion('group-single-threaded',
+                             gns3_server_url, gns3util_path)
+            end_time = time.monotonic()
+            duration = end_time - start_time
+            print(
+                f"Single-threaded group deletion duration: {duration:.2f} seconds")
             print("-" * 30)
 
         elif choice == 'q':
             print("Exiting.")
             break
         else:
-            print("Invalid choice. Please enter 1, 2, 3, or q.")
+            print("Invalid choice. Please enter 1, 2, 3, 4, or q.")
 
 
 if __name__ == '__main__':

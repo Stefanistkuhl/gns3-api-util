@@ -3,7 +3,7 @@ import json
 import os
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
-from .utils import execute_and_print, create_class
+from .utils import execute_and_print, create_class, create_Exercise
 
 """
 Number of arguments: 0
@@ -243,3 +243,11 @@ for cmd, func in _three_arg_no_data.items():
 def make_class(ctx, filename):
     file = click.format_filename(filename)
     create_class(ctx, file)
+
+
+@post.command(name="exercise", help="create everything need to setup a class and it's students")
+@click.argument('class_name', type=str)
+@click.argument('exercise_name', type=str)
+@click.pass_context
+def make_exercise(ctx, class_name, exercise_name):
+    create_Exercise(ctx, class_name, exercise_name)

@@ -29,7 +29,7 @@ class GNS3Error:
         return any(getattr(error_instance, field) for field in [
             'not_found',
             'unauthorized',
-            'forbidden', 
+            'forbidden',
             'validation',
             'other_http_code',
             'json_decode',
@@ -41,6 +41,33 @@ class GNS3Error:
             'start',
             'unexpected'
         ])
+
+    @staticmethod
+    def print_error(error_instance):
+        error_types = {
+            'not_found': 'Not Found Error',
+            'unauthorized': 'Unauthorized Error',
+            'forbidden': 'Forbidden Error',
+            'validation': 'Validation Error',
+            'other_http_code': 'Other HTTP Code Error',
+            'json_decode': 'JSON Decode Error',
+            'connection': 'Connection Error',
+            'timeout': 'Timeout Error',
+            'request': 'Request Error',
+            'encoding': 'Encoding Error',
+            'empty_data': 'Empty Data Error',
+            'start': 'Start Error',
+            'unexpected': 'Unexpected Error'
+        }
+
+        errors = []
+        for error_type, error_message in error_types.items():
+            if getattr(error_instance, error_type, False):
+                errors.append(error_message)
+
+        if errors:
+            # refactor this to be nice and use click.echo to stderr
+            print(", ".join(errors), "error message:", error_instance.msg)
 
 
 class GNS3APIClient:
@@ -60,11 +87,12 @@ class GNS3APIClient:
             response = requests.request(
                 method, url, headers=headers, json=data, timeout=timeout, stream=stream
             )
-            if response.status_code == 200:
+            if response.status_code in (200, 201, 204):
                 if stream:
                     return error, response
                 else:
-                    return error, response.json()
+                    from .. import utils
+                    return error, utils.safe_json(response)
             elif response.status_code == 404:
                 error.not_found = True
                 try:
@@ -144,7 +172,8 @@ class GNS3APIClient:
                             print(f"Received notification: {notification}")
                         except json.JSONDecodeError:
                             notification_error.json_decode = True
-                            notification_error.msg = f"Received non-JSON line: {decoded_line}"
+                            notification_error.msg = f"Received non-JSON line: {
+                                decoded_line}"
                             return notification_error
             except requests.exceptions.ChunkedEncodingError:
                 notification_error.encoding = True

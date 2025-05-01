@@ -77,4 +77,4 @@ class GNS3PutAPI(GNS3APIClient):
         return self._api_call(f"pools/{pool_id}", method="PUT", data=data)
 
     def add_resource_to_pool(self, pool_id, resource_id):
-        return self._api_call(f"pools/resources/{resource_id}", method="PUT")
+        return self._api_call(f"pools/{pool_id}/resources/{resource_id}", method="PUT")

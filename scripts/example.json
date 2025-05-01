@@ -1,6 +1,6 @@
 {
   "className": {
-    "groupName": {
+    "className-groupName-groupNumber": {
       "students": [
         {
           "fullName": "Alice",
@@ -16,7 +16,7 @@
         }
       ]
     },
-    "anotherGroup": {
+    "className-anotherGroup-groupNumber": {
       "students": [
         {
           "fullName": "",
