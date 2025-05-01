@@ -249,15 +249,9 @@ def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
     client = post.get_client(ctx)
     create_user_error, result = client.create_user(input_data)
     if GNS3Error.has_error(create_user_error):
-<<<<<<< HEAD
         return "", error
     click.echo(f"Successfully created the user {input_data["username"]}")
     return result['user_id'], error
-=======
-        return error
-    click.echo(f"Successfully created the user {input_data["username"]}")
-    return error
->>>>>>> 530457d (feat: creating acls and adding group deletion to the user managment)
 
 
 def fuzzy_info_wrapper(params):
@@ -280,7 +274,6 @@ def execute_and_print(ctx, client, func):
         rich.print_json(json.dumps(data, indent=2))
 
 
-<<<<<<< HEAD
 def get_role_id(ctx, name: str) -> (str, GNS3Error):
     from . import get
     client = get.get_client(ctx)
@@ -295,18 +288,11 @@ def get_role_id(ctx, name: str) -> (str, GNS3Error):
 def create_project(ctx, name: str) -> (str, GNS3Error):
     from . import post
     project_id = str(uuid.uuid4())
-=======
-def create_project(ctx, name: str) -> GNS3Error:
-    from . import post
-    project_id = str(uuid.uuid4())
-    error = GNS3Error()
->>>>>>> b63b16b (feat: project creation for exercies)
     input_data = {
         "name": name, "project_id": project_id}
     client = post.get_client(ctx)
     create_project_error, result = client.create_project(input_data)
     if GNS3Error.has_error(create_project_error):
-<<<<<<< HEAD
         return project_id, create_project_error
     close_project_error = close_project(ctx, project_id)
     if GNS3Error.has_error(close_project_error):
@@ -323,11 +309,6 @@ def close_project(ctx, project_id: str) -> GNS3Error:
     if GNS3Error.has_error(close_project_error):
         return close_project_error
     return close_project_error
-=======
-        return create_project_error
-    click.echo(f"Successfully created the project {input_data["name"]}")
-    return create_project_error
->>>>>>> b63b16b (feat: project creation for exercies)
 
 
 def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
@@ -348,7 +329,6 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
     return group_list, error
 
 
-<<<<<<< HEAD
 def create_acl(ctx, params: create_acl_params) -> GNS3Error:
     from . import post
     client = post.get_client(ctx)
@@ -366,7 +346,6 @@ def create_acl(ctx, params: create_acl_params) -> GNS3Error:
     return create_acl_error
 
 
-<<<<<<< HEAD
 def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
     from . import post
     client = post.get_client(ctx)
@@ -388,8 +367,6 @@ def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
     return add_to_pool_error
 
 
-=======
->>>>>>> 530457d (feat: creating acls and adding group deletion to the user managment)
 def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
     sucess = True
     role_id, get_role_id_error = get_role_id(ctx, "User")
@@ -428,12 +405,3 @@ def safe_json(resp):
     if resp.headers.get("Content-Length") == "0" or not resp.text:
         return None
     return resp.json()
-=======
-def create_Exercise(ctx, class_name: str, exercise_name: str):
-    groups, get_groups_error = get_groups_in_class(ctx, class_name)
-    print(groups)
-    for group in groups:
-        project_name = f"{class_name}-{exercise_name}-{group['group_number']}"
-        create_project_error = create_project(ctx, project_name)
-        print(create_project_error)
->>>>>>> b63b16b (feat: project creation for exercies)
