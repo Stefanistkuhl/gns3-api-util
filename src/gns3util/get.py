@@ -1,8 +1,8 @@
 import click
-import sys
 import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
+from .api import GNS3Error
 from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print
 
 get = click.Group('get')
@@ -137,30 +137,32 @@ def project_notifications(ctx, project_id, timeout_seconds):
 @click.pass_context
 def usernames_and_ids(ctx):
     error, users = get_client(ctx).users()
-    if has_error(error):
-        sys.exit("An error occurred getting all the data for the users")
-    print("List of all users and their id:")
-    for user in users:
-        username = user.get('username', 'N/A')
-        user_id = user.get('user_id', 'N/A')
-        print(f"Username: {username}")
-        print(f"ID: {user_id}")
-        print("-" * 10)
+    if GNS3Error.has_error(error):
+        GNS3Error.print_error(error)
+    else:
+        print("List of all users and their id:")
+        for user in users:
+            username = user.get('username', 'N/A')
+            user_id = user.get('user_id', 'N/A')
+            print(f"Username: {username}")
+            print(f"ID: {user_id}")
+            print("-" * 10)
 
 
 @get.command(name="uai", help="Listing all users and their ids")
 @click.pass_context
 def usernames_and_ids_short(ctx):
     error, users = get_client(ctx).users()
-    if has_error(error):
-        sys.exit("An error occurred getting all the data for the users")
-    print("List of all users and their id:")
-    for user in users:
-        username = user.get('username', 'N/A')
-        user_id = user.get('user_id', 'N/A')
-        print(f"Username: {username}")
-        print(f"ID: {user_id}")
-        print("-" * 10)
+    if GNS3Error.has_error(error):
+        GNS3Error.print_error(error)
+    else:
+        print("List of all users and their id:")
+        for user in users:
+            username = user.get('username', 'N/A')
+            user_id = user.get('user_id', 'N/A')
+            print(f"Username: {username}")
+            print(f"ID: {user_id}")
+            print("-" * 10)
 
 
 @get.command(name="find-user-info", help="find user info using fzf")

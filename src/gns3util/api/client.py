@@ -1,16 +1,18 @@
 # Package init file
 import requests
+import click
 import json
-import urllib.parse
 import threading
 from dataclasses import dataclass
 
 
 @dataclass
 class GNS3Error:
+    bad_request: bool = False
     not_found: bool = False
     unauthorized: bool = False
     forbidden: bool = False
+    conflict: bool = False
     validation: bool = False
     other_http_code: bool = False
     json_decode: bool = False
@@ -27,6 +29,8 @@ class GNS3Error:
     @staticmethod
     def has_error(error_instance) -> bool:
         return any(getattr(error_instance, field) for field in [
+            'bad_request',
+            'conflict',
             'not_found',
             'unauthorized',
             'forbidden',
@@ -43,8 +47,10 @@ class GNS3Error:
         ])
 
     @staticmethod
-    def print_error(error_instance):
+    def print_error(error_instance, *args):
         error_types = {
+            'bad_request': 'Bad Request Error',
+            'conflict': 'Conflict Error',
             'not_found': 'Not Found Error',
             'unauthorized': 'Unauthorized Error',
             'forbidden': 'Forbidden Error',
@@ -65,9 +71,20 @@ class GNS3Error:
             if getattr(error_instance, error_type, False):
                 errors.append(error_message)
 
-        if errors:
-            # refactor this to be nice and use click.echo to stderr
-            print(", ".join(errors), "error message:", error_instance.msg)
+        if error_instance.not_found is True:
+            errors = [str(arg) for arg in args]
+            click.secho(
+                "Resource not found error: The following resources were not found: ", fg="red", err=True
+            )
+            for resource in errors:
+                click.secho(f"- {resource}", bold=True, err=True)
+        else:
+            if errors:
+                click.secho(", ".join(errors)+": ",
+                            fg="red", nl=False, err=True)
+                click.secho(
+                    error_instance.msg, bold=True, err=True
+                )
 
 
 class GNS3APIClient:
@@ -93,6 +110,14 @@ class GNS3APIClient:
                 else:
                     from .. import utils
                     return error, utils.safe_json(response)
+            elif response.status_code == 400:
+                error.bad_request = True
+                try:
+                    error.msg = response.json().get('message', 'Bad Request')
+                except json.JSONDecodeError:
+                    error.msg = response.text
+                    error.json_decode = True
+                return error, None
             elif response.status_code == 404:
                 error.not_found = True
                 try:
@@ -113,6 +138,15 @@ class GNS3APIClient:
                 error.forbidden = True
                 try:
                     error_msg = response.json().get('message', 'Access forbidden')
+                    error.msg = error_msg
+                except json.JSONDecodeError:
+                    error.json_decode = True
+                    error.msg = response.text
+                return error, None
+            elif response.status_code == 409:
+                error.conflict = True
+                try:
+                    error_msg = response.json().get('message', 'Conflict')
                     error.msg = error_msg
                 except json.JSONDecodeError:
                     error.json_decode = True

@@ -248,7 +248,7 @@ def make_class(ctx, filename):
             f"Successfully created class {class_name}")
     else:
         click.secho(
-            "Failed created class", err=True)
+            "Failed to create class")
 
 
 @post.command(name="exercise", help="create everything need to setup a class and it's students")
@@ -258,5 +258,5 @@ def make_class(ctx, filename):
 def make_exercise(ctx, class_name, exercise_name):
     success = create_Exercise(ctx, class_name, exercise_name)
     if success:
-        click.echo(
+        click.secho(
             f"Exercise {exercise_name} and it's acls created sucessfully")

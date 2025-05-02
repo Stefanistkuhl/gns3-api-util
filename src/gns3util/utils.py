@@ -108,6 +108,7 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
         params)
     if GNS3Error.has_error(get_fzf_input_error):
+        GNS3Error.print_error(get_fzf_input_error)
         return get_fzf_input_error
     selected = fzf_select(fzf_input_data, multi=params.multi)
     matched = set()
@@ -121,6 +122,7 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
                     opt_data_error, opt_data = getattr(params.client(
                         params.ctx), params.opt_method)(a[params.opt_key])
                     if GNS3Error.has_error(opt_data_error):
+                        GNS3Error.print_error(opt_data_error)
                         error.request_network_error = True
                         return error
                     if opt_data == []:
@@ -159,15 +161,16 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
     for selected_item in selected:
         for a in api_data:
             if a[params.key] == selected_item and a[params.key] not in matched:
-                print(f"Changing the password for user {a['username']}")
+                click.secho(f"Changing the password for user {a['username']}")
                 pw = getpass.getpass("Enter the desired password:\n")
                 input_data = {"password": pw}
                 change_password_error, result = call_client_method(
                     params.ctx, "put", "update_user", a['user_id'], input_data)
                 if GNS3Error.has_error(change_password_error):
+                    GNS3Error.print_error(change_password_error)
                     return change_password_error
-                print(f"Successfully changed the password for user {
-                      a['username']}")
+                click.secho(f"Successfully changed the password for user {
+                    a['username']}")
                 break
     return change_password_error
 
@@ -262,7 +265,7 @@ def fuzzy_info_wrapper(params):
 def fuzzy_put_wrapper(params):
     error = fuzzy_change_password(params)
     if error.connection:
-        click.echo(
+        click.secho(
             "Failed to fetch data from the API check your Network connection to the server", err=True)
 
 
@@ -291,7 +294,6 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
         return project_id, create_project_error
     close_project_error = close_project(ctx, project_id)
     if GNS3Error.has_error(close_project_error):
-        GNS3Error.print_error(close_project_error)
         return project_id, close_project_error
     click.echo(f"Successfully created the project {input_data["name"]}")
     return project_id, create_project_error
@@ -348,28 +350,31 @@ def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
 
 
 def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
-    success = True
     role_id, get_role_id_error = get_role_id(ctx, "User")
     if GNS3Error.has_error(get_role_id_error):
         GNS3Error.print_error(get_role_id_error)
-        success = False
+        return False
 
     groups, get_groups_error = get_groups_in_class(ctx, class_name)
     for group in groups:
         project_name = f"{class_name}-{exercise_name}-{group['group_number']}"
         project_id, create_project_error = create_project(ctx, project_name)
         if GNS3Error.has_error(create_project_error):
-            success = False
             GNS3Error.print_error(create_project_error)
+            return False
         pool_name = project_name + "-pool"
         pool_id, create_pool_error = create_pool(ctx, pool_name)
         if GNS3Error.has_error(create_pool_error):
-            success = False
             GNS3Error.print_error(create_pool_error)
+            return False
         add_to_pool_error = add_resource_to_pool(ctx, pool_id, project_id)
         if GNS3Error.has_error(add_to_pool_error):
-            success = False
-            GNS3Error.print_error(add_to_pool_error)
+            if add_to_pool_error.not_found:
+                GNS3Error.print_error(
+                    add_to_pool_error, "project id: "+project_id, "pool_id: missing")
+            else:
+                GNS3Error.print_error(add_to_pool_error)
+            return False
         params = create_acl_params(
             ctx=ctx,
             ace_type="group",
@@ -382,10 +387,10 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         )
         create_acl_error = create_acl(ctx, params)
         if GNS3Error.has_error(create_acl_error):
-            success = False
             GNS3Error.print_error(create_acl_error)
+            return False
         click.echo(f"Successfully created the acl for resource {params.path}")
-    return success
+    return True
 
 
 def safe_json(resp):

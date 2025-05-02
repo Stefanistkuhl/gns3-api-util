@@ -3,7 +3,6 @@ import requests
 import json
 import os
 import getpass
-import sys
 
 
 def insert_as_first_val(dict_obj, key, value):
@@ -20,10 +19,10 @@ def get_user_credentials():
         return username, password
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
-        sys.exit(1)
+        return
     except Exception as e:
         print(f"Error getting credentials: {str(e)}")
-        sys.exit(1)
+        return
 
 
 def authenticate_user(username, password, server_url):
@@ -142,29 +141,29 @@ def login(ctx):
             if resp:
                 print("API key works, logged in as",
                       usr.get("username", "unknown"))
-                sys.exit(0)
+                return
 
         username, password = get_user_credentials()
 
         auth_data = authenticate_user(username, password, server_url)
         if not auth_data:
-            sys.exit(1)
+            return
 
         saved_data = save_auth_data(auth_data, server_url, username, key_file)
         if saved_data:
             print("Authentication successful. Credentials saved.")
             print(saved_data)
-            sys.exit(0)
+            return
         else:
-            sys.exit(1)
+            return
 
     except KeyboardInterrupt:
         print("\nAuthentication interrupted by user.")
-        sys.exit(1)
+        return
 
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
-        sys.exit(1)
+        return
 
 
 @auth.command()
@@ -179,14 +178,14 @@ def status(ctx):
             resp, usr = try_key(keyData, server_url)
             if resp:
                 print("Logged in as:", usr.get("username", "unknown"))
-                sys.exit(0)
+                return
             else:
                 print("No active login found.")
-                sys.exit(1)
+                return
         else:
             print("No saved credentials found. Please authenticate.")
-            sys.exit(1)
+            return
 
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
-        sys.exit(1)
+        return
