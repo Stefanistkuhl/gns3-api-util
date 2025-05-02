@@ -250,4 +250,7 @@ def make_class(ctx, filename):
 @click.argument('exercise_name', type=str)
 @click.pass_context
 def make_exercise(ctx, class_name, exercise_name):
-    create_Exercise(ctx, class_name, exercise_name)
+    success = create_Exercise(ctx, class_name, exercise_name)
+    if success:
+        click.echo(
+            f"Exercise {exercise_name} and it's acls created sucessfully")

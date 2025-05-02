@@ -368,37 +368,43 @@ def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
 
 
 def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
-    sucess = True
+    success = True
     role_id, get_role_id_error = get_role_id(ctx, "User")
     if GNS3Error.has_error(get_role_id_error):
         GNS3Error.print_error(get_role_id_error)
-        sucess = False
+        success = False
 
     groups, get_groups_error = get_groups_in_class(ctx, class_name)
     for group in groups:
         project_name = f"{class_name}-{exercise_name}-{group['group_number']}"
         project_id, create_project_error = create_project(ctx, project_name)
         if GNS3Error.has_error(create_project_error):
-            sucess = False
+            success = False
             GNS3Error.print_error(create_project_error)
+        pool_name = project_name + "-pool"
+        pool_id, create_pool_error = create_pool(ctx, pool_name)
+        if GNS3Error.has_error(create_pool_error):
+            success = False
+            GNS3Error.print_error(create_pool_error)
+        add_to_pool_error = add_resource_to_pool(ctx, pool_id, project_id)
+        if GNS3Error.has_error(add_to_pool_error):
+            success = False
+            GNS3Error.print_error(add_to_pool_error)
         params = create_acl_params(
             ctx=ctx,
             ace_type="group",
             allowed=True,
             isGroup=True,
             id=group['group_id'],
-            path=f"/projects/{project_id}",
+            path=f"/pools/{pool_id}",
             propagate=True,
             role_id=role_id
         )
         create_acl_error = create_acl(ctx, params)
         if GNS3Error.has_error(create_acl_error):
-            sucess = False
+            success = False
             GNS3Error.print_error(create_acl_error)
-    if sucess:
-        click.echo(
-            f"Exercise {exercise_name} and it's acls created sucessfully")
-    return sucess
+    return success
 
 
 def safe_json(resp):
