@@ -1,4 +1,5 @@
 import json
+import importlib
 import uuid
 import getpass
 import rich
@@ -95,6 +96,13 @@ def fzf_select(options, multi=False):
         return []
 
 
+def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> tuple[GNS3Error, Any]:
+    module = importlib.import_module(f".{module_name}", package=__package__)
+    client = module.get_client(ctx)
+    method = getattr(client, method_name)
+    return method(*args)
+
+
 def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
     error = GNS3Error()
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
@@ -129,10 +137,9 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
 
 
 def get_values_for_fuzzy_input(params) -> (list, list, GNS3Error):
-    from . import get
+    get_data_error, api_data = call_client_method(
+        params.ctx, "get", params.method)
     fuzzy_error = GNS3Error()
-    get_data_error, api_data = getattr(
-        get.get_client(params.ctx), params.method)()
     if GNS3Error.has_error(get_data_error):
         fuzzy_error.connection = True
         return None, None, fuzzy_error
@@ -143,8 +150,6 @@ def get_values_for_fuzzy_input(params) -> (list, list, GNS3Error):
 
 
 def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
-    from . import put
-    error = GNS3Error()
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
         params)
     if GNS3Error.has_error(get_fzf_input_error):
@@ -157,15 +162,14 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
                 print(f"Changing the password for user {a['username']}")
                 pw = getpass.getpass("Enter the desired password:\n")
                 input_data = {"password": pw}
-                client = put.get_client(params.ctx)
-                change_password_error, result = client.update_user(
-                    a['user_id'], input_data)
+                change_password_error, result = call_client_method(
+                    params.ctx, "put", "update_user", a['user_id'], input_data)
                 if GNS3Error.has_error(change_password_error):
-                    return error
+                    return change_password_error
                 print(f"Successfully changed the password for user {
                       a['username']}")
                 break
-    return error
+    return change_password_error
 
 
 def parse_json(filepath: str) -> tuple[bool, Any]:
@@ -182,76 +186,70 @@ def parse_json(filepath: str) -> tuple[bool, Any]:
 
 
 def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
-    from . import put
-    client = put.get_client(ctx)
-    add_user_to_group_error, result = client.add_group_member(
-        group_id, user_id)
+    add_user_to_group_error, result = call_client_method(
+        ctx, "put", "add_group_member", group_id, user_id)
     if GNS3Error.has_error(add_user_to_group_error):
         return add_user_to_group_error
     return add_user_to_group_error
 
 
-def create_class(ctx, filename: str):
+def create_class(ctx, filename: str) -> tuple[str, bool]:
     error_load, data = parse_json(filename)
 
     if error_load:
-        click.echo(
+        click.secho(
             f"Failed to load the file {filename}. Error: {data}", err=True
         )
-        return
+        return "", False
 
     class_name = list(data.keys())[0]
     class_obj = data[class_name]
     class_id, create_group_error = create_user_group(ctx, class_name)
     if GNS3Error.has_error(create_group_error):
-        print("handle this later")
-        return
+        GNS3Error.print_error(create_group_error)
+        return class_name, False
+    click.secho(f"Successfully created the group {class_name}")
     for group_name, group_obj in class_obj.items():
         group_id, create_group_error = create_user_group(ctx, group_name)
         if GNS3Error.has_error(create_group_error):
             GNS3Error.print_error(create_group_error)
-            return
+            return class_name, False
+        click.secho(f"Successfully created the group {group_name}")
         students = group_obj["students"]
         for student in students:
             user_id, create_user_error = create_user(ctx, student)
             if GNS3Error.has_error(create_user_error):
                 GNS3Error.print_error(create_user_error)
-                return
+                return class_name, False
+            click.secho(f"Successfully created the user {student}")
             add_user_to_class_error = add_user_to_group(ctx, user_id, class_id)
             if GNS3Error.has_error(add_user_to_class_error):
                 GNS3Error.print_error(add_user_to_class_error)
-            add_user_to_group_error = add_user_to_group(ctx, user_id, group_id)
-            if GNS3Error.has_error(add_user_to_group_error):
-                GNS3Error.print_error(add_user_to_group_error)
+                return class_name, False
+    return class_name, True
 
 
 def create_user_group(ctx, group_name) -> (str, GNS3Error):
-    from . import post
-    error = GNS3Error()
     input_data = {"name": group_name}
-    client = post.get_client(ctx)
-    create_group_error, result = client.create_group(input_data)
+    create_group_error, result = call_client_method(
+        ctx, "post", "create_group", input_data)
     if GNS3Error.has_error(create_group_error):
-        return "", error
-    click.echo(f"Successfully created the group {group_name}")
-    return result['user_group_id'], error
+        return "", create_group_error
+    return result['user_group_id'], create_group_error
 
 
 def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
-    from . import post
-    error = GNS3Error()
     if user_dict["fullName"] != "":
         input_data = {
             "username": user_dict["userName"], "full_name": user_dict["fullName"], "email": user_dict["email"], "password": user_dict["password"]}
     else:
         input_data = {
             "username": user_dict["userName"], "email": user_dict["email"], "password": user_dict["password"]}
-    client = post.get_client(ctx)
-    create_user_error, result = client.create_user(input_data)
+    create_user_error, result = call_client_method(
+        ctx, "post", "create_user", input_data)
     if GNS3Error.has_error(create_user_error):
-        return "", error
-    click.echo(f"Successfully created the user {input_data["username"]}")
-    return result['user_id'], error
+        return "", create_user_error
+    return result['user_id'], create_user_error
 
 
 def fuzzy_info_wrapper(params):
@@ -275,9 +273,7 @@ def execute_and_print(ctx, client, func):
 
 
 def get_role_id(ctx, name: str) -> (str, GNS3Error):
-    from . import get
-    client = get.get_client(ctx)
-    get_roles_error, roles = client.roles()
+    get_roles_error, roles = call_client_method(ctx, "get", "roles")
     if GNS3Error.has_error(get_roles_error):
         return get_roles_error
     for role in roles:
@@ -286,12 +282,11 @@ def get_role_id(ctx, name: str) -> (str, GNS3Error):
 
 
 def create_project(ctx, name: str) -> (str, GNS3Error):
-    from . import post
     project_id = str(uuid.uuid4())
     input_data = {
         "name": name, "project_id": project_id}
-    client = post.get_client(ctx)
-    create_project_error, result = client.create_project(input_data)
+    create_project_error, result = call_client_method(
+        ctx, "post", "create_project", input_data)
     if GNS3Error.has_error(create_project_error):
         return project_id, create_project_error
     close_project_error = close_project(ctx, project_id)
@@ -303,20 +298,16 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
 
 
 def close_project(ctx, project_id: str) -> GNS3Error:
-    from . import post
-    client = post.get_client(ctx)
-    close_project_error, _ = client.close_project(project_id)
+    close_project_error, _ = call_client_method(
+        ctx, "post", "close_project", project_id)
     if GNS3Error.has_error(close_project_error):
         return close_project_error
     return close_project_error
 
 
 def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
-    from . import get
     group_list = []
-    error = GNS3Error()
-    client = get.get_client(ctx)
-    get_groups_error, groups = client.groups()
+    get_groups_error, groups = call_client_method(ctx, "get", "groups")
     if GNS3Error.has_error(get_groups_error):
         return group_list, get_groups_error
     for group in groups:
@@ -326,44 +317,33 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
                 "group_id": group["user_group_id"], "group_number": group_number}
             group_list.append(group_dict)
 
-    return group_list, error
+    return group_list, get_groups_error
 
 
 def create_acl(ctx, params: create_acl_params) -> GNS3Error:
-    from . import post
-    client = post.get_client(ctx)
     if params.isGroup:
         input_data = {"ace_type": params.ace_type,
                       "allowed": params.allowed, "group_id": params.id, "path": params.path, "propagate": params.propagate, "role_id": params.role_id}
     else:
         input_data = {"ace_type": params.ace_type,
                       "allowed": params.allowed, "user_id": params.id, "path": params.path, "propagate": params.propagate, "role_id": params.role_id}
-
-    create_acl_error, result = client.create_acl(input_data)
-    if GNS3Error.has_error(create_acl_error):
-        return create_acl_error
-    click.echo(f"Successfully created the acl for project {params.path}")
+    create_acl_error, result = call_client_method(
+        ctx, "post", "create_acl", input_data)
     return create_acl_error
 
 
 def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
-    from . import post
-    client = post.get_client(ctx)
     input_data = {"name": pool_name}
-    create_pool_error, result = client.create_pool(input_data)
+    create_pool_error, result = call_client_method(
+        ctx, "post", "create_pool", input_data)
     if GNS3Error.has_error(create_pool_error):
         return "", create_pool_error
     return result['resource_pool_id'], create_pool_error
 
 
 def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
-    from . import put
-    client = put.get_client(ctx)
-    print("pool id:", pool_id)
-    add_to_pool_error, result = client.add_resource_to_pool(
-        pool_id, resource_id)
-    if GNS3Error.has_error(add_to_pool_error):
-        return add_to_pool_error
+    add_to_pool_error, result = call_client_method(
+        ctx, "put", "add_resource_to_pool", pool_id, resource_id)
     return add_to_pool_error
 
 
@@ -404,6 +384,7 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         if GNS3Error.has_error(create_acl_error):
             success = False
             GNS3Error.print_error(create_acl_error)
+        click.echo(f"Successfully created the acl for resource {params.path}")
     return success
 
 

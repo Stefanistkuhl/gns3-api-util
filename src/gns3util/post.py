@@ -242,7 +242,13 @@ for cmd, func in _three_arg_no_data.items():
 @click.pass_context
 def make_class(ctx, filename):
     file = click.format_filename(filename)
-    create_class(ctx, file)
+    class_name, success = create_class(ctx, file)
+    if success:
+        click.secho(
+            f"Successfully created class {class_name}")
+    else:
+        click.secho(
+            "Failed created class", err=True)
 
 
 @post.command(name="exercise", help="create everything need to setup a class and it's students")
