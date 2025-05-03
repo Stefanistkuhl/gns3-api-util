@@ -140,13 +140,13 @@ def usernames_and_ids(ctx):
     if GNS3Error.has_error(error):
         GNS3Error.print_error(error)
     else:
-        print("List of all users and their id:")
+        click.secho("List of all users and their id:")
         for user in users:
             username = user.get('username', 'N/A')
             user_id = user.get('user_id', 'N/A')
-            print(f"Username: {username}")
-            print(f"ID: {user_id}")
-            print("-" * 10)
+            click.secho(f"Username: {username}")
+            click.secho(f"ID: {user_id}")
+            click.secho("-" * 10)
 
 
 @get.command(name="uai", help="Listing all users and their ids")
@@ -160,9 +160,9 @@ def usernames_and_ids_short(ctx):
         for user in users:
             username = user.get('username', 'N/A')
             user_id = user.get('user_id', 'N/A')
-            print(f"Username: {username}")
-            print(f"ID: {user_id}")
-            print("-" * 10)
+            click.secho(f"Username: {username}")
+            click.secho(f"ID: {user_id}")
+            click.secho("-" * 10)
 
 
 @get.command(name="find-user-info", help="find user info using fzf")

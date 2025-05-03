@@ -18,10 +18,10 @@ def get_user_credentials():
         password = getpass.getpass("Enter your password:\n")
         return username, password
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user.")
+        click.secho("\nOperation cancelled by user.", err=True)
         return
     except Exception as e:
-        print(f"Error getting credentials: {str(e)}")
+        click.secho(f"Error getting credentials: {str(e)}", err=True)
         return
 
 
@@ -37,24 +37,29 @@ def authenticate_user(username, password, server_url):
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 401:
-            print("Authentication failed: Invalid username or password.")
+            click.secho(
+                "Authentication failed: Invalid username or password.", err=True)
             return None
         else:
-            print(f"Server returned error: {response.status_code}")
-            print(f"Response: {response.text}")
+            click.secho(f"Server returned error: {
+                        response.status_code}", err=True)
+            click.secho(f"Response: {response.text}", err=True)
             return None
 
     except requests.exceptions.ConnectionError:
-        print(f"Connection error: Could not connect to {server_url}")
+        click.secho(f"Connection error: Could not connect to {
+                    server_url}", err=True)
         return None
     except requests.exceptions.Timeout:
-        print("Connection timeout: The server took too long to respond.")
+        click.secho(
+            "Connection timeout: The server took too long to respond.", err=True)
         return None
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")
+        click.secho(f"Request error: {str(e)}", err=True)
         return None
     except Exception as e:
-        print(f"Unexpected error during authentication: {str(e)}")
+        click.secho(f"Unexpected error during authentication: {
+                    str(e)}", err=True)
         return None
 
 
@@ -69,10 +74,11 @@ def save_auth_data(auth_data, server_url, username, key_file):
             json.dump(resp_dic, f, indent=4)
             return resp_dic
     except IOError as e:
-        print(f"Error writing to file {key_file}: {str(e)}")
+        click.secho(f"Error writing to file {key_file}: {str(e)}", err=True)
         return None
     except Exception as e:
-        print(f"Unexpected error saving authentication data: {str(e)}")
+        click.secho(f"Unexpected error saving authentication data: {
+                    str(e)}", err=True)
         return None
 
 
@@ -99,23 +105,27 @@ def try_key(key, server_url):
         if response.status_code == 200:
             return True, response.json()
         elif response.status_code == 401:
-            print("User unautorized please log in to refresh your key")
+            click.secho(
+                "User unautorized please log in to refresh your key", err=True)
             return False, None
         else:
-            print(f"Server returned error: {response.status_code}")
-            print(f"Response: {response.text}")
+            click.secho(f"Server returned error: {
+                        response.status_code}", err=True)
+            click.secho(f"Response: {response.text}", err=True)
             return False, None
     except requests.exceptions.ConnectionError:
-        print(f"Connection error: Could not connect to {server_url}")
+        click.secho(f"Connection error: Could not connect to {
+                    server_url}", err=True)
         return False, None
     except requests.exceptions.Timeout:
-        print("Connection timeout: The server took too long to respond.")
+        click.secho(
+            "Connection timeout: The server took too long to respond.", err=True)
         return False, None
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")
+        click.secho(f"Request error: {str(e)}", err=True)
         return False, None
     except Exception as e:
-        print(f"Unexpected error during user check: {str(e)}")
+        click.secho(f"Unexpected error during user check: {str(e)}", err=True)
         return False, None
 
 
@@ -139,8 +149,8 @@ def login(ctx):
         if keyData:
             resp, usr = try_key(keyData, server_url)
             if resp:
-                print("API key works, logged in as",
-                      usr.get("username", "unknown"))
+                click.secho(f"API key works, logged in as {
+                            usr.get('username', 'unknown')}")
                 return
 
         username, password = get_user_credentials()
@@ -151,18 +161,18 @@ def login(ctx):
 
         saved_data = save_auth_data(auth_data, server_url, username, key_file)
         if saved_data:
-            print("Authentication successful. Credentials saved.")
-            print(saved_data)
+            click.secho(
+                "Authentication successful. Credentials saved.")
             return
         else:
             return
 
     except KeyboardInterrupt:
-        print("\nAuthentication interrupted by user.")
+        click.secho("\nAuthentication interrupted by user.", err=True)
         return
 
     except Exception as e:
-        print(f"An unexpected error occurred: {str(e)}")
+        click.secho(f"An unexpected error occurred: {str(e)}", err=True)
         return
 
 
@@ -177,15 +187,16 @@ def status(ctx):
         if keyData:
             resp, usr = try_key(keyData, server_url)
             if resp:
-                print("Logged in as:", usr.get("username", "unknown"))
+                click.secho(f"Logged in as: {usr.get('username', 'unknown')}")
                 return
             else:
-                print("No active login found.")
+                click.secho("No active login found.", err=True)
                 return
         else:
-            print("No saved credentials found. Please authenticate.")
+            click.secho(
+                "No saved credentials found. Please authenticate.", err=True)
             return
 
     except Exception as e:
-        print(f"An unexpected error occurred: {str(e)}")
+        click.secho(f"An unexpected error occurred: {str(e)}", err=True)
         return

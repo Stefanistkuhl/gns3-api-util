@@ -9,10 +9,6 @@ import subprocess
 from typing import Callable, Any, Optional
 from .api.client import GNS3Error
 
-GREY = "\033[90m"
-CYAN = "\033[96m"
-RESET = "\033[0m"
-
 
 @dataclass
 class fuzzy_info_params:
@@ -79,11 +75,11 @@ def fzf_select(options, multi=False):
 
         if error:
             if "fzf: command not found" in error:
-                print(
-                    "Error: fzf is not installed. Please install it to use this feature.")
+                click.secho(
+                    "Error: fzf is not installed. Please install it to use this feature.", err=True)
                 return []
             else:
-                print(f"Error running fzf: {error}")
+                click.secho(f"Error running fzf: {error}", err=True)
                 return []
 
         if output:
@@ -92,7 +88,8 @@ def fzf_select(options, multi=False):
             return []
 
     except FileNotFoundError:
-        print("Error: fzf executable not found in PATH. Please ensure it's installed and accessible.")
+        click.secho(
+            "Error: fzf executable not found in PATH. Please ensure it's installed and accessible.", err=True)
         return []
 
 
@@ -101,6 +98,15 @@ def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> t
     client = module.get_client(ctx)
     method = getattr(client, method_name)
     return method(*args)
+
+
+def print_key_value_with_secho(key, value, color="cyan", reset="reset"):
+    click.secho(f"{key}: ", fg=color, nl=False)
+    click.echo(value)
+
+
+def print_separator_with_secho(color="white"):
+    click.secho("---", fg=color)
 
 
 def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
@@ -115,9 +121,10 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
     for selected_item in selected:
         for a in api_data:
             if a[params.key] == selected_item and a[params.key] not in matched:
+                print_separator_with_secho()
                 for k, v in a.items():
-                    print(f"{CYAN}{k}{RESET}: {v}")
-                print(f"{GREY}---{RESET}")
+                    print_key_value_with_secho(k, v)
+                print_separator_with_secho()
                 if params.opt_data:
                     opt_data_error, opt_data = getattr(params.client(
                         params.ctx), params.opt_method)(a[params.opt_key])
@@ -126,14 +133,14 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
                         error.request_network_error = True
                         return error
                     if opt_data == []:
-                        print(f"Empty data returned from method {
-                              params.opt_method} for the {a[params.key]} value")
+                        click.secho(f"Empty data returned from method {
+                            params.opt_method} for the {a[params.key]} value", err=True)
                     else:
                         for d in opt_data:
-                            print(f"{GREY}---{RESET}")
+                            print_separator_with_secho()
                             for k2, v2 in d.items():
-                                print(f"{CYAN}{k2}{RESET}: {v2}")
-                            print(f"{GREY}---{RESET}")
+                                print_key_value_with_secho(k2, v2)
+                            print_separator_with_secho()
                 break
     return error
 

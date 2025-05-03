@@ -79,7 +79,7 @@ for cmd, func in _zero_arg.items():
                 execute_and_print(
                     ctx, api_put_client, lambda client: getattr(api_put_client, func)(data))
             except json.JSONDecodeError:
-                print("Error: Invalid JSON input")
+                click.secho("Error: Invalid JSON input", err=True, fg="red")
                 return
         return cmd_func
     put.command(name=cmd)(make_cmd())
@@ -97,7 +97,7 @@ for cmd, func in _one_arg.items():
                 execute_and_print(ctx, api_put_client, lambda client: getattr(
                     api_put_client, func)(arg, data))
             except json.JSONDecodeError:
-                print("Error: Invalid JSON input")
+                click.secho("Error: Invalid JSON input", err=True, fg="red")
                 return
         return cmd_func
     put.command(name=cmd)(make_cmd())
@@ -130,7 +130,7 @@ for cmd, func in _two_arg.items():
                 execute_and_print(ctx, api_put_client, lambda client: getattr(
                     api_put_client, func)(arg1, arg2, data))
             except json.JSONDecodeError:
-                print("Error: Invalid JSON input")
+                click.secho("Error: Invalid JSON input", err=True, fg="red")
                 return
         return cmd_func
     put.command(name=cmd)(make_cmd())
@@ -150,7 +150,7 @@ for cmd, func in _three_arg.items():
                 execute_and_print(ctx, api_put_client, lambda client: getattr(
                     api_put_client, func)(arg1, arg2, arg3, data))
             except json.JSONDecodeError:
-                print("Error: Invalid JSON input")
+                click.secho("Error: Invalid JSON input", err=True, fg="red")
                 return
         return cmd_func
     put.command(name=cmd)(make_cmd())
