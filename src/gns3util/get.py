@@ -1,15 +1,10 @@
 import click
-import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type
 
 get = click.Group('get')
-
-GREY = "\033[90m"
-CYAN = "\033[96m"
-RESET = "\033[0m"
 
 # Commands with no arguments
 _zero_arg = {
@@ -135,33 +130,13 @@ def project_notifications(ctx, project_id, timeout_seconds):
 @get.command(name="usernames-and-ids", help="Listing all users and their ids")
 @click.pass_context
 def usernames_and_ids(ctx):
-    error, users = get_client(ctx).users()
-    if GNS3Error.has_error(error):
-        GNS3Error.print_error(error)
-    else:
-        click.secho("List of all users and their id:")
-        for user in users:
-            username = user.get('username', 'N/A')
-            user_id = user.get('user_id', 'N/A')
-            click.secho(f"Username: {username}")
-            click.secho(f"ID: {user_id}")
-            click.secho("-" * 10)
+    print_usernames_and_ids(ctx)
 
 
 @get.command(name="uai", help="Listing all users and their ids")
 @click.pass_context
 def usernames_and_ids_short(ctx):
-    error, users = get_client(ctx).users()
-    if GNS3Error.has_error(error):
-        GNS3Error.print_error(error)
-    else:
-        print("List of all users and their id:")
-        for user in users:
-            username = user.get('username', 'N/A')
-            user_id = user.get('user_id', 'N/A')
-            click.secho(f"Username: {username}")
-            click.secho(f"ID: {user_id}")
-            click.secho("-" * 10)
+    print_usernames_and_ids(ctx)
 
 
 @get.command(name="find-user-info", help="find user info using fzf")
@@ -170,14 +145,8 @@ def usernames_and_ids_short(ctx):
 )
 @click.pass_context
 def find_user_info(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        method="users",
-        key="username",
-        multi=multi,
-        opt_data=False
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.user_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -187,14 +156,8 @@ def find_user_info(ctx, multi):
 )
 @click.pass_context
 def find_user_info_command_short(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        method="users",
-        key="username",
-        multi=multi,
-        opt_data=False
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.user_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -204,14 +167,8 @@ def find_user_info_command_short(ctx, multi):
 )
 @click.pass_context
 def find_group_info(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        method="groups",
-        key="name",
-        multi=multi,
-        opt_data=False
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.group_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -221,14 +178,8 @@ def find_group_info(ctx, multi):
 )
 @click.pass_context
 def find_group_info_command_short(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        method="groups",
-        key="name",
-        multi=multi,
-        opt_data=False
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.group_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -238,16 +189,8 @@ def find_group_info_command_short(ctx, multi):
 )
 @click.pass_context
 def find_group_info_with_members(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        opt_method="group",
-        opt_key="user_group_id",
-        method="groups",
-        key="name",
-        multi=multi,
-        opt_data=True
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -257,16 +200,8 @@ def find_group_info_with_members(ctx, multi):
 )
 @click.pass_context
 def find_group_info_with_members_command_short(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        opt_method="group_members",
-        opt_key="user_group_id",
-        method="groups",
-        key="name",
-        multi=multi,
-        opt_data=True
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -276,16 +211,8 @@ def find_group_info_with_members_command_short(ctx, multi):
 )
 @click.pass_context
 def find_user_info_and_groups(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        opt_method="group_members",
-        opt_key="user_group_id",
-        method="groups",
-        key="name",
-        multi=multi,
-        opt_data=True
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
 
 
@@ -295,14 +222,6 @@ def find_user_info_and_groups(ctx, multi):
 )
 @click.pass_context
 def find_user_info_and_groups_short(ctx, multi):
-    params = fuzzy_info_params(
-        ctx=ctx,
-        client=get_client,
-        opt_method="users_groups",
-        opt_key="user_id",
-        method="users",
-        key="username",
-        multi=multi,
-        opt_data=True
-    )
+    params = get_fuzzy_info_params(
+        fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
     fuzzy_info_wrapper(params)

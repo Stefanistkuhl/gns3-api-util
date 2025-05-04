@@ -21,7 +21,9 @@ def get_user_credentials() -> tuple[bool, tuple[str, str]]:
         click.secho("\nOperation cancelled by user.", err=True)
         return True, ("", "")
     except Exception as e:
-        click.secho(f"Error getting credentials: {str(e)}", err=True)
+        click.secho("Error getting credentials: ",
+                    nl=False, err=True, fg="red")
+        click.secho(f"{str(e)}", bold=True, err=True)
         return True, ("", "")
 
 
@@ -64,8 +66,11 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
                     seen.add(pair)
                     unique_list.append(entry)
             except json.JSONDecodeError as e:
-                click.secho(f"Error decoding JSON: {
-                            e} in line: {line}", err=True)
+                click.secho("Error decoding JSON: ",
+                            nl=False, fg="red", err=True)
+                click.secho(f"{e}", nl=False, bold=True, err=True)
+                click.secho("in line: ", nl=False, err=True)
+                click.secho(f"{line}", bold=True, err=True)
 
         with open(key_file, "w") as f:
             for key in unique_list:
@@ -73,11 +78,13 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
             return True
 
     except IOError as e:
-        click.secho(f"Error writing to file {key_file}: {str(e)}", err=True)
+        click.secho("Error writing to file: ", nl=False, fg="red", err=True)
+        click.secho(f"{key_file}: {str(e)}", bold=False, err=True)
         return False
     except Exception as e:
-        click.secho(f"Unexpected error saving authentication data: {
-                    str(e)}", err=True)
+        click.secho("Unexpected error saving authentication data: ",
+                    nl=False, fg="red", err=True)
+        click.secho(f"{str(e)}", bold=True, err=True)
         return False
 
 
@@ -138,8 +145,9 @@ def login(ctx):
     try:
         load_and_try_key_success, result = load_and_try_key(ctx)
         if load_and_try_key_success:
-            click.secho(f"API key works, logged in as {
-                        result['user']}")
+            click.secho("Success: ", nl=False, fg="green")
+            click.secho("API key works, logged in as ", nl=False)
+            click.secho(f"{result['user']}", bold=True)
             return
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
@@ -159,14 +167,15 @@ def login(ctx):
             else:
                 GNS3Error.print_error(auth_error)
                 return
-        click.secho(f"Successfully authenticated as {
-                    credentials[0]}", fg="green")
 
         save_data_error = save_auth_data(
             auth_data, server_url, credentials[0], key_file)
         if not save_data_error:
-            click.secho(f"Successfully authenticated as {
-                        credentials[0]} and token saved in {key_file}", fg="green")
+            click.secho("Success: ", nl=False, fg="green")
+            click.secho("authenticated as ", nl=False)
+            click.secho(f"{credentials[0]}", nl=False, bold=True)
+            click.secho("and token saved in ", nl=False)
+            click.secho(f"{key_file}", bold=True, nl=False)
             return
         else:
             return
@@ -176,7 +185,9 @@ def login(ctx):
         return
 
     except Exception as e:
-        click.secho(f"An unexpected error occurred: {str(e)}", err=True)
+        click.secho("An unexpected error occured: ",
+                    nl=False, fg="red", err=True)
+        click.secho(f"{str(e)}", bold=True, err=True)
         return
 
 
@@ -186,6 +197,7 @@ def status(ctx):
     """Display authentication status."""
     load_and_try_key_success, result = load_and_try_key(ctx)
     if load_and_try_key_success:
-        click.secho(f"API key works, logged in as {
-                    result['user']}")
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho("API key works, logged in as ", nl=False)
+        click.secho(f"{result['user']}", bold=True)
         return

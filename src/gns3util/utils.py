@@ -1,4 +1,5 @@
 import json
+from enum import Enum
 import importlib
 import uuid
 import getpass
@@ -43,6 +44,13 @@ class create_acl_params:
     role_id: str = "str"
 
 
+class fuzzy_params_type(Enum):
+    user_info = 1
+    group_info = 2
+    group_info_with_usernames = 3
+    user_info_and_group_membership = 4
+
+
 def fzf_select(options, multi=False):
     """
     Opens an fzf window with the given options and returns the selected option(s).
@@ -76,10 +84,15 @@ def fzf_select(options, multi=False):
         if error:
             if "fzf: command not found" in error:
                 click.secho(
-                    "Error: fzf is not installed. Please install it to use this feature.", err=True)
+                    "Error: ", nl=False, fg="red", err=True)
+                click.secho(
+                    "fzf is not installed. Please install it to use this feature.", bold=True, err=True)
                 return []
             else:
-                click.secho(f"Error running fzf: {error}", err=True)
+                click.secho(
+                    "Error running fzf: ", nl=False, fg="red", err=True)
+                click.secho(
+                    f"{error}", bold=True, err=True)
                 return []
 
         if output:
@@ -89,7 +102,9 @@ def fzf_select(options, multi=False):
 
     except FileNotFoundError:
         click.secho(
-            "Error: fzf executable not found in PATH. Please ensure it's installed and accessible.", err=True)
+            "Error: ", nl=False, fg="red", err=True)
+        click.secho(
+            "fzf executable not found in PATH. Please ensure it's installed and accessible.", bold=True, err=True)
         return []
 
 
@@ -134,7 +149,7 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
                         return error
                     if opt_data == []:
                         click.secho(f"Empty data returned from method {
-                            params.opt_method} for the {a[params.key]} value", err=True)
+                            params.opt_method} for the {a[params.key]} value", bold=True, err=True)
                     else:
                         for d in opt_data:
                             print_separator_with_secho()
@@ -168,7 +183,8 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
     for selected_item in selected:
         for a in api_data:
             if a[params.key] == selected_item and a[params.key] not in matched:
-                click.secho(f"Changing the password for user {a['username']}")
+                click.secho("Changing the password for user ", nl=False)
+                click.secho(f"{a['username']}", bold=True)
                 pw = getpass.getpass("Enter the desired password:\n")
                 input_data = {"password": pw}
                 change_password_error, result = call_client_method(
@@ -176,8 +192,9 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
                 if GNS3Error.has_error(change_password_error):
                     GNS3Error.print_error(change_password_error)
                     return change_password_error
-                click.secho(f"Successfully changed the password for user {
-                    a['username']}")
+                click.secho("Success: ", nl=False, fg="green")
+                click.secho("changed the password for user ", nl=False)
+                click.secho(f"{a['username']}", bold=True)
                 break
     return change_password_error
 
@@ -207,9 +224,9 @@ def create_class(ctx, filename: str) -> tuple[str, bool]:
     error_load, data = parse_json(filename)
 
     if error_load:
-        click.secho(
-            f"Failed to load the file {filename}. Error: {data}", err=True
-        )
+        click.secho("Error: ", nl=False, fg="red", err=True)
+        click.secho("Failed to load file: ", nl=False, err=True)
+        click.secho(f"{data}", bold=True, err=True)
         return "", False
 
     class_name = list(data.keys())[0]
@@ -218,23 +235,30 @@ def create_class(ctx, filename: str) -> tuple[str, bool]:
     if GNS3Error.has_error(create_group_error):
         GNS3Error.print_error(create_group_error)
         return class_name, False
-    click.secho(f"Successfully created the group {class_name}")
+    click.secho("Success: ", nl=False, fg="green")
+    click.secho(f"created the group{class_name}")
     for group_name, group_obj in class_obj.items():
         group_id, create_group_error = create_user_group(ctx, group_name)
         if GNS3Error.has_error(create_group_error):
             GNS3Error.print_error(create_group_error)
             return class_name, False
-        click.secho(f"Successfully created the group {group_name}")
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho(f"created the group{group_name}")
         students = group_obj["students"]
         for student in students:
             user_id, create_user_error = create_user(ctx, student)
             if GNS3Error.has_error(create_user_error):
                 GNS3Error.print_error(create_user_error)
                 return class_name, False
-            click.secho(f"Successfully created the user {student}")
+            click.secho("Success: ", nl=False, fg="green")
+            click.secho(f"created the user {student['userName']}")
             add_user_to_class_error = add_user_to_group(ctx, user_id, class_id)
             if GNS3Error.has_error(add_user_to_class_error):
                 GNS3Error.print_error(add_user_to_class_error)
+                return class_name, False
+            add_user_to_group_error = add_user_to_group(ctx, user_id, group_id)
+            if GNS3Error.has_error(add_user_to_group_error):
+                GNS3Error.print_error(add_user_to_group_error)
                 return class_name, False
     return class_name, True
 
@@ -262,18 +286,69 @@ def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
     return result['user_id'], create_user_error
 
 
+def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool) -> fuzzy_info_params:
+    if input == fuzzy_params_type.user_info:
+        return fuzzy_info_params(
+            ctx=ctx,
+            client=get_client,
+            method="users",
+            key="username",
+            multi=multi,
+            opt_data=False
+        )
+    elif input == fuzzy_params_type.group_info:
+        return fuzzy_info_params(
+            ctx=ctx,
+            client=get_client,
+            method="groups",
+            key="name",
+            multi=multi,
+            opt_data=False
+        )
+    elif input == fuzzy_params_type.group_info_with_usernames:
+        return fuzzy_info_params(
+            ctx=ctx,
+            client=get_client,
+            opt_method="group_members",
+            opt_key="user_group_id",
+            method="groups",
+            key="name",
+            multi=multi,
+            opt_data=True
+        )
+    elif input == fuzzy_params_type.user_info_and_group_membership:
+        return fuzzy_info_params(
+            ctx=ctx,
+            client=get_client,
+            opt_method="users_groups",
+            opt_key="user_id",
+            method="users",
+            key="username",
+            multi=multi,
+            opt_data=True
+        )
+
+
 def fuzzy_info_wrapper(params):
     error = fuzzy_info(params)
-    if error.connection:
-        click.echo(
-            "Failed to fetch data from the API check your Network connection to the server", err=True)
+    if GNS3Error.has_error(error):
+        if error.connection:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.echo(
+                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+            return
+        GNS3Error.print_error(error)
 
 
 def fuzzy_put_wrapper(params):
     error = fuzzy_change_password(params)
-    if error.connection:
-        click.secho(
-            "Failed to fetch data from the API check your Network connection to the server", err=True)
+    if GNS3Error.has_error(error):
+        if error.connection:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.echo(
+                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+            return
+        GNS3Error.print_error(error)
 
 
 def execute_and_print(ctx, client, func):
@@ -304,7 +379,6 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
     close_project_error = close_project(ctx, project_id)
     if GNS3Error.has_error(close_project_error):
         return project_id, close_project_error
-    click.echo(f"Successfully created the project {input_data["name"]}")
     return project_id, create_project_error
 
 
@@ -371,6 +445,8 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         if GNS3Error.has_error(create_project_error):
             GNS3Error.print_error(create_project_error)
             return False
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho(f"created the project {project_name}")
         pool_name = project_name + "-pool"
         pool_id, create_pool_error = create_pool(ctx, pool_name)
         if GNS3Error.has_error(create_pool_error):
@@ -398,7 +474,8 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         if GNS3Error.has_error(create_acl_error):
             GNS3Error.print_error(create_acl_error)
             return False
-        click.echo(f"Successfully created the acl for resource {params.path}")
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho(f"created the acl for resource {params.path}")
     return True
 
 
@@ -406,3 +483,20 @@ def safe_json(resp):
     if resp.headers.get("Content-Length") == "0" or not resp.text:
         return None
     return resp.json()
+
+
+def print_usernames_and_ids(ctx):
+    error, users = call_client_method(ctx, "get", "users")
+    if GNS3Error.has_error(error):
+        GNS3Error.print_error(error)
+    else:
+        click.secho("List of all users and their id:", fg="green")
+        for user in users:
+            print_separator_with_secho()
+            username = user.get('username', 'N/A')
+            user_id = user.get('user_id', 'N/A')
+            click.secho("Username: ", fg="cyan", nl=False)
+            click.secho(f"{username}")
+            click.secho("ID: ", fg="cyan", nl=False)
+            click.secho(f"{user_id}")
+            print_separator_with_secho()

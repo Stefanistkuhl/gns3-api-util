@@ -113,7 +113,7 @@ class GNS3APIClient:
             elif response.status_code == 400:
                 error.bad_request = True
                 try:
-                    error.msg = response.json().get('message', 'Bad Request')
+                    error.msg = response.json().get('message')
                 except json.JSONDecodeError:
                     error.msg = response.text
                     error.json_decode = True
@@ -121,7 +121,7 @@ class GNS3APIClient:
             elif response.status_code == 404:
                 error.not_found = True
                 try:
-                    error.msg = response.json().get('message', 'Resource not found')
+                    error.msg = response.json().get('message')
                 except json.JSONDecodeError:
                     error.msg = response.text
                     error.json_decode = True
@@ -137,7 +137,7 @@ class GNS3APIClient:
             elif response.status_code == 403:
                 error.forbidden = True
                 try:
-                    error_msg = response.json().get('message', 'Access forbidden')
+                    error_msg = response.json().get('message')
                     error.msg = error_msg
                 except json.JSONDecodeError:
                     error.json_decode = True
@@ -146,7 +146,7 @@ class GNS3APIClient:
             elif response.status_code == 409:
                 error.conflict = True
                 try:
-                    error_msg = response.json().get('message', 'Conflict')
+                    error_msg = response.json().get('message')
                     error.msg = error_msg
                 except json.JSONDecodeError:
                     error.json_decode = True

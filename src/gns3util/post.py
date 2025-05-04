@@ -124,7 +124,8 @@ for cmd, func in _zero_arg.items():
                 execute_and_print(
                     ctx, api_post_client, lambda client: getattr(api_post_client, func)(data))
             except json.JSONDecodeError:
-                click.secho("Error: Invalid JSON input", err=True)
+                click.secho("Error: ", nl=True, fg="red", err=True)
+                click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
     post.command(name=cmd)(make_cmd())
@@ -153,7 +154,8 @@ for cmd, func in _one_arg.items():
                 execute_and_print(ctx, api_post_client, lambda client: getattr(
                     api_post_client, func)(arg, data))
             except json.JSONDecodeError:
-                click.secho("Error: Invalid JSON input", err=True)
+                click.secho("Error: ", nl=True, fg="red", err=True)
+                click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
     post.command(name=cmd)(make_cmd())
@@ -197,7 +199,8 @@ for cmd, func in _two_arg.items():
                 execute_and_print(ctx, api_post_client, lambda client: getattr(
                     api_post_client, func)(arg1, arg2, data))
             except json.JSONDecodeError:
-                click.secho("Error: Invalid JSON input", err=True)
+                click.secho("Error: ", nl=True, fg="red", err=True)
+                click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
     post.command(name=cmd)(make_cmd())
@@ -217,7 +220,8 @@ for cmd, func in _three_arg.items():
                 execute_and_print(ctx, api_post_client, lambda client: getattr(
                     api_post_client, func)(arg1, arg2, arg3, data))
             except json.JSONDecodeError:
-                click.secho("Error: Invalid JSON input", err=True)
+                click.secho("Error: ", nl=True, fg="red", err=True)
+                click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
     post.command(name=cmd)(make_cmd())
@@ -244,11 +248,13 @@ def make_class(ctx, filename):
     file = click.format_filename(filename)
     class_name, success = create_class(ctx, file)
     if success:
-        click.secho(
-            f"Successfully created class {class_name}")
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho("created class ", nl=False)
+        click.secho(f"{class_name}", bold=True)
     else:
+        click.secho("Error: ", nl=False, fg="red", err=True)
         click.secho(
-            "Failed to create class")
+            "failed to create class", bold=True, err=True)
 
 
 @post.command(name="exercise", help="create everything need to setup a class and it's students")
@@ -258,5 +264,11 @@ def make_class(ctx, filename):
 def make_exercise(ctx, class_name, exercise_name):
     success = create_Exercise(ctx, class_name, exercise_name)
     if success:
-        click.secho(
-            f"Exercise {exercise_name} and it's acls created sucessfully")
+        click.secho("Success: ", nl=False, fg="green")
+        click.secho("Exercise ", nl=False)
+        click.secho(f"{exercise_name} ", bold=True, nl=False)
+        click.secho("and it's acls created sucessfully")
+    else:
+        click.secho("Error: ", nl=False, fg="red", err=True)
+        click.secho("failed to create exercise ", nl=False, err=True)
+        click.secho(f"{exercise_name}", bold=True, err=True)
