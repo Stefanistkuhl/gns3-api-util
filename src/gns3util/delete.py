@@ -51,10 +51,9 @@ def delete():
 
 def get_client(ctx):
     """Helper function to create GNS3DeleteAPI instance."""
-    key_file = os.path.expanduser("~/.gns3key")
     server_url = ctx.parent.obj['server']
-    key = auth.load_key(key_file)
-    return GNS3DeleteAPI(server_url, key)
+    _, key = auth.load_and_try_key(ctx)
+    return GNS3DeleteAPI(server_url, key['access_token'])
 
 
 # Create click commands with zero arguments and no data

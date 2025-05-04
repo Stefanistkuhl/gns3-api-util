@@ -1,5 +1,5 @@
 import click
-import requests
+from .api.client import GNS3Error
 import json
 import os
 import getpass
@@ -11,122 +11,97 @@ def insert_as_first_val(dict_obj, key, value):
     return new_dict
 
 
-def get_user_credentials():
+def get_user_credentials() -> tuple[bool, tuple[str, str]]:
     """Prompt user for username and password."""
     try:
         username = input("Enter the user to login in as:\n")
         password = getpass.getpass("Enter your password:\n")
-        return username, password
+        return False, (username, password)
     except KeyboardInterrupt:
         click.secho("\nOperation cancelled by user.", err=True)
-        return
+        return True, ("", "")
     except Exception as e:
         click.secho(f"Error getting credentials: {str(e)}", err=True)
-        return
+        return True, ("", "")
 
 
-def authenticate_user(username, password, server_url):
+def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, any]:
     """Authenticate user against GNS3 server and return the response."""
-    try:
-        url = f'{server_url}/v3/access/users/authenticate'
-        headers = {'Content-Type': 'application/json'}
-        data = {'username': username, 'password': password}
-
-        response = requests.post(url, json=data, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 401:
-            click.secho(
-                "Authentication failed: Invalid username or password.", err=True)
-            return None
-        else:
-            click.secho(f"Server returned error: {
-                        response.status_code}", err=True)
-            click.secho(f"Response: {response.text}", err=True)
-            return None
-
-    except requests.exceptions.ConnectionError:
-        click.secho(f"Connection error: Could not connect to {
-                    server_url}", err=True)
-        return None
-    except requests.exceptions.Timeout:
-        click.secho(
-            "Connection timeout: The server took too long to respond.", err=True)
-        return None
-    except requests.exceptions.RequestException as e:
-        click.secho(f"Request error: {str(e)}", err=True)
-        return None
-    except Exception as e:
-        click.secho(f"Unexpected error during authentication: {
-                    str(e)}", err=True)
-        return None
+    input_data = {
+        "username": credentials[0], "password": credentials[1]}
+    from .api.post_endpoints import GNS3PostAPI
+    server_url = ctx.parent.obj['server']
+    client = GNS3PostAPI(server_url, key=None)
+    auth_error, result = client.user_authenticate(input_data)
+    return auth_error, result
 
 
-def save_auth_data(auth_data, server_url, username, key_file):
+def save_auth_data(auth_data, server_url, username, key_file) -> bool:
     """Save authentication data to a file."""
+    if not os.path.exists(os.path.abspath(key_file)):
+        open(key_file, 'a').close()
+
     try:
-        os.makedirs(os.path.dirname(os.path.abspath(key_file)), exist_ok=True)
+        key_entries = []
+
+        with open(key_file, "a") as f:
+            resp_dic = insert_as_first_val(auth_data, "user", username)
+            resp_dic = insert_as_first_val(
+                resp_dic, "server_url", server_url)
+            f.write(json.dumps(resp_dic) + "\n")
+
+        with open(key_file, "r") as f:
+            for line in f:
+                key_entries.append(line)
+
+        seen = set()
+        unique_list = []
+        for key in key_entries:
+            try:
+                entry = json.loads(key)
+                pair = (entry['server_url'], entry['user'])
+                if pair not in seen:
+                    seen.add(pair)
+                    unique_list.append(entry)
+            except json.JSONDecodeError as e:
+                click.secho(f"Error decoding JSON: {
+                            e} in line: {line}", err=True)
 
         with open(key_file, "w") as f:
-            resp_dic = insert_as_first_val(auth_data, "user", username)
-            resp_dic = insert_as_first_val(resp_dic, "server_url", server_url)
-            json.dump(resp_dic, f, indent=4)
-            return resp_dic
+            for key in unique_list:
+                f.write(json.dumps(key) + "\n")
+            return True
+
     except IOError as e:
         click.secho(f"Error writing to file {key_file}: {str(e)}", err=True)
-        return None
+        return False
     except Exception as e:
         click.secho(f"Unexpected error saving authentication data: {
                     str(e)}", err=True)
-        return None
-
-
-def load_key(key_file):
-    try:
-        with open(key_file) as f:
-            data = f.read()
-        data = json.loads(data)
-        return data
-    except FileNotFoundError:
         return False
 
 
-def try_key(key, server_url):
-    url = f'{server_url}/v3/access/users/me'
-    access_token = key["access_token"]
-    headers = {
-        'accept': 'application/json',
-        'Authorization': f'Bearer {access_token}'
-    }
-
-    response = requests.get(url, headers=headers, timeout=10)
+def load_key(key_file) -> tuple[bool, list]:
     try:
-        if response.status_code == 200:
-            return True, response.json()
-        elif response.status_code == 401:
-            click.secho(
-                "User unautorized please log in to refresh your key", err=True)
-            return False, None
-        else:
-            click.secho(f"Server returned error: {
-                        response.status_code}", err=True)
-            click.secho(f"Response: {response.text}", err=True)
-            return False, None
-    except requests.exceptions.ConnectionError:
-        click.secho(f"Connection error: Could not connect to {
-                    server_url}", err=True)
-        return False, None
-    except requests.exceptions.Timeout:
-        click.secho(
-            "Connection timeout: The server took too long to respond.", err=True)
-        return False, None
-    except requests.exceptions.RequestException as e:
-        click.secho(f"Request error: {str(e)}", err=True)
-        return False, None
-    except Exception as e:
-        click.secho(f"Unexpected error during user check: {str(e)}", err=True)
-        return False, None
+        data_arr = []
+        with open(key_file) as f:
+            data = f.read()
+        if not data:
+            return False, data_arr
+        with open(key_file) as f:
+            for line in f:
+                data_arr.append(json.loads(line))
+        return True, data_arr
+    except FileNotFoundError:
+        return False, data_arr
+
+
+def try_key(ctx, key) -> tuple[GNS3Error, any]:
+    from .api.get_endpoints import GNS3GetAPI
+    server_url = ctx.parent.obj['server']
+    client = GNS3GetAPI(server_url, key)
+    try_key_error, result = client.current_user_info()
+    return try_key_error, result
 
 
 @click.group()
@@ -138,31 +113,60 @@ def auth():
 auth = click.Group('auth')
 
 
+def load_and_try_key(ctx) -> tuple[bool, any]:
+    key_file = os.path.expanduser("~/.gns3key")
+    load_success, keyData = load_key(key_file)
+    if load_success:
+        for key in keyData:
+            token = key['access_token']
+            try_key_error, result = try_key(ctx, token)
+            if GNS3Error.has_error(try_key_error):
+                if try_key_error.unauthorized:
+                    return False, ""
+                else:
+                    GNS3Error.print_error(try_key_error)
+                    return False, ""
+            else:
+                return True, key
+    return False, ""
+
+
 @auth.command()
 @click.pass_context
 def login(ctx):
     """Perform authentication."""
     try:
+        load_and_try_key_success, result = load_and_try_key(ctx)
+        if load_and_try_key_success:
+            click.secho(f"API key works, logged in as {
+                        result['user']}")
+            return
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
-        keyData = load_key(key_file)
-        if keyData:
-            resp, usr = try_key(keyData, server_url)
-            if resp:
-                click.secho(f"API key works, logged in as {
-                            usr.get('username', 'unknown')}")
-                return
-
-        username, password = get_user_credentials()
-
-        auth_data = authenticate_user(username, password, server_url)
-        if not auth_data:
+        get_credentials_error, credentials = get_user_credentials()
+        if get_credentials_error:
             return
 
-        saved_data = save_auth_data(auth_data, server_url, username, key_file)
-        if saved_data:
-            click.secho(
-                "Authentication successful. Credentials saved.")
+        auth_error, auth_data = authenticate_user(
+            ctx, credentials)
+        if GNS3Error.has_error(auth_error):
+            if auth_error.unauthorized:
+                click.secho(
+                    "Authentication failed: ", fg="red", err=True, nl=False)
+                click.secho(
+                    "Invalid username or password.", err=True)
+                return
+            else:
+                GNS3Error.print_error(auth_error)
+                return
+        click.secho(f"Successfully authenticated as {
+                    credentials[0]}", fg="green")
+
+        save_data_error = save_auth_data(
+            auth_data, server_url, credentials[0], key_file)
+        if not save_data_error:
+            click.secho(f"Successfully authenticated as {
+                        credentials[0]} and token saved in {key_file}", fg="green")
             return
         else:
             return
@@ -180,23 +184,8 @@ def login(ctx):
 @click.pass_context
 def status(ctx):
     """Display authentication status."""
-    try:
-        key_file = os.path.expanduser("~/.gns3key")
-        server_url = ctx.parent.obj['server']
-        keyData = load_key(key_file)
-        if keyData:
-            resp, usr = try_key(keyData, server_url)
-            if resp:
-                click.secho(f"Logged in as: {usr.get('username', 'unknown')}")
-                return
-            else:
-                click.secho("No active login found.", err=True)
-                return
-        else:
-            click.secho(
-                "No saved credentials found. Please authenticate.", err=True)
-            return
-
-    except Exception as e:
-        click.secho(f"An unexpected error occurred: {str(e)}", err=True)
+    load_and_try_key_success, result = load_and_try_key(ctx)
+    if load_and_try_key_success:
+        click.secho(f"API key works, logged in as {
+                    result['user']}")
         return

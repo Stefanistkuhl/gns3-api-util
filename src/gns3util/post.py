@@ -10,7 +10,7 @@ Number of arguments: 0
 Has data: True
 """
 _zero_arg = {
-    "check-version": "check_version",
+    "check_version": "check_version",
     "user": "create_user",
     "group": "create_group",
     "role": "create_role",
@@ -18,7 +18,8 @@ _zero_arg = {
     "template": "create_template",
     "project": "create_project",
     "project_load": "load_project",
-    "add_pool": "create_pool"
+    "add_pool": "create_pool",
+    "authenticate": "user_authenticate"
 }
 
 """
@@ -106,10 +107,9 @@ def post():
 
 def get_client(ctx):
     """Helper function to create GNS3PostAPI instance."""
-    key_file = os.path.expanduser("~/.gns3key")
     server_url = ctx.parent.obj['server']
-    key = auth.load_key(key_file)
-    return GNS3PostAPI(server_url, key)
+    _, key = auth.load_and_try_key(ctx)
+    return GNS3PostAPI(server_url, key['access_token'])
 
 
 # Create click commands with zero arguments

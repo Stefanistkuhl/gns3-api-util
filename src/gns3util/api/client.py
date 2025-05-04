@@ -95,7 +95,7 @@ class GNS3APIClient:
     def _get_headers(self):
         headers = {'accept': 'application/json'}
         if self.key:
-            headers['Authorization'] = f'Bearer {self.key["access_token"]}'
+            headers['Authorization'] = f'Bearer {self.key}'
         return headers
 
     def _handle_request(self, url, headers=None, method="GET", data=None, timeout=10, stream=False) -> (GNS3Error, any):

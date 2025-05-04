@@ -278,7 +278,9 @@ def fuzzy_put_wrapper(params):
 
 def execute_and_print(ctx, client, func):
     error, data = func(client)
-    if not GNS3Error.has_error(error):
+    if GNS3Error.has_error(error):
+        GNS3Error.print_error(error)
+    else:
         rich.print_json(json.dumps(data, indent=2))
 
 

@@ -16,8 +16,9 @@ class GNS3PostAPI(GNS3APIClient):
         return self._api_call("shutdown", method="POST")
 
     # user endpoints
-    # todo add the authenticatie endpoint i am too lazy for rn
-    # make in part of the auth file actually
+
+    def user_authenticate(self, data):
+        return self._api_call("access/users/authenticate", method="POST", data=data)
 
     def create_user(self, data):
         return self._api_call("access/users", method="POST", data=data)
