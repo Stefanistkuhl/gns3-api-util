@@ -1,3 +1,4 @@
+import json
 import click
 import os
 from . import auth
@@ -56,16 +57,26 @@ def get_client(ctx):
     return GNS3DeleteAPI(server_url, key['access_token'])
 
 
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help", "help_delete.json")
+with open(help_path, "r") as f:
+    help_dict = json.load(f)
+print(type(help_dict["zero_arg"]))
+
 # Create click commands with zero arguments and no data
 for cmd, func in _zero_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = ""
+    for key, value in help_dict["zero_arg"].items():
+        if key == cmd:
+            current_help_option = value
+            break
+    def make_cmd(func=func, help_option=current_help_option):
         @click.pass_context
         def cmd_func(ctx):
             api_delete_client = get_client(ctx)
             execute_and_print(
                 ctx, api_delete_client, lambda client: getattr(api_delete_client, func)())
         return cmd_func
-    delete.command(name=cmd)(make_cmd())
+    delete.command(name=cmd, help = current_help_option)(make_cmd())
 
 
 # Create click commands with one argument minus JSON
