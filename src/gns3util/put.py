@@ -3,7 +3,7 @@ import os
 import json
 from . import auth
 from .api.put_endpoints import GNS3PutAPI
-from .utils import execute_and_print, fuzzy_password_params, fuzzy_put_wrapper
+from .utils import execute_and_print, fuzzy_password_params, fuzzy_put_wrapper, get_command_description
 
 """
 Number of arguments: 0
@@ -66,9 +66,14 @@ def get_client(ctx):
     return GNS3PutAPI(server_url, key['access_token'])
 
 
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help", "help_put.json")
+with open(help_path, "r") as f:
+    help_dict = json.load(f)
+
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "zero_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, json_data):
@@ -82,11 +87,12 @@ for cmd, func in _zero_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd)(make_cmd())
+    put.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with one argument plus JSON
 for cmd, func in _one_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "one_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg')
         @click.argument('json_data')
         @click.pass_context
@@ -101,12 +107,13 @@ for cmd, func in _one_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd)(make_cmd())
+    put.command(name=cmd, help=current_help_option)(make_cmd())
 
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _two_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "two_arg_no_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
@@ -115,11 +122,12 @@ for cmd, func in _two_arg_no_data.items():
             execute_and_print(ctx, api_put_client, lambda client: getattr(
                 api_put_client, func)(arg1, arg2))
         return cmd_func
-    put.command(name=cmd)(make_cmd())
+    put.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with two arguments plus JSON
 for cmd, func in _two_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "two_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('json_data')
@@ -135,11 +143,12 @@ for cmd, func in _two_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd)(make_cmd())
+    put.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with three arguments plus JSON
 for cmd, func in _three_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "three_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('arg3')
@@ -156,7 +165,7 @@ for cmd, func in _three_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd)(make_cmd())
+    put.command(name=cmd, help=current_help_option)(make_cmd())
 
 
 @put.command(name="fchpw", help="find user info using fzf and change their password")
