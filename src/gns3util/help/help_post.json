@@ -1,88 +1,159 @@
 {
-    "zero_arg_data": [
-        {
-            "check-version": "Displays the current version of the software.",
-            "user": "Manages user accounts in the system.",
-            "group": "Manages user groups in the system.",
-            "role": "Manages roles and their permissions.",
-            "acl": "Manages access control lists.",
-            "template": "Manages templates for creating resources.",
-            "project": "Manages projects and their resources.",
-            "project_load": "Loads a specific project.",
-            "add_pool": "Adds a new resource pool."
+    "zero_arg_data": {
+        "check-version": {
+            "description": "Displays the current version of the software."
+        },
+        "user": {
+            "description": "Manages user accounts in the system."
+        },
+        "group": {
+            "description": "Manages user groups in the system."
+        },
+        "role": {
+            "description": "Manages roles and their permissions."
+        },
+        "acl": {
+            "description": "Manages access control lists."
+        },
+        "template": {
+            "description": "Manages templates for creating resources."
+        },
+        "project": {
+            "description": "Manages projects and their resources."
+        },
+        "project_load": {
+            "description": "Loads a specific project."
+        },
+        "add_pool": {
+            "description": "Adds a new resource pool."
         }
-    ],
-
-    "zero_arg_no_data": [
-        {
-            "reload": "Reloads the system configuration.",
-            "shutdown": "Shuts down the system.",
-            "install_img": "Installs a new image."
+    },
+    "zero_arg_no_data": {
+        "reload": {
+            "description": "Reloads the system configuration."
+        },
+        "shutdown": {
+            "description": "Shuts down the system."
+        },
+        "install_img": {
+            "description": "Installs a new image."
         }
-    ],
-
-    "one_arg_data": [
-        {
-            "qemu_img": "Manages QEMU images.",
-            "node": "Manages nodes in the system.",
-            "link_create": "Creates a link between resources.",
-            "drawing_create": "Creates a new drawing.",
-            "snapshot_create": "Creates a snapshot of a resource.",
-            "create_compute": "Creates a new compute resource.",
-            "auto_idlepc": "Automatically sets the idle PC value.",
-            "add_applience_version": "Adds a new appliance version."
+    },
+    "one_arg_data": {
+        "qemu_img": {
+            "description": "Manages QEMU images."
+        },
+        "node": {
+            "description": "Manages nodes in the system."
+        },
+        "link_create": {
+            "description": "Creates a link between resources."
+        },
+        "drawing_create": {
+            "description": "Creates a new drawing."
+        },
+        "snapshot_create": {
+            "description": "Creates a snapshot of a resource."
+        },
+        "create_compute": {
+            "description": "Creates a new compute resource."
+        },
+        "auto_idlepc": {
+            "description": "Automatically sets the idle PC value."
+        },
+        "add_applience_version": {
+            "description": "Adds a new appliance version."
         }
-    ],
-
-    "one_arg_no_data": [
-        {
-            "duplicate_template": "Duplicates an existing template.",
-            "project_close": "Closes a specific project.",
-            "project_open": "Opens a specific project.",
-            "project_lock": "Locks a specific project.",
-            "project_unlock": "Unlocks a specific project.",
-            "start_nodes": "Starts selected nodes.",
-            "stop_nodes": "Stops selected nodes.",
-            "suspend_nodes": "Suspends selected nodes.",
-            "reload_nodes": "Reloads selected nodes.",
-            "nodes_console_reset": "Resets the console of selected nodes.",
-            "symbol_create": "Creates a new symbol.",
-            "connect_compute": "Connects to a compute resource."
+    },
+    "one_arg_no_data": {
+        "duplicate_template": {
+            "description": "Duplicates an existing template."
+        },
+        "project_close": {
+            "description": "Closes a specific project."
+        },
+        "project_open": {
+            "description": "Opens a specific project."
+        },
+        "project_lock": {
+            "description": "Locks a specific project."
+        },
+        "project_unlock": {
+            "description": "Unlocks a specific project."
+        },
+        "start_nodes": {
+            "description": "Starts selected nodes."
+        },
+        "stop_nodes": {
+            "description": "Stops selected nodes."
+        },
+        "suspend_nodes": {
+            "description": "Suspends selected nodes."
+        },
+        "reload_nodes": {
+            "description": "Reloads selected nodes."
+        },
+        "nodes_console_reset": {
+            "description": "Resets the console of selected nodes."
+        },
+        "symbol_create": {
+            "description": "Creates a new symbol."
+        },
+        "connect_compute": {
+            "description": "Connects to a compute resource."
         }
-    ],
-
-    "two_arg_no_data": [
-        {
-            "upload_img": "Uploads an image to the system.",
-            "project_import": "Imports a project into the system.",
-            "project_write_file": "Writes a file to a project.",
-            "node_isolate": "Isolates a specific node.",
-            "node_unisolate": "Un-isolates a specific node.",
-            "node_console_reset": "Resets the console of a specific node.",
-            "reset_link": "Resets a specific link.",
-            "stop_link_capture": "Stops capturing data on a specific link.",
-            "snapshot_restore": "Restores a snapshot.",
-            "add_applience_version": "Adds a new appliance version."
+    },
+    "two_arg_no_data": {
+        "upload_img": {
+            "description": "Uploads an image to the system."
+        },
+        "project_import": {
+            "description": "Imports a project into the system."
+        },
+        "project_write_file": {
+            "description": "Writes a file to a project."
+        },
+        "node_isolate": {
+            "description": "Isolates a specific node."
+        },
+        "node_unisolate": {
+            "description": "Un-isolates a specific node."
+        },
+        "node_console_reset": {
+            "description": "Resets the console of a specific node."
+        },
+        "reset_link": {
+            "description": "Resets a specific link."
+        },
+        "stop_link_capture": {
+            "description": "Stops capturing data on a specific link."
+        },
+        "snapshot_restore": {
+            "description": "Restores a snapshot."
+        },
+        "add_applience_version": {
+            "description": "Adds a new appliance version."
         }
-    ],
-
-    "two_arg": [
-        {
-            "project_node_from_template": "Creates a node in a project from a template.",
-            "duplicate_node": "Duplicates an existing node.",
-            "start_link_capture": "Starts capturing data on a specific link."
+    },
+    "two_arg": {
+        "project_node_from_template": {
+            "description": "Creates a node in a project from a template."
+        },
+        "duplicate_node": {
+            "description": "Duplicates an existing node."
+        },
+        "start_link_capture": {
+            "description": "Starts capturing data on a specific link."
         }
-    ],
-
-    "three_arg": [
-        {
-            "create_disk_img": "Creates a new disk image."
+    },
+    "three_arg": {
+        "create_disk_img": {
+            "description": "Creates a new disk image."
         }
-    ],
-
-    "three_arg_no_data": [
-        {
-            "create_node_file": "Creates a new file on a node."
+    },
+    "three_arg_no_data": {
+        "create_node_file": {
+            "description": "Creates a new file on a node."
         }
-    ]
+    }
 }

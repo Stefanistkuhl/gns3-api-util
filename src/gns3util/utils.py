@@ -500,3 +500,24 @@ def print_usernames_and_ids(ctx):
             click.secho("ID: ", fg="cyan", nl=False)
             click.secho(f"{user_id}")
             print_separator_with_secho()
+
+def get_command_description(cmd: str, func: any, help_dict: dict, arg_type: str) -> str:
+    """
+    Retrieves the description of a command from the help dictionary.
+
+    Args:
+        cmd (str): The command name to look up.
+        help_dict (dict): The dictionary containing help metadata.
+        arg_type (str): The key in help_dict corresponding to the argument count category
+                        (e.g., "zero_arg", "one_arg", etc.).
+
+    Returns:
+        str: The description of the command, or an empty string if not found.
+    """
+    current_help_option = ""
+    for key, value in help_dict[arg_type].items():
+        if key == cmd:
+            current_help_option = str(value["description"])
+            break
+    
+    return current_help_option

@@ -1,63 +1,149 @@
 {
-    "zero_arg": [
-        {
-            "version": "Displays the current version of the software.",
-            "iou-license": "Manages IOU licenses.",
-            "statistics": "Shows system statistics.",
-            "me": "Displays information about the current user.",
-            "users": "Lists all users in the system.",
-            "projects": "Lists all projects in the system.",
-            "groups": "Lists all user groups in the system.",
-            "roles": "Lists all roles in the system.",
-            "privileges": "Lists all privileges in the system.",
-            "acl-endpoints": "Lists all ACL endpoints.",
-            "acl": "Lists all access control lists.",
-            "templates": "Lists all templates available.",
-            "symbols": "Lists all symbols in the system.",
-            "default-symbols": "Lists default symbols in the system.",
-            "computes": "Lists all compute resources.",
-            "appliances": "Lists all appliances in the system.",
-            "pools": "Lists all resource pools."
+    "zero_arg": {
+        "version": {
+            "description": "Displays the current version of the software."
+        },
+        "iou-license": {
+            "description": "Manages IOU licenses."
+        },
+        "statistics": {
+            "description": "Shows system statistics."
+        },
+        "me": {
+            "description": "Displays information about the current user."
+        },
+        "users": {
+            "description": "Lists all users in the system."
+        },
+        "projects": {
+            "description": "Lists all projects in the system."
+        },
+        "groups": {
+            "description": "Lists all user groups in the system."
+        },
+        "roles": {
+            "description": "Lists all roles in the system."
+        },
+        "privileges": {
+            "description": "Lists all privileges in the system."
+        },
+        "acl-endpoints": {
+            "description": "Lists all ACL endpoints."
+        },
+        "acl": {
+            "description": "Lists all access control lists."
+        },
+        "templates": {
+            "description": "Lists all templates available."
+        },
+        "symbols": {
+            "description": "Lists all symbols in the system."
+        },
+        "default-symbols": {
+            "description": "Lists default symbols in the system."
+        },
+        "computes": {
+            "description": "Lists all compute resources."
+        },
+        "appliances": {
+            "description": "Lists all appliances in the system."
+        },
+        "pools": {
+            "description": "Lists all resource pools."
         }
-    ],
-
-    "one_arg": [
-        {
-            "user": "Displays information about a specific user.",
-            "user-groups": "Lists groups a user belongs to.",
-            "project": "Displays information about a specific project.",
-            "project-stats": "Shows statistics for a specific project.",
-            "project-locked": "Checks if a project is locked.",
-            "group": "Displays information about a specific group.",
-            "group-members": "Lists members of a specific group.",
-            "role": "Displays information about a specific role.",
-            "role-privileges": "Lists privileges for a specific role.",
-            "template": "Displays information about a specific template.",
-            "compute": "Displays information about a specific compute resource.",
-            "docker-images": "Lists Docker images for a compute resource.",
-            "virtualbox-vms": "Lists VirtualBox VMs for a compute resource.",
-            "vmware-vms": "Lists VMware VMs for a compute resource.",
-            "images": "Lists images for a compute resource.",
-            "images_by_path": "Lists images by their path.",
-            "snapshots": "Lists snapshots for a compute resource.",
-            "appliance": "Displays information about a specific appliance.",
-            "pool": "Displays information about a specific resource pool.",
-            "pool-resources": "Lists resources in a specific pool.",
-            "drawings": "Lists drawings in the system.",
-            "symbol": "Displays information about a specific symbol.",
-            "acl-rule": "Displays information about a specific ACL rule.",
-            "links": "Lists links in the system.",
-            "nodes": "Lists nodes in the system."
+    },
+    "one_arg": {
+        "user": {
+            "description": "Displays information about a specific user."
+        },
+        "user-groups": {
+            "description": "Lists groups a user belongs to."
+        },
+        "project": {
+            "description": "Displays information about a specific project."
+        },
+        "project-stats": {
+            "description": "Shows statistics for a specific project."
+        },
+        "project-locked": {
+            "description": "Checks if a project is locked."
+        },
+        "group": {
+            "description": "Displays information about a specific group."
+        },
+        "group-members": {
+            "description": "Lists members of a specific group."
+        },
+        "role": {
+            "description": "Displays information about a specific role."
+        },
+        "role-privileges": {
+            "description": "Lists privileges for a specific role."
+        },
+        "template": {
+            "description": "Displays information about a specific template."
+        },
+        "compute": {
+            "description": "Displays information about a specific compute resource."
+        },
+        "docker-images": {
+            "description": "Lists Docker images for a compute resource."
+        },
+        "virtualbox-vms": {
+            "description": "Lists VirtualBox VMs for a compute resource."
+        },
+        "vmware-vms": {
+            "description": "Lists VMware VMs for a compute resource."
+        },
+        "images": {
+            "description": "Lists images for a compute resource."
+        },
+        "images_by_path": {
+            "description": "Lists images by their path."
+        },
+        "snapshots": {
+            "description": "Lists snapshots for a compute resource."
+        },
+        "appliance": {
+            "description": "Displays information about a specific appliance."
+        },
+        "pool": {
+            "description": "Displays information about a specific resource pool."
+        },
+        "pool-resources": {
+            "description": "Lists resources in a specific pool."
+        },
+        "drawings": {
+            "description": "Lists drawings in the system."
+        },
+        "symbol": {
+            "description": "Displays information about a specific symbol."
+        },
+        "acl-rule": {
+            "description": "Displays information about a specific ACL rule."
+        },
+        "links": {
+            "description": "Lists links in the system."
+        },
+        "nodes": {
+            "description": "Lists nodes in the system."
         }
-    ],
-
-    "two_arg": [
-        {
-            "node": "Displays information about a specific node.",
-            "node-links": "Lists links for a specific node.",
-            "link": "Displays information about a specific link.",
-            "link-filters": "Lists filters for a specific link.",
-            "drawing": "Displays information about a specific drawing."
+    },
+    "two_arg": {
+        "node": {
+            "description": "Displays information about a specific node."
+        },
+        "node-links": {
+            "description": "Lists links for a specific node."
+        },
+        "link": {
+            "description": "Displays information about a specific link."
+        },
+        "link-filters": {
+            "description": "Lists filters for a specific link."
+        },
+        "drawing": {
+            "description": "Displays information about a specific drawing."
         }
-    ]
+    }
 }
