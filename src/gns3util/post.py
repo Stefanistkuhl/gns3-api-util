@@ -3,7 +3,7 @@ import json
 import os
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
-from .utils import execute_and_print, create_class, create_Exercise
+from .utils import execute_and_print, create_class, create_Exercise, get_command_description
 
 """
 Number of arguments: 0
@@ -112,9 +112,14 @@ def get_client(ctx):
     return GNS3PostAPI(server_url, key['access_token'])
 
 
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help", "help_post.json")
+with open(help_path, "r") as f:
+    help_dict = json.load(f)
+
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "zero_arg_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, json_data):
@@ -128,22 +133,24 @@ for cmd, func in _zero_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with zero arguments and no data
 for cmd, func in _zero_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "zero_arg_no_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.pass_context
         def cmd_func(ctx):
             api_post_client = get_client(ctx)
             execute_and_print(
                 ctx, api_post_client, lambda client: getattr(api_post_client, func)())
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with one argument plus JSON
 for cmd, func in _one_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "one_arg_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg')
         @click.argument('json_data')
         @click.pass_context
@@ -158,11 +165,12 @@ for cmd, func in _one_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with one argument minus JSON
 for cmd, func in _one_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "one_arg_no_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
@@ -170,11 +178,12 @@ for cmd, func in _one_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg))
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _two_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "two_arg_no_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
@@ -183,11 +192,12 @@ for cmd, func in _two_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg1, arg2))
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with two arguments plus JSON
 for cmd, func in _two_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "two_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('json_data')
@@ -203,11 +213,12 @@ for cmd, func in _two_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with three arguments plus JSON
 for cmd, func in _three_arg.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "three_arg")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('arg3')
@@ -224,11 +235,12 @@ for cmd, func in _three_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _three_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option = get_command_description(cmd, func, help_dict, "three_arg_no_data")
+    def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('arg3')
@@ -238,7 +250,7 @@ for cmd, func in _three_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg1, arg2, arg3))
         return cmd_func
-    post.command(name=cmd)(make_cmd())
+    post.command(name=cmd, help=current_help_option)(make_cmd())
 
 
 @post.command(name="class", help="create everything need to setup a class and it's students")

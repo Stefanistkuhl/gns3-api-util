@@ -1,6 +1,6 @@
 {
     "zero_arg_data": {
-        "check-version": {
+        "check_version": {
             "description": "Displays the current version of the software."
         },
         "user": {
