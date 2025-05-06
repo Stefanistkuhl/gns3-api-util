@@ -1,0 +1,33 @@
+{
+    "zero_arg": [
+        {
+            "prune_images": "Deletes unused images to free up space."
+        }
+    ],
+
+    "one_arg": [
+        {
+            "user": "Manages user accounts in the system.",
+            "compute": "Manages compute resources and their allocation.",
+            "project": "Manages projects and their resources.",
+            "template": "Manages templates for creating resources.",
+            "image": "Manages images for virtual machines.",
+            "acl": "Manages access control lists for resources.",
+            "role": "Manages roles and their permissions.",
+            "group": "Manages user groups in the system.",
+            "pool": "Manages resource pools for efficient usage."
+        }
+    ],
+
+    "two_arg": [
+        {
+            "pool_resource": "Assigns resources to a specific pool.",
+            "link": "Creates links between resources.",
+            "node": "Manages physical or virtual nodes in the system.",
+            "drawing": "Creates or manages drawings/diagrams of resources.",
+            "role_priv": "Manages permissions for specific roles.",
+            "user_from_group": "Manages users within a specific group.",
+            "snapshot": "Creates or manages snapshots of resources."
+        }
+    ]
+}

@@ -1,0 +1,88 @@
+{
+    "zero_arg_data": [
+        {
+            "check-version": "Displays the current version of the software.",
+            "user": "Manages user accounts in the system.",
+            "group": "Manages user groups in the system.",
+            "role": "Manages roles and their permissions.",
+            "acl": "Manages access control lists.",
+            "template": "Manages templates for creating resources.",
+            "project": "Manages projects and their resources.",
+            "project_load": "Loads a specific project.",
+            "add_pool": "Adds a new resource pool."
+        }
+    ],
+
+    "zero_arg_no_data": [
+        {
+            "reload": "Reloads the system configuration.",
+            "shutdown": "Shuts down the system.",
+            "install_img": "Installs a new image."
+        }
+    ],
+
+    "one_arg_data": [
+        {
+            "qemu_img": "Manages QEMU images.",
+            "node": "Manages nodes in the system.",
+            "link_create": "Creates a link between resources.",
+            "drawing_create": "Creates a new drawing.",
+            "snapshot_create": "Creates a snapshot of a resource.",
+            "create_compute": "Creates a new compute resource.",
+            "auto_idlepc": "Automatically sets the idle PC value.",
+            "add_applience_version": "Adds a new appliance version."
+        }
+    ],
+
+    "one_arg_no_data": [
+        {
+            "duplicate_template": "Duplicates an existing template.",
+            "project_close": "Closes a specific project.",
+            "project_open": "Opens a specific project.",
+            "project_lock": "Locks a specific project.",
+            "project_unlock": "Unlocks a specific project.",
+            "start_nodes": "Starts selected nodes.",
+            "stop_nodes": "Stops selected nodes.",
+            "suspend_nodes": "Suspends selected nodes.",
+            "reload_nodes": "Reloads selected nodes.",
+            "nodes_console_reset": "Resets the console of selected nodes.",
+            "symbol_create": "Creates a new symbol.",
+            "connect_compute": "Connects to a compute resource."
+        }
+    ],
+
+    "two_arg_no_data": [
+        {
+            "upload_img": "Uploads an image to the system.",
+            "project_import": "Imports a project into the system.",
+            "project_write_file": "Writes a file to a project.",
+            "node_isolate": "Isolates a specific node.",
+            "node_unisolate": "Un-isolates a specific node.",
+            "node_console_reset": "Resets the console of a specific node.",
+            "reset_link": "Resets a specific link.",
+            "stop_link_capture": "Stops capturing data on a specific link.",
+            "snapshot_restore": "Restores a snapshot.",
+            "add_applience_version": "Adds a new appliance version."
+        }
+    ],
+
+    "two_arg": [
+        {
+            "project_node_from_template": "Creates a node in a project from a template.",
+            "duplicate_node": "Duplicates an existing node.",
+            "start_link_capture": "Starts capturing data on a specific link."
+        }
+    ],
+
+    "three_arg": [
+        {
+            "create_disk_img": "Creates a new disk image."
+        }
+    ],
+
+    "three_arg_no_data": [
+        {
+            "create_node_file": "Creates a new file on a node."
+        }
+    ]
+}
