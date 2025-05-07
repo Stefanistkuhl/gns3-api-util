@@ -57,7 +57,7 @@ def get_client(ctx):
     return GNS3DeleteAPI(server_url, key['access_token'])
 
 
-help_path = os.path.join(os.getcwd(), "src", "gns3util", "help", "help_delete.json")
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help_texts", "help_delete.json")
 with open(help_path, "r") as f:
     help_dict = json.load(f)
 

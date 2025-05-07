@@ -75,7 +75,7 @@ def get_client(ctx):
     return GNS3GetAPI(server_url, key['access_token'])
 
 
-help_path = os.path.join(os.getcwd(), "src", "gns3util", "help", "help_get.json")
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help_texts", "help_get.json")
 with open(help_path, "r") as f:
     help_dict = json.load(f)
 
