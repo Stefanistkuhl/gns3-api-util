@@ -501,7 +501,7 @@ def print_usernames_and_ids(ctx):
             click.secho(f"{user_id}")
             print_separator_with_secho()
 
-def get_command_description(cmd: str, func: any, help_dict: dict, arg_type: str) -> str:
+def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> str:
     """
     Retrieves the description of a command from the help dictionary.
 

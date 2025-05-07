@@ -72,7 +72,7 @@ with open(help_path, "r") as f:
 
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    current_help_option = get_command_description(cmd, func, help_dict, "zero_arg")
+    current_help_option = get_command_description(cmd, help_dict, "zero_arg")
     def make_cmd(func=func, help_option=current_help_option):
         @click.argument('json_data')
         @click.pass_context
@@ -91,7 +91,7 @@ for cmd, func in _zero_arg.items():
 
 # Create click commands with one argument plus JSON
 for cmd, func in _one_arg.items():
-    current_help_option = get_command_description(cmd, func, help_dict, "one_arg")
+    current_help_option = get_command_description(cmd, help_dict, "one_arg")
     def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg')
         @click.argument('json_data')
@@ -112,7 +112,7 @@ for cmd, func in _one_arg.items():
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _two_arg_no_data.items():
-    current_help_option = get_command_description(cmd, func, help_dict, "two_arg_no_data")
+    current_help_option = get_command_description(cmd, help_dict, "two_arg_no_data")
     def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
@@ -126,7 +126,7 @@ for cmd, func in _two_arg_no_data.items():
 
 # Create click commands with two arguments plus JSON
 for cmd, func in _two_arg.items():
-    current_help_option = get_command_description(cmd, func, help_dict, "two_arg")
+    current_help_option = get_command_description(cmd, help_dict, "two_arg")
     def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
@@ -147,7 +147,7 @@ for cmd, func in _two_arg.items():
 
 # Create click commands with three arguments plus JSON
 for cmd, func in _three_arg.items():
-    current_help_option = get_command_description(cmd, func, help_dict, "three_arg")
+    current_help_option = get_command_description(cmd, help_dict, "three_arg")
     def make_cmd(func=func, help_option=current_help_option):
         @click.argument('arg1')
         @click.argument('arg2')
