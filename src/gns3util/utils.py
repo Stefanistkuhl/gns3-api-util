@@ -334,7 +334,7 @@ def fuzzy_info_wrapper(params):
     if GNS3Error.has_error(error):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
-            click.echo(
+            click.secho(
                 "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
             return
         GNS3Error.print_error(error)
@@ -345,7 +345,7 @@ def fuzzy_put_wrapper(params):
     if GNS3Error.has_error(error):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
-            click.echo(
+            click.secho(
                 "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
             return
         GNS3Error.print_error(error)
