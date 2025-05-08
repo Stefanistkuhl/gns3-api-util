@@ -134,7 +134,7 @@ def load_and_try_key(ctx) -> tuple[bool, any]:
                     GNS3Error.print_error(try_key_error)
                     return False, ""
             else:
-                return True, key
+                return True, token
     return False, ""
 
 

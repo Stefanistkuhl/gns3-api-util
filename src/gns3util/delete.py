@@ -53,7 +53,7 @@ def get_client(ctx):
     """Helper function to create GNS3DeleteAPI instance."""
     server_url = ctx.parent.obj['server']
     _, key = auth.load_and_try_key(ctx)
-    return GNS3DeleteAPI(server_url, key['access_token'])
+    return GNS3DeleteAPI(server_url, key)
 
 
 # Create click commands with zero arguments and no data
