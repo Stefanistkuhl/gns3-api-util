@@ -10,6 +10,7 @@ dependencies = [
     "click",
     "requests",
     "rich",
+    "bottle",
 ]
 
 [project.scripts]

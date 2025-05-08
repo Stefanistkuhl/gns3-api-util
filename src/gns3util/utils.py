@@ -362,7 +362,7 @@ def execute_and_print(ctx, client, func):
 def get_role_id(ctx, name: str) -> (str, GNS3Error):
     get_roles_error, roles = call_client_method(ctx, "get", "roles")
     if GNS3Error.has_error(get_roles_error):
-        return get_roles_error
+        return "", get_roles_error
     for role in roles:
         if role['name'] == name:
             return role['role_id'], get_roles_error

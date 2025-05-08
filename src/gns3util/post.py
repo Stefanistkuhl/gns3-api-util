@@ -1,9 +1,9 @@
 import click
 import json
-import os
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise
+from .server import start_server
 
 """
 Number of arguments: 0
@@ -109,7 +109,7 @@ def get_client(ctx):
     """Helper function to create GNS3PostAPI instance."""
     server_url = ctx.parent.obj['server']
     _, key = auth.load_and_try_key(ctx)
-    return GNS3PostAPI(server_url, key['access_token'])
+    return GNS3PostAPI(server_url, key)
 
 
 # Create click commands with zero arguments
@@ -242,19 +242,26 @@ for cmd, func in _three_arg_no_data.items():
 
 
 @post.command(name="class", help="create everything need to setup a class and it's students")
-@click.argument('filename', type=click.Path(exists=True, readable=True))
+@click.argument('filename', required=False, type=click.Path(exists=True, readable=True))
+@click.option(
+    "-c", "--create", is_flag=True, help="Launch a local webpage to enter the info to create a class"
+)
 @click.pass_context
-def make_class(ctx, filename):
-    file = click.format_filename(filename)
-    class_name, success = create_class(ctx, file)
-    if success:
-        click.secho("Success: ", nl=False, fg="green")
-        click.secho("created class ", nl=False)
-        click.secho(f"{class_name}", bold=True)
+def make_class(ctx, filename, create):
+
+    if create:
+        start_server(host='localhost', port=8080, debug=True)
     else:
-        click.secho("Error: ", nl=False, fg="red", err=True)
-        click.secho(
-            "failed to create class", bold=True, err=True)
+        file = click.format_filename(filename)
+        class_name, success = create_class(ctx, file)
+        if success:
+            click.secho("Success: ", nl=False, fg="green")
+            click.secho("created class ", nl=False)
+            click.secho(f"{class_name}", bold=True)
+        else:
+            click.secho("Error: ", nl=False, fg="red", err=True)
+            click.secho(
+                "failed to create class", bold=True, err=True)
 
 
 @post.command(name="exercise", help="create everything need to setup a class and it's students")

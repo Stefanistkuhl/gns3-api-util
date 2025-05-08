@@ -63,7 +63,7 @@ def get_client(ctx):
     """Helper function to create GNS3PutAPI instance."""
     server_url = ctx.parent.obj['server']
     _, key = auth.load_and_try_key(ctx)
-    return GNS3PutAPI(server_url, key['access_token'])
+    return GNS3PutAPI(server_url, key)
 
 
 # Create click commands with zero arguments
