@@ -120,7 +120,7 @@ def auth():
 auth = click.Group('auth')
 
 
-def load_and_try_key(ctx) -> tuple[bool, any]:
+def load_and_try_key(ctx) -> tuple[bool, dict]:
     key_file = os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)
     if load_success:
@@ -129,13 +129,13 @@ def load_and_try_key(ctx) -> tuple[bool, any]:
             try_key_error, result = try_key(ctx, token)
             if GNS3Error.has_error(try_key_error):
                 if try_key_error.unauthorized:
-                    return False, ""
+                    return False, {}
                 else:
                     GNS3Error.print_error(try_key_error)
-                    return False, ""
+                    return False, {}
             else:
-                return True, token
-    return False, ""
+                return True, key
+    return False, {}
 
 
 @auth.command()
@@ -170,7 +170,7 @@ def login(ctx):
 
         save_data_error = save_auth_data(
             auth_data, server_url, credentials[0], key_file)
-        if not save_data_error:
+        if save_data_error:
             click.secho("Success: ", nl=False, fg="green")
             click.secho("authenticated as ", nl=False)
             click.secho(f"{credentials[0]}", nl=False, bold=True)

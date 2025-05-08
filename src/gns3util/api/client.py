@@ -1,6 +1,7 @@
 # Package init file
 import requests
 import click
+import urllib3
 import json
 import threading
 from dataclasses import dataclass
@@ -87,6 +88,9 @@ class GNS3Error:
                 )
 
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
 class GNS3APIClient:
     def __init__(self, server_url, key=None):
         self.server_url = server_url.rstrip('/')
@@ -102,7 +106,7 @@ class GNS3APIClient:
         error = GNS3Error()
         try:
             response = requests.request(
-                method, url, headers=headers, json=data, timeout=timeout, stream=stream
+                method, url, headers=headers, json=data, timeout=timeout, stream=stream, verify=False
             )
             if response.status_code in (200, 201, 204):
                 if stream:

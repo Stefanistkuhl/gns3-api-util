@@ -117,7 +117,7 @@ def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> t
 
 def print_key_value_with_secho(key, value, color="cyan", reset="reset"):
     click.secho(f"{key}: ", fg=color, nl=False)
-    click.echo(value)
+    click.secho(value)
 
 
 def print_separator_with_secho(color="white"):
