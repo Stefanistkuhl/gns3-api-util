@@ -2,75 +2,75 @@
     "zero_arg": {
         "prune_images": {
             "description": "Deletes images not attached to any template.",
-            "example":"Example: gns3util -s [server_url] delete prune_images"
+            "example": "Example: gns3util -s [server_url] delete prune_images"
         }
     },
     "one_arg": {
         "user": {
             "description": "Deletes a user with the given user_id.",
-            "example":"Example: gns3util -s [server_url] delete user [user_id]"
+            "example": "Example: gns3util -s [server_url] delete user [user_id]"
         },
         "compute": {
             "description": "Deletes a compute from the controller with the given compute_id.",
-            "example":"Example: gns3util -s [server_url] delete compute [compute_id]"
+            "example": "Example: gns3util -s [server_url] delete compute [compute_id]"
         },
         "project": {
             "description": "Deletes a project with the given project_id.",
-            "example":"Example: gns3util -s [server_url] delete project [project_id]"
+            "example": "Example: gns3util -s [server_url] delete project [project_id]"
         },
         "template": {
             "description": "HIER WEITER MACHEN!!!!!!!!!!!!!!!!!!!!!!!!",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "image": {
             "description": "Manages images for virtual machines.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "acl": {
             "description": "Manages access control lists for resources.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "role": {
             "description": "Manages roles and their permissions.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "group": {
             "description": "Manages user groups in the system.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "pool": {
             "description": "Manages resource pools for efficient usage.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         }
     },
     "two_arg": {
         "pool_resource": {
             "description": "Assigns resources to a specific pool.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "link": {
             "description": "Creates links between resources.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "node": {
             "description": "Manages physical or virtual nodes in the system.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "drawing": {
             "description": "Creates or manages drawings/diagrams of resources.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "role_priv": {
             "description": "Manages permissions for specific roles.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "user_from_group": {
             "description": "Manages users within a specific group.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         },
         "snapshot": {
             "description": "Creates or manages snapshots of resources.",
-            "example":"Example: gns3util -s [server_url]"
+            "example": "Example: gns3util -s [server_url]"
         }
     }
 }
