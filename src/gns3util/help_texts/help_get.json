@@ -1,25 +1,32 @@
 {
     "zero_arg": {
         "version": {
-            "description": "Displays the current version of the software."
+            "description": "Displays the current version of the software.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "iou-license": {
-            "description": "Manages IOU licenses."
+            "description": "Manages IOU licenses.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "statistics": {
-            "description": "Shows system statistics."
+            "description": "Shows system statistics.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "me": {
-            "description": "Displays information about the current user."
+            "description": "Displays information about the current user.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "users": {
-            "description": "Lists all users in the system."
+            "description": "Lists all users in the system.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "projects": {
-            "description": "Lists all projects in the system."
+            "description": "Lists all projects in the system.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "groups": {
-            "description": "Lists all user groups in the system."
+            "description": "Lists all user groups in the system.",
+            "example":"Example: gns3util -s [server_url]"
         },
         "roles": {
             "description": "Lists all roles in the system."
