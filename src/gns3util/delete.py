@@ -1,8 +1,9 @@
+import json
 import click
 import os
 from . import auth
 from .api.delete_endpoints import GNS3DeleteAPI
-from .utils import execute_and_print
+from .utils import execute_and_print, get_command_description
 
 """
 Number of arguments: 0
@@ -56,21 +57,26 @@ def get_client(ctx):
     return GNS3DeleteAPI(server_url, key)
 
 
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help_texts", "help_delete.json")
+with open(help_path, "r") as f:
+    help_dict = json.load(f)
+
 # Create click commands with zero arguments and no data
 for cmd, func in _zero_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "zero_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
         @click.pass_context
         def cmd_func(ctx):
             api_delete_client = get_client(ctx)
             execute_and_print(
                 ctx, api_delete_client, lambda client: getattr(api_delete_client, func)())
         return cmd_func
-    delete.command(name=cmd)(make_cmd())
-
+    delete.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument minus JSON
 for cmd, func in _one_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "one_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):   
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
@@ -78,11 +84,12 @@ for cmd, func in _one_arg_no_data.items():
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
                 api_delete_client, func)(arg))
         return cmd_func
-    delete.command(name=cmd)(make_cmd())
+    delete.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _two_arg_no_data.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "two_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
@@ -91,4 +98,4 @@ for cmd, func in _two_arg_no_data.items():
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
                 api_delete_client, func)(arg1, arg2))
         return cmd_func
-    delete.command(name=cmd)(make_cmd())
+    delete.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())

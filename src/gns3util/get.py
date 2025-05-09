@@ -1,8 +1,10 @@
 import click
+import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description
+import json
 
 get = click.Group('get')
 
@@ -21,6 +23,7 @@ _zero_arg = {
     "acl": "acl",
     "templates": "templates",
     "symbols": "symbols",
+    "images": "images",
     "default-symbols": "default_symbols",
     "computes": "computes",
     "appliances": "appliances",
@@ -43,7 +46,6 @@ _one_arg = {
     "docker-images": "compute_by_id_docker_images",
     "virtualbox-vms": "compute_by_id_virtualbox_vms",
     "vmware-vms": "compute_by_id_vmware_vms",
-    "images": "images",
     "images_by_path": "images_by_path",
     "snapshots": "snapshots",
     "appliance": "appliance",
@@ -73,20 +75,26 @@ def get_client(ctx):
     return GNS3GetAPI(server_url, key)
 
 
+help_path = os.path.join(os.getcwd(), "src", "gns3util", "help_texts", "help_get.json")
+with open(help_path, "r") as f:
+    help_dict = json.load(f)
+
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "zero_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
         @click.pass_context
         def cmd_func(ctx):
             api_get_client = get_client(ctx)
             execute_and_print(
                 ctx, api_get_client, lambda client: getattr(api_get_client, func)())
         return cmd_func
-    get.command(name=cmd)(make_cmd())
+    get.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument
 for cmd, func in _one_arg.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "one_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
@@ -94,11 +102,12 @@ for cmd, func in _one_arg.items():
             execute_and_print(
                 ctx, api_get_client, lambda client: getattr(api_get_client, func)(arg))
         return cmd_func
-    get.command(name=cmd)(make_cmd())
+    get.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments
 for cmd, func in _two_arg.items():
-    def make_cmd(func=func):
+    current_help_option,epiloge = get_command_description(cmd, help_dict, "two_arg")
+    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
         @click.argument('project_id')
         @click.argument('id')
         @click.pass_context
@@ -107,7 +116,7 @@ for cmd, func in _two_arg.items():
             execute_and_print(ctx, api_get_client, lambda client: getattr(
                 api_get_client, func)(project_id, id))
         return cmd_func
-    get.command(name=cmd)(make_cmd())
+    get.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
 
 # Special commands with timeout options
 

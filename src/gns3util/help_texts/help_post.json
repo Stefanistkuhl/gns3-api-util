@@ -1,0 +1,206 @@
+{
+    "zero_arg_data": {
+        "check_version": {
+            "description": "Check if version is the same as the server with the given data.",
+            "example": "Example: gns3util -s [server_url] post check_version [JSON DATA]"
+        },
+        "user": {
+            "description": "Create a new user with the given data.",
+            "example": "Example: gns3util -s [server_url] post user [JSON DATA]"
+        },
+        "group": {
+            "description": "Create a new user group with the given data.",
+            "example": "Example: gns3util -s [server_url] post group [JSON DATA]"
+        },
+        "role": {
+            "description": "Create a new role with the given data.",
+            "example": "Example: gns3util -s [server_url] post role [JSON DATA]"
+        },
+        "acl": {
+            "description": "Create a new ACL entry with the given data.",
+            "example": "Example: gns3util -s [server_url] post acl [JSON DATA]"
+        },
+        "template": {
+            "description": "Create a new template with the given data.",
+            "example": "Example: gns3util -s [server_url] post template [JSON DATA]"
+        },
+        "project": {
+            "description": "Create a new project with the given data.",
+            "example": "Example: gns3util -s [server_url] post project [JSON DATA]"
+        },
+        "project_load": {
+            "description": "Load a project (local server only) with the given data.",
+            "example": "Example: gns3util -s [server_url] post project_load [JSON DATA]"
+        },
+        "create_compute": {
+            "description": "Create a new compute on the controller with the given data.",
+            "example": "Example: gns3util -s [server_url] post create_compute [JSON DATA]"
+        },
+        "add_pool": {
+            "description": "Create a new resource pool with the given data.",
+            "example": "Example: gns3util -s [server_url] post add_pool [JSON DATA]"
+        }
+    },
+    "zero_arg_no_data": {
+        "reload": {
+            "description": "Reload the controller",
+            "example": "Example: gns3util -s [server_url] post reload"
+        },
+        "shutdown": {
+            "description": "Shutdown the server",
+            "example": "Example: gns3util -s [server_url] post shutdown"
+        },
+        "install_img": {
+            "description": "Attempt to automatically create templates based on image checksums.",
+            "example": "Example: gns3util -s [server_url] post install_img"
+        }
+    },
+    "one_arg_data": {
+        "qemu_img": {
+            "description": "Create a new blank Qemu image in a path with the given image_path and data.",
+            "example": "Example: gns3util -s [server_url] post qemu_img [image_path] [JSON DATA]"
+        },
+        "node": {
+            "description": "Create a new node in a project with the given project_id and data.",
+            "example": "Example: gns3util -s [server_url] post node [project_id] [JSON DATA]"
+        },
+        "link_create": {
+            "description": "Create a new link in a project with the given project_id and data.",
+            "example": "Example: gns3util -s [server_url] post link_create [project_id] [JSON DATA]"
+        },
+        "drawing_create": {
+            "description": "Create a new drawing in a project with the given project_id and data.",
+            "example": "Example: gns3util -s [server_url] post drawing_create [project_id] [JSON DATA]"
+        },
+        "snapshot_create": {
+            "description": "Create a new snapshot of a project with the given project_id and data.",
+            "example": "Example: gns3util -s [server_url] post snapshot_create [project_id] [JSON DATA]"
+        },
+        "auto_idlepc": {
+            "description": "Find a suitable Idle-PC value for a given IOS image with the given compute_id and data. This may take a few minutes.",
+            "example": "Example: gns3util -s [server_url] post auto_idlepc [compute_id] [JSON DATA]"
+        },
+        "add_applience_version": {
+            "description": "Add a version to an appliance with the given appliance_id and data.",
+            "example": "Example: gns3util -s [server_url] post add_applience_version [appliance_id] [JSON DATA]"
+        }
+    },
+    "one_arg_no_data": {
+        "duplicate_template": {
+            "description": "Duplicate a template with the given template_id.",
+            "example": "Example: gns3util -s [server_url] post duplicate_template [template_id]"
+        },
+        "project_close": {
+            "description": "Close a project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post project_close [project_id]"
+        },
+        "project_open": {
+            "description": "Open a project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post project_open [project_id]"
+        },
+        "project_lock": {
+            "description": "Lock all drawings and nodes in a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post project_lock [project_id]"
+        },
+        "project_unlock": {
+            "description": "Unlock all drawings and nodes in a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post project_unlock [project_id]"
+        },
+        "start_nodes": {
+            "description": "Start all nodes belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post start_nodes [project_id]"
+        },
+        "stop_nodes": {
+            "description": "Stop all nodes belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post stop_nodes [project_id]"
+        },
+        "suspend_nodes": {
+            "description": "Suspend all nodes belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post suspend_nodes [project_id]"
+        },
+        "reload_nodes": {
+            "description": "Reload all nodes belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post reload_nodes [project_id]"
+        },
+        "nodes_console_reset": {
+            "description": "Reset console for all nodes belonging to the project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] post nodes_console_reset [project_id]"
+        },
+        "symbol_create": {
+            "description": "Upload a symbol file with the given symbol_id.",
+            "example": "Example: gns3util -s [server_url] post symbol_create [symbol_id]"
+        },
+        "connect_compute": {
+            "description": "Connect to compute on the controller with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] post connect_compute [compute_id]"
+        }
+    },
+    "two_arg_no_data": {
+        "upload_img": {
+            "description": "Upload an image within a path with the given image_path and install_appliances.",
+            "example": "Example: gns3util -s [server_url] post upload_img [image_path] [install_appliances]"
+        },
+        "project_import": {
+            "description": "Import a project from a portable archive with the given project_id and name.",
+            "example": "Example: gns3util -s [server_url] post project_import [project_id] [name]"
+        },
+        "project_write_file": {
+            "description": "Write a file to a project with the given file_path and project_id.",
+            "example": "Example: gns3util -s [server_url] post project_write_file [file_path] [project_id]"
+        },
+        "node_isolate": {
+            "description": "Isolate a node (suspend all attached links) with the given node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] post node_isolate [node_id] [project_id]"
+        },
+        "node_unisolate": {
+            "description": "Un-isolate a node (resume all attached suspended links) with the given node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] post node_unisolate [node_id] [project_id]"
+        },
+        "node_console_reset": {
+            "description": "Reset a console for a given node with the given node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] post node_console_reset [node_id] [project_id]"
+        },
+        "reset_link": {
+            "description": "Reset a link with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] post reset_link [project_id] [link_id]"
+        },
+        "stop_link_capture": {
+            "description": "Stop packet capture on the link with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] post stop_link_capture [project_id] [link_id]"
+        },
+        "snapshot_restore": {
+            "description": "Restore a snapshot with the given snapshot_id and project_id.",
+            "example": "Example: gns3util -s [server_url] post snapshot_restore [snapshot_id] [project_id]"
+        },
+        "add_applience_version": {
+            "description": "Add a version to an appliance with the given appliance_id and request body.",
+            "example": "Example: gns3util -s [server_url] post add_applience_version [appliance_id] [JSON DATA]"
+        }
+    },
+    "two_arg": {
+        "project_node_from_template": {
+            "description": "Create a new node from a template with the given project_id, template_id and data.",
+            "example": "Example: gns3util -s [server_url] post project_node_from_template [project_id] [template_id] [JSON DATA]"
+        },
+        "duplicate_node": {
+            "description": "Duplicate a node with the given node_id, project_id and data.",
+            "example": "Example: gns3util -s [server_url] post duplicate_node [node_id] [project_id] [JSON DATA]"
+        },
+        "start_link_capture": {
+            "description": "Start packet capture on the link with the given project_id, link_id and data.",
+            "example": "Example: gns3util -s [server_url] post start_link_capture [project_id] [link_id] [JSON DATA]"
+        }
+    },
+    "three_arg": {
+        "create_disk_img": {
+            "description": "Create a Qemu disk image with the given disk_name, node_id, project_id and data",
+            "example": "Example: gns3util -s [server_url] post create_disk_img [disk_name] [node_id] [project_id] [JSON DATA]"
+        }
+    },
+    "three_arg_no_data": {
+        "create_node_file": {
+            "description": "Write a file in the node directory with the given file_path, node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] post create_node_file [file_path] [node_id] [project_id]"
+        }
+    }
+}

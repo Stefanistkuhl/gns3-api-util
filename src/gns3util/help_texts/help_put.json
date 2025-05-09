@@ -1,0 +1,80 @@
+{
+    "zero_arg": {
+        "iou_license": {
+            "description": "Update the IOU license settings with the given data.",
+            "example": "Example: gns3util -s [server_url] put iou_license [JSON DATA]"
+        },
+        "me": {
+            "description": "Update the current active user with the given data.",
+            "example": "Example: gns3util -s [server_url] put me [JSON DATA]"
+        }
+    },
+    "one_arg": {
+        "update_user": {
+            "description": "Update a user with the given user_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_user [user_id] [JSON DATA]"
+        },
+        "update_group": {
+            "description": "Update a user group with the given user_group_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_group [user_group_id] [JSON DATA]"
+        },
+        "update_acl": {
+            "description": "Update an ACL entry with the given ace_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_acl [ace_id] [JSON DATA]"
+        },
+        "update_template": {
+            "description": "Update a template with the given template_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_template [template_id] [JSON DATA]"
+        },
+        "update_project": {
+            "description": "Update a project with the given project_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_project [project_id] [JSON DATA]"
+        },
+        "update_compute": {
+            "description": "Update a compute on the controller with the given compute_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_compute [compute_id] [JSON DATA]"
+        },
+        "update_pool": {
+            "description": "Update a resource pool with the given resource_pool_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_pool [resource_pool_id] [JSON DATA]"
+        },
+        "update_role": {
+            "description": "Update a role with the given role_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_role [role_id] [JSON DATA]"
+        }
+    },
+    "two_arg_no_data": {
+        "add_group_member": {
+            "description": "Add member to a user group with the given user_groupid and user_id.",
+            "example": "Example: gns3util -s [server_url] put add_group_member [user_group_id] [user_id]"
+        },
+        "add_ressouce_to_pool": {
+            "description": "Add resource to a resource pool with the given resource_pool_id and resource_id.",
+            "example": "Example: gns3util -s [server_url] put add_ressouce_to_pool [resource_pool_id] [resource_id]"
+        },
+        "update_role_privs": {
+            "description": "Add a privilege to a role with the given role_id and privilege_id.",
+            "example": "Example: gns3util -s [server_url] put update_role_privs [role_id] [privilege_id]"
+        }
+    },
+    "two_arg": {
+        "update_node": {
+            "description": "Update a node with the given node_id, project_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_node [node_id] [project_id] [JSON DATA]"
+        },
+        "update_drawing": {
+            "description": "Update a drawing with the given project_id, drawing_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_drawing [project_id] [drawing_id] [JSON DATA]"
+        },
+        "update_link": {
+            "description": "Update a link with the given project_id, link_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_link [project_id] [link_id] [JSON DATA]"
+        }
+    },
+    "three_arg": {
+        "update_disk_image": {
+            "description": "Update a Qemu disk image disk_name, node_id, project_id and data.",
+            "example": "Example: gns3util -s [server_url] put update_disk_image [disk_name] [node_id] [project_id] [JSON DATA]"
+        }
+    }
+}

@@ -1,0 +1,63 @@
+{
+    "zero_arg": {
+        "iou_license": {
+            "description": "Manages or displays IOU license information."
+        },
+        "me": {
+            "description": "Retrieves details about the currently authenticated user."
+        }
+    },
+    "one_arg": {
+        "update_user": {
+            "description": "Updates information for an existing user account."
+        },
+        "update_group": {
+            "description": "Updates details of an existing user group."
+        },
+        "update_acl": {
+            "description": "Updates entries in the access control list."
+        },
+        "update_template": {
+            "description": "Updates an existing template used for creating resources."
+        },
+        "update_project": {
+            "description": "Updates configuration or metadata for a project."
+        },
+        "update_compute": {
+            "description": "Updates settings of a compute resource."
+        },
+        "update_pool": {
+            "description": "Updates resource pool configurations."
+        },
+        "update_role": {
+            "description": "Updates the permissions or name of a specific role."
+        }
+    },
+    "two_arg_no_data": {
+        "add_group_member": {
+            "description": "Adds a user to a specific group."
+        },
+        "add_ressouce_to_pool": {
+            "description": "Assigns a resource to a specific pool."
+        },
+        "update_role_privs": {
+            "description": "Modifies the privileges associated with a specific role."
+        }
+    },
+    "two_arg": {
+        "update_node": {
+            "description": "Updates the configuration or status of a node."
+        },
+        "update_drawing": {
+            "description": "Modifies an existing drawing or visual resource layout."
+        },
+        "update_link": {
+            "description": "Updates properties or endpoints of a link between nodes."
+        }
+    },
+    "three_arg": {
+        "update_disk_image": {
+            "description": "Updates an existing disk image with new data or settings."
+        }
+    }
+}

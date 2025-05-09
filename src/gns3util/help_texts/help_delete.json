@@ -1,0 +1,76 @@
+{
+    "zero_arg": {
+        "prune_images": {
+            "description": "Deletes images not attached to any template.",
+            "example": "Example: gns3util -s [server_url] delete prune_images"
+        }
+    },
+    "one_arg": {
+        "user": {
+            "description": "Deletes a user with the given user_id.",
+            "example": "Example: gns3util -s [server_url] delete user [user_id]"
+        },
+        "compute": {
+            "description": "Deletes a compute from the controller with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] delete compute [compute_id]"
+        },
+        "project": {
+            "description": "Deletes a project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] delete project [project_id]"
+        },
+        "template": {
+            "description": "Deletes a template with the given template_id.",
+            "example": "Example: gns3util -s [server_url] delete template [template_id]"
+        },
+        "image": {
+            "description": "Deletes an image with the given image_id.",
+            "example": "Example: gns3util -s [server_url] delete image [image_id]"
+        },
+        "acl": {
+            "description": "Delete an ACL entry with the given ace_id.",
+            "example": "Example: gns3util -s [server_url] delete acl [ace_id]"
+        },
+        "role": {
+            "description": "Deletes a role with the given role_id.",
+            "example": "Example: gns3util -s [server_url] delete role [role_id]"
+        },
+        "group": {
+            "description": "Deletes a user group with the given user_group_id.",
+            "example": "Example: gns3util -s [server_url] delete group [user_group_id]"
+        },
+        "pool": {
+            "description": "Deletes a resource pool with the given resource_pool_id.",
+            "example": "Example: gns3util -s [server_url] delete pool [resource_pool_id]"
+        }
+    },
+    "two_arg": {
+        "pool_resource": {
+            "description": "Deletes a resource pool with the given resource_pool_id and resource_id.",
+            "example": "Example: gns3util -s [server_url] delete pool_resource [resource_pool_id] [resource_id]"
+        },
+        "link": {
+            "description": "Deletes a link between two projects with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] delete link [project_id] [link_id]"
+        },
+        "node": {
+            "description": "Deletes a node from a project with the given project_id and node_id.",
+            "example": "Example: gns3util -s [server_url] delete node [project_id] [node_id]"
+        },
+        "drawing": {
+            "description": "Deletes a drawing from a project with the given project_id and drawing_id.",
+            "example": "Example: gns3util -s [server_url] delete drawing [project_id] [drawing_id]"
+        },
+        "role_priv": {
+            "description": "Removes a privilege from a role with the given role_id and privilege_id.",
+            "example": "Example: gns3util -s [server_url] delete role_priv [role_id] [privilege_id]"
+        },
+        "user_from_group": {
+            "description": "Remove a user from a user group with the given user_id and group_id.",
+            "example": "Example: gns3util -s [server_url] delete user_from_group [user_id] [group_id]"
+        },
+        "snapshot": {
+            "description": "Deletes a snapshot from a project with the given project_id and snapshot_id.",
+            "example": "Example: gns3util -s [server_url] delete snapshot [project_id] [snapshot_id]"
+        }
+    }
+}
