@@ -1,196 +1,196 @@
 {
     "zero_arg": {
         "version": {
-            "description": "Displays the current version of the software.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Returns the server version number.",
+            "example": "Example: gns3util -s [server_url] get version"
         },
         "iou-license": {
-            "description": "Manages IOU licenses.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Returns the IOU license settings.",
+            "example": "Example: gns3util -s [server_url] get iou-license"
         },
         "statistics": {
-            "description": "Shows system statistics.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Returns server statistics.",
+            "example": "Example: gns3util -s [server_url] get statistics"
         },
         "me": {
-            "description": "Displays information about the current user.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get the current active user.",
+            "example": "Example: gns3util -s [server_url] get me"
         },
         "users": {
-            "description": "Lists all users in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all users.",
+            "example": "Example: gns3util -s [server_url] get users"
         },
         "projects": {
-            "description": "Lists all projects in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all projects.",
+            "example": "Example: gns3util -s [server_url] get projects"
         },
         "groups": {
-            "description": "Lists all user groups in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all user groups.",
+            "example": "Example: gns3util -s [server_url] get groups"
         },
         "roles": {
-            "description": "Lists all roles in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all roles.",
+            "example": "Example: gns3util -s [server_url] get roles"
         },
         "privileges": {
-            "description": "Lists all privileges in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all privileges.",
+            "example": "Example: gns3util -s [server_url] get privileges"
         },
         "acl-endpoints": {
-            "description": "Lists all ACL endpoints.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "List all endpoints to be used in ACL entries.",
+            "example": "Example: gns3util -s [server_url] get acl-endpoints"
         },
         "acl": {
-            "description": "Lists all access control lists.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all ACL entries.",
+            "example": "Example: gns3util -s [server_url] get acl"
         },
         "templates": {
-            "description": "Lists all templates available.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all templates.",
+            "example": "Example: gns3util -s [server_url] get templates"
         },
         "symbols": {
-            "description": "Lists all symbols in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all symbols.",
+            "example": "Example: gns3util -s [server_url] get symbols"
+        },
+        "images": {
+            "description": "Return all images.",
+            "example": "Example: gns3util -s [server_url] get images"
         },
         "default-symbols": {
-            "description": "Lists default symbols in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all default symbols.",
+            "example": "Example: gns3util -s [server_url] get default-symbols"
         },
         "computes": {
-            "description": "Lists all compute resources.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all computes known by the controller.",
+            "example": "Example: gns3util -s [server_url] get computes"
         },
         "appliances": {
-            "description": "Lists all appliances in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all appliances known by the controller.",
+            "example": "Example: gns3util -s [server_url] get appliances"
         },
         "pools": {
-            "description": "Lists all resource pools.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all resource pools.",
+            "example": "Example: gns3util -s [server_url] get pools"
         }
     },
     "one_arg": {
         "user": {
-            "description": "Displays information about a specific user.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get a user with the given user_id.",
+            "example": "Example: gns3util -s [server_url] get user [user_id]"
         },
         "user-groups": {
-            "description": "Lists groups a user belongs to.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get user memberships with the given user_id.",
+            "example": "Example: gns3util -s [server_url] get user-groups [user_id]"
         },
         "project": {
-            "description": "Displays information about a specific project.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get project [project_id]"
         },
         "project-stats": {
-            "description": "Shows statistics for a specific project.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a project statistics with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get project-stats [project_id]"
         },
         "project-locked": {
-            "description": "Checks if a project is locked.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Returns whether a project is locked or not with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get project-locked [project_id]"
         },
         "group": {
-            "description": "Displays information about a specific group.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get a user group with the given user_group_id.",
+            "example": "Example: gns3util -s [server_url] get user-groups [user_group_id]"
         },
         "group-members": {
-            "description": "Lists members of a specific group.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all user group members with the given user_group_id.",
+            "example": "Example: gns3util -s [server_url] get group-members [user_group_id]"
         },
         "role": {
-            "description": "Displays information about a specific role.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get a role with the given role_id.",
+            "example": "Example: gns3util -s [server_url] get role [role_id]"
         },
         "role-privileges": {
-            "description": "Lists privileges for a specific role.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all role privileges with the given role_id.",
+            "example": "Example: gns3util -s [server_url] get role-privileges [role_id]"
         },
         "template": {
-            "description": "Displays information about a specific template.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a template with the given template_id.",
+            "example": "Example: gns3util -s [server_url] get template [template_id]"
         },
         "compute": {
-            "description": "Displays information about a specific compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a compute from the controller with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] get compute [compute_id]"
         },
         "docker-images": {
-            "description": "Lists Docker images for a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get Docker images from a compute with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] get docker-images [compute_id]"
         },
         "virtualbox-vms": {
-            "description": "Lists VirtualBox VMs for a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get VirtualBox VMs from a compute with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] get virtualbox-vms [compute_id]"
         },
         "vmware-vms": {
-            "description": "Lists VMware VMs for a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
-        },
-        "images": {
-            "description": "Lists images for a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get VMware VMs from a compute with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] get vmware-vms [compute_id]"
         },
         "images_by_path": {
-            "description": "Lists images by their path.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return an image from the given image_path.",
+            "example": "Example: gns3util -s [server_url] get images [image_path]"
         },
         "snapshots": {
-            "description": "Lists snapshots for a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all snapshots belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get snapshots [project_id]"
         },
         "appliance": {
-            "description": "Displays information about a specific appliance.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get an appliance file with the given appliance_id.",
+            "example": "Example: gns3util -s [server_url] get appliance [appliance_id]"
         },
         "pool": {
-            "description": "Displays information about a specific resource pool.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get a specific resource pool with the given pool_id.",
+            "example": "Example: gns3util -s [server_url] get pool [pool_id]"
         },
         "pool-resources": {
-            "description": "Lists resources in a specific pool.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get all resource in a pool with the given pool_id.",
+            "example": "Example: gns3util -s [server_url] get pool-resources [pool_id]"
         },
         "drawings": {
-            "description": "Lists drawings in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return the list of all drawings for a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get drawings [project_id]"
         },
         "symbol": {
-            "description": "Displays information about a specific symbol.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Download a symbol file with the given symbol_id.",
+            "example": "Example: gns3util -s [server_url] get symbol [symbol_id]"
         },
         "acl-rule": {
-            "description": "Displays information about a specific ACL rule.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Get an ACL entry with the given acl_rule_id.",
+            "example": "Example: gns3util -s [server_url] get acl-rule [acl_rule_id]"
         },
         "links": {
-            "description": "Lists links in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all links for a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get links [project_id]"
         },
         "nodes": {
-            "description": "Lists nodes in the system.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all nodes belonging to a given project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] get nodes [project_id]"
         }
     },
     "two_arg": {
         "node": {
-            "description": "Displays information about a specific node.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a node from a given project with the given project_id and node_id.",
+            "example": "Example: gns3util -s [server_url] get node [project_id] [node_id]"
         },
         "node-links": {
-            "description": "Lists links for a specific node.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all the links connected to a node with the given project_id and node_id.",
+            "example": "Example: gns3util -s [server_url] get node-links [project_id] [node_id]"
         },
         "link": {
-            "description": "Displays information about a specific link.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a link with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] get link [project_id] [link_id]"
         },
         "link-filters": {
-            "description": "Lists filters for a specific link.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return all filters available for a given link with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] get link-filters [project_id] [link_id]"
         },
         "drawing": {
-            "description": "Displays information about a specific drawing.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Return a specific drawing with the given project_id and drawing_id.",
+            "example": "Example: gns3util -s [server_url] get drawing [project_id] [drawing_id]"
         }
     }
 }
