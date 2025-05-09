@@ -120,22 +120,22 @@ def auth():
 auth = click.Group('auth')
 
 
-def load_and_try_key(ctx) -> tuple[bool, any]:
+def load_and_try_key(ctx) -> tuple[bool, str, str]:
     key_file = os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)
     if load_success:
         for key in keyData:
             token = key['access_token']
+            user = key['user']
             try_key_error, result = try_key(ctx, token)
             if GNS3Error.has_error(try_key_error):
                 if try_key_error.unauthorized:
-                    return False, ""
+                    return False, "", ""
                 else:
-                    GNS3Error.print_error(try_key_error)
-                    return False, ""
+                    return False, "", ""
             else:
-                return True, key
-    return False, ""
+                return True, user, token
+    return False, "", ""
 
 
 @auth.command()
@@ -143,11 +143,11 @@ def load_and_try_key(ctx) -> tuple[bool, any]:
 def login(ctx):
     """Perform authentication."""
     try:
-        load_and_try_key_success, result = load_and_try_key(ctx)
+        load_and_try_key_success, user, result = load_and_try_key(ctx)
         if load_and_try_key_success:
             click.secho("Success: ", nl=False, fg="green")
             click.secho("API key works, logged in as ", nl=False)
-            click.secho(f"{result['user']}", bold=True)
+            click.secho(f"{user}", bold=True)
             return
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
@@ -170,7 +170,7 @@ def login(ctx):
 
         save_data_error = save_auth_data(
             auth_data, server_url, credentials[0], key_file)
-        if not save_data_error:
+        if save_data_error:
             click.secho("Success: ", nl=False, fg="green")
             click.secho("authenticated as ", nl=False)
             click.secho(f"{credentials[0]}", nl=False, bold=True)
@@ -178,6 +178,10 @@ def login(ctx):
             click.secho(f"{key_file}", bold=True, nl=False)
             return
         else:
+            click.secho(
+                "Authentication failed: ", fg="red", err=True, nl=False)
+            click.secho(
+                f"Failed to write token to {key_file}", err=True)
             return
 
     except KeyboardInterrupt:
@@ -195,9 +199,9 @@ def login(ctx):
 @click.pass_context
 def status(ctx):
     """Display authentication status."""
-    load_and_try_key_success, result = load_and_try_key(ctx)
+    load_and_try_key_success, user, result = load_and_try_key(ctx)
     if load_and_try_key_success:
         click.secho("Success: ", nl=False, fg="green")
         click.secho("API key works, logged in as ", nl=False)
-        click.secho(f"{result['user']}", bold=True)
+        click.secho(f"{user}", bold=True)
         return

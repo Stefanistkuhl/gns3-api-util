@@ -69,7 +69,7 @@ _two_arg = {
 def get_client(ctx):
     """Helper function to create GNS3GetAPI instance."""
     server_url = ctx.parent.obj['server']
-    _, key = auth.load_and_try_key(ctx)
+    _, _, key = auth.load_and_try_key(ctx)
     return GNS3GetAPI(server_url, key)
 
 

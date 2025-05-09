@@ -117,7 +117,7 @@ def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> t
 
 def print_key_value_with_secho(key, value, color="cyan", reset="reset"):
     click.secho(f"{key}: ", fg=color, nl=False)
-    click.echo(value)
+    click.secho(value)
 
 
 def print_separator_with_secho(color="white"):
@@ -220,14 +220,17 @@ def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
     return add_user_to_group_error
 
 
-def create_class(ctx, filename: str) -> tuple[str, bool]:
-    error_load, data = parse_json(filename)
-
-    if error_load:
-        click.secho("Error: ", nl=False, fg="red", err=True)
-        click.secho("Failed to load file: ", nl=False, err=True)
-        click.secho(f"{data}", bold=True, err=True)
-        return "", False
+def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[str, bool]:
+    if filename == None:
+        data = data_input
+        print(type(data))
+    else:
+        error_load, data = parse_json(filename)
+        if error_load:
+            click.secho("Error: ", nl=False, fg="red", err=True)
+            click.secho("Failed to load file: ", nl=False, err=True)
+            click.secho(f"{data}", bold=True, err=True)
+            return "", False
 
     class_name = list(data.keys())[0]
     class_obj = data[class_name]
@@ -334,7 +337,7 @@ def fuzzy_info_wrapper(params):
     if GNS3Error.has_error(error):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
-            click.echo(
+            click.secho(
                 "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
             return
         GNS3Error.print_error(error)
@@ -345,7 +348,7 @@ def fuzzy_put_wrapper(params):
     if GNS3Error.has_error(error):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
-            click.echo(
+            click.secho(
                 "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
             return
         GNS3Error.print_error(error)

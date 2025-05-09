@@ -1,0 +1,99 @@
+input,
+select {
+  min-width: 200px;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.max-w-2xl {
+  max-width: 42rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.space-y-4>*+* {
+  margin-top: 1rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+}
+
+.font-bold {
+  font-weight: bold;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.border {
+  border: 1px solid #ccc;
+}
+
+.p-1 {
+  padding: 0.25rem;
+}
+
+.p-2 {
+  padding: 0.5rem;
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.bg-green-500 {
+  background: #22c55e;
+}
+
+.bg-blue-500 {
+  background: #3b82f6;
+}
+
+.bg-purple-600 {
+  background: #7c3aed;
+}
+
+.text-white {
+  color: #fff;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.m-1 {
+  margin: 0.25rem;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
+.w-20 {
+  width: 5rem;
+}
+
+.text-red-600 {
+  color: #dc2626;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}

@@ -3,7 +3,7 @@ import json
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise
-from .server import start_server
+from .server import start_and_get_data
 
 """
 Number of arguments: 0
@@ -108,7 +108,7 @@ def post():
 def get_client(ctx):
     """Helper function to create GNS3PostAPI instance."""
     server_url = ctx.parent.obj['server']
-    _, key = auth.load_and_try_key(ctx)
+    _, _, key = auth.load_and_try_key(ctx)
     return GNS3PostAPI(server_url, key)
 
 
@@ -250,10 +250,24 @@ for cmd, func in _three_arg_no_data.items():
 def make_class(ctx, filename, create):
 
     if create:
-        start_server(host='localhost', port=8080, debug=True)
+        data = start_and_get_data(host='localhost', port=8080, debug=True)
+        if data:
+            click.secho(data)
+            class_name, success = create_class(ctx, None, data)
+            if success:
+                click.secho("Success: ", nl=False, fg="green")
+                click.secho("created class ", nl=False)
+                click.secho(f"{class_name}", bold=True)
+            else:
+                click.secho("Error: ", nl=False, fg="red", err=True)
+                click.secho(
+                    "failed to create class", bold=True, err=True)
+        else:
+            click.secho("no data", err=True)
+            return
     else:
         file = click.format_filename(filename)
-        class_name, success = create_class(ctx, file)
+        class_name, success = create_class(ctx, file, None)
         if success:
             click.secho("Success: ", nl=False, fg="green")
             click.secho("created class ", nl=False)
