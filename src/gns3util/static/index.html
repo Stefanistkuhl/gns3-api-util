@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>Student Group JSON Generator</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+	<main class="p-4 max-w-2xl mx-auto space-y-4">
+		<h1 class="text-2xl font-bold">Student Group JSON Generator</h1>
+
+		<div>
+			<label>Class Name: <input id="className" class="border p-1" /></label>
+		</div>
+
+		<div class="border p-2 rounded">
+			<h2 class="font-semibold">Create or Select Group</h2>
+			<input id="groupName" placeholder="Group Name" class="border p-1 m-1" />
+			<input id="groupNumber" placeholder="Group Number" class="border p-1 m-1" />
+			<button id="addGroupBtn" class="bg-green-500 text-white p-1 px-2 rounded">Add/Select
+				Group</button>
+
+			<div class="mt-2">
+				<label>Selected Group:
+					<select id="selectedGroup" class="border p-1">
+						<option value="" disabled selected>Select Group</option>
+					</select>
+				</label>
+			</div>
+		</div>
+
+		<div class="border p-2 rounded">
+			<h2 class="font-semibold">Add Student to Selected Group</h2>
+			<input id="fullName" placeholder="Full Name" class="border p-1 m-1" />
+			<input id="userName" placeholder="Username" class="border p-1 m-1" />
+			<input id="email" placeholder="Email" class="border p-1 m-1" />
+			<p id="userDataError" class="text-red-600 text-sm" style="display:none"></p>
+
+			<div class="m-1">
+				<label>Password Length (8–128):
+					<input type="number" id="passwordLength" min="8" max="128" value="12"
+						class="border p-1 w-20 ml-2" />
+				</label>
+				<p id="passwordError" class="text-red-600 text-sm" style="display:none"></p>
+			</div>
+
+			<button id="addStudentBtn" class="bg-blue-500 text-white p-1 px-2 rounded">Add Student</button>
+		</div>
+
+		<button id="generateJSONBtn" class="bg-purple-600 text-white p-2 px-4 rounded">Generate JSON
+			File</button>
+		<button id="saveJSONBtn" class="bg-blue-500 text-white p-2 px-4 rounded">Save JSON as
+			file</button>
+		<button id="clearJSONBtn" class="bg-red-600 text-white p-2 px-4 rounded">Clear</button>
+	</main>
+	<script src="script.js"></script>
+</body>
+
+</html>

@@ -1,9 +1,9 @@
 import click
 import json
-import os
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise, get_command_description
+from .server import start_and_get_data
 
 """
 Number of arguments: 0
@@ -112,14 +112,17 @@ def get_client(ctx):
     return GNS3PostAPI(server_url, key['access_token'])
 
 
-help_path = os.path.join(os.getcwd(), "src", "gns3util", "help_texts", "help_post.json")
+help_path = os.path.join(os.getcwd(), "src", "gns3util",
+                         "help_texts", "help_post.json")
 with open(help_path, "r") as f:
     help_dict = json.load(f)
 
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "zero_arg_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "zero_arg_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('json_data')
         @click.pass_context
         def cmd_func(ctx, json_data):
@@ -133,24 +136,30 @@ for cmd, func in _zero_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with zero arguments and no data
 for cmd, func in _zero_arg_no_data.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "zero_arg_no_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "zero_arg_no_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.pass_context
         def cmd_func(ctx):
             api_post_client = get_client(ctx)
             execute_and_print(
                 ctx, api_post_client, lambda client: getattr(api_post_client, func)())
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument plus JSON
 for cmd, func in _one_arg.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "one_arg_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "one_arg_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg')
         @click.argument('json_data')
         @click.pass_context
@@ -165,12 +174,15 @@ for cmd, func in _one_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument minus JSON
 for cmd, func in _one_arg_no_data.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "one_arg_no_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "one_arg_no_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg')
         @click.pass_context
         def cmd_func(ctx, arg):
@@ -178,12 +190,15 @@ for cmd, func in _one_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg))
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _two_arg_no_data.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "two_arg_no_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "two_arg_no_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
@@ -192,12 +207,15 @@ for cmd, func in _two_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg1, arg2))
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments plus JSON
 for cmd, func in _two_arg.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "two_arg")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "two_arg")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('json_data')
@@ -213,12 +231,15 @@ for cmd, func in _two_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with three arguments plus JSON
 for cmd, func in _three_arg.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "three_arg")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "three_arg")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('arg3')
@@ -235,12 +256,15 @@ for cmd, func in _three_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments minus JSON
 for cmd, func in _three_arg_no_data.items():
-    current_help_option,epiloge = get_command_description(cmd, help_dict, "three_arg_no_data")
-    def make_cmd(func=func, help_option=current_help_option,epilog=epiloge):
+    current_help_option, epiloge = get_command_description(
+        cmd, help_dict, "three_arg_no_data")
+
+    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg1')
         @click.argument('arg2')
         @click.argument('arg3')
@@ -250,23 +274,49 @@ for cmd, func in _three_arg_no_data.items():
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg1, arg2, arg3))
         return cmd_func
-    post.command(name=cmd, help=current_help_option,epilog=epiloge)(make_cmd())
+    post.command(name=cmd, help=current_help_option,
+                 epilog=epiloge)(make_cmd())
 
 
 @post.command(name="class", help="create everything need to setup a class and it's students")
-@click.argument('filename', type=click.Path(exists=True, readable=True))
+@click.argument('filename', required=False, type=click.Path(exists=True, readable=True))
+@click.option(
+    "-c", "--create", is_flag=True, help="Launch a local webpage to enter the info to create a class"
+)
 @click.pass_context
-def make_class(ctx, filename):
-    file = click.format_filename(filename)
-    class_name, success = create_class(ctx, file)
-    if success:
-        click.secho("Success: ", nl=False, fg="green")
-        click.secho("created class ", nl=False)
-        click.secho(f"{class_name}", bold=True)
-    else:
-        click.secho("Error: ", nl=False, fg="red", err=True)
+def make_class(ctx, filename, create):
+
+    if filename == None and create == False:
         click.secho(
-            "failed to create class", bold=True, err=True)
+            "Please either use the -c flag or give a json file as input to use")
+        return
+
+    if create:
+        data = start_and_get_data(host='localhost', port=8080, debug=True)
+        if data:
+            class_name, success = create_class(ctx, None, data)
+            if success:
+                click.secho("Success: ", nl=False, fg="green")
+                click.secho("created class ", nl=False)
+                click.secho(f"{class_name}", bold=True)
+            else:
+                click.secho("Error: ", nl=False, fg="red", err=True)
+                click.secho(
+                    "failed to create class", bold=True, err=True)
+        else:
+            click.secho("no data", err=True)
+            return
+    else:
+        file = click.format_filename(filename)
+        class_name, success = create_class(ctx, file)
+        if success:
+            click.secho("Success: ", nl=False, fg="green")
+            click.secho("created class ", nl=False)
+            click.secho(f"{class_name}", bold=True)
+        else:
+            click.secho("Error: ", nl=False, fg="red", err=True)
+            click.secho(
+                "failed to create class", bold=True, err=True)
 
 
 @post.command(name="exercise", help="create everything need to setup a class and it's students")

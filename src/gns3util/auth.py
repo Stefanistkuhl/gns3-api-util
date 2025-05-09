@@ -126,6 +126,7 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
     if load_success:
         for key in keyData:
             token = key['access_token']
+            user = key['user']
             try_key_error, result = try_key(ctx, token)
             if GNS3Error.has_error(try_key_error):
                 if try_key_error.unauthorized:
@@ -143,11 +144,11 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
 def login(ctx):
     """Perform authentication."""
     try:
-        load_and_try_key_success, result = load_and_try_key(ctx)
+        load_and_try_key_success, user, result = load_and_try_key(ctx)
         if load_and_try_key_success:
             click.secho("Success: ", nl=False, fg="green")
             click.secho("API key works, logged in as ", nl=False)
-            click.secho(f"{result['user']}", bold=True)
+            click.secho(f"{user}", bold=True)
             return
         key_file = os.path.expanduser("~/.gns3key")
         server_url = ctx.parent.obj['server']
@@ -178,6 +179,10 @@ def login(ctx):
             click.secho(f"{key_file}", bold=True, nl=False)
             return
         else:
+            click.secho(
+                "Authentication failed: ", fg="red", err=True, nl=False)
+            click.secho(
+                f"Failed to write token to {key_file}", err=True)
             return
 
     except KeyboardInterrupt:
@@ -195,9 +200,9 @@ def login(ctx):
 @click.pass_context
 def status(ctx):
     """Display authentication status."""
-    load_and_try_key_success, result = load_and_try_key(ctx)
+    load_and_try_key_success, user, result = load_and_try_key(ctx)
     if load_and_try_key_success:
         click.secho("Success: ", nl=False, fg="green")
         click.secho("API key works, logged in as ", nl=False)
-        click.secho(f"{result['user']}", bold=True)
+        click.secho(f"{user}", bold=True)
         return

@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gns3util"
-version = "0.4.0"
+version = "0.5.0"
 requires-python = ">=3.13"
 dependencies = [
     "click",
     "requests",
     "rich",
+    "bottle",
 ]
 
 [project.scripts]

@@ -220,14 +220,16 @@ def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
     return add_user_to_group_error
 
 
-def create_class(ctx, filename: str) -> tuple[str, bool]:
-    error_load, data = parse_json(filename)
-
-    if error_load:
-        click.secho("Error: ", nl=False, fg="red", err=True)
-        click.secho("Failed to load file: ", nl=False, err=True)
-        click.secho(f"{data}", bold=True, err=True)
-        return "", False
+def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[str, bool]:
+    if filename == None:
+        data = data_input
+    else:
+        error_load, data = parse_json(filename)
+        if error_load:
+            click.secho("Error: ", nl=False, fg="red", err=True)
+            click.secho("Failed to load file: ", nl=False, err=True)
+            click.secho(f"{data}", bold=True, err=True)
+            return "", False
 
     class_name = list(data.keys())[0]
     class_obj = data[class_name]
@@ -501,7 +503,8 @@ def print_usernames_and_ids(ctx):
             click.secho(f"{user_id}")
             print_separator_with_secho()
 
-def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> tuple[str,str]:
+
+def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> tuple[str, str]:
     """
     Retrieves the description of a command from the help dictionary.
 
@@ -522,5 +525,5 @@ def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> tuple[s
             current_help_option = str(value["description"])
             epiloge = str(value["example"])
             break
-    
+
     return current_help_option, epiloge
