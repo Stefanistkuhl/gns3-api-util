@@ -1,80 +1,80 @@
 {
     "zero_arg": {
         "iou_license": {
-            "description": "Manages or displays IOU license information.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update the IOU license settings.",
+            "example": "Example: gns3util -s [server_url] put iou_license"
         },
         "me": {
-            "description": "Retrieves details about the currently authenticated user.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update the current active user.",
+            "example": "Example: gns3util -s [server_url] put me"
         }
     },
     "one_arg": {
         "update_user": {
-            "description": "Updates information for an existing user account.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a user with the given user_id.",
+            "example": "Example: gns3util -s [server_url] put update_user [user_id]"
         },
         "update_group": {
-            "description": "Updates details of an existing user group.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a user group with the given user_group_id.",
+            "example": "Example: gns3util -s [server_url] put update_group [user_group_id]"
         },
         "update_acl": {
-            "description": "Updates entries in the access control list.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update an ACL entry with the given ace_id.",
+            "example": "Example: gns3util -s [server_url] put update_acl [ace_id]"
         },
         "update_template": {
-            "description": "Updates an existing template used for creating resources.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a template with the given template_id.",
+            "example": "Example: gns3util -s [server_url] put update_template [template_id]"
         },
         "update_project": {
-            "description": "Updates configuration or metadata for a project.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a project with the given project_id.",
+            "example": "Example: gns3util -s [server_url] put update_project [project_id]"
         },
         "update_compute": {
-            "description": "Updates settings of a compute resource.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a compute on the controller with the given compute_id.",
+            "example": "Example: gns3util -s [server_url] put update_compute [compute_id]"
         },
         "update_pool": {
-            "description": "Updates resource pool configurations.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a resource pool with the given resource_pool_id.",
+            "example": "Example: gns3util -s [server_url] put update_pool [resource_pool_id]"
         },
         "update_role": {
-            "description": "Updates the permissions or name of a specific role.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a role with the given role_id.",
+            "example": "Example: gns3util -s [server_url] put update_role [role_id]"
         }
     },
     "two_arg_no_data": {
         "add_group_member": {
-            "description": "Adds a user to a specific group.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Add member to a user group with the given user_groupid and user_id.",
+            "example": "Example: gns3util -s [server_url] put add_group_member [user_group_id] [user_id]"
         },
         "add_ressouce_to_pool": {
-            "description": "Assigns a resource to a specific pool.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Add resource to a resource pool with the given resource_pool_id and resource_id.",
+            "example": "Example: gns3util -s [server_url] put add_ressouce_to_pool [resource_pool_id] [resource_id]"
         },
         "update_role_privs": {
-            "description": "Modifies the privileges associated with a specific role.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Add a privilege to a role with the given role_id and privilege_id.",
+            "example": "Example: gns3util -s [server_url] put update_role_privs [role_id] [privilege_id]"
         }
     },
     "two_arg": {
         "update_node": {
-            "description": "Updates the configuration or status of a node.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a node with the given node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] put update_node [node_id] [project_id]"
         },
         "update_drawing": {
-            "description": "Modifies an existing drawing or visual resource layout.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a drawing with the given project_id and drawing_id.",
+            "example": "Example: gns3util -s [server_url] put update_drawing [project_id] [drawing_id]"
         },
         "update_link": {
-            "description": "Updates properties or endpoints of a link between nodes.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a link with the given project_id and link_id.",
+            "example": "Example: gns3util -s [server_url] put update_link [project_id] [link_id]"
         }
     },
     "three_arg": {
         "update_disk_image": {
-            "description": "Updates an existing disk image with new data or settings.",
-            "example": "Example: gns3util -s [server_url]"
+            "description": "Update a Qemu disk image disk_name, node_id and project_id.",
+            "example": "Example: gns3util -s [server_url] put update_disk_image [disk_name] [node_id] [project_id]"
         }
     }
 }
