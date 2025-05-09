@@ -70,6 +70,10 @@ select {
   background: #7c3aed;
 }
 
+.bg-red-600 {
+  background: #dc2626;
+}
+
 .text-white {
   color: #fff;
 }
@@ -93,6 +97,7 @@ select {
 .text-red-600 {
   color: #dc2626;
 }
+
 
 .text-sm {
   font-size: 0.875rem;

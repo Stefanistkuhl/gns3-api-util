@@ -242,17 +242,21 @@ for cmd, func in _three_arg_no_data.items():
 
 
 @post.command(name="class", help="create everything need to setup a class and it's students")
-@click.argument('filename', required=False, type=click.Path(exists=True, readable=True))
+@click.argument('filename', required=False,  type=click.Path(exists=True, readable=True))
 @click.option(
     "-c", "--create", is_flag=True, help="Launch a local webpage to enter the info to create a class"
 )
 @click.pass_context
 def make_class(ctx, filename, create):
 
+    if filename == None and create == False:
+        click.secho(
+            "Please either use the -c flag or give a json file as input to use")
+        return
+
     if create:
         data = start_and_get_data(host='localhost', port=8080, debug=True)
         if data:
-            click.secho(data)
             class_name, success = create_class(ctx, None, data)
             if success:
                 click.secho("Success: ", nl=False, fg="green")

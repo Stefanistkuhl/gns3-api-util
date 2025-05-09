@@ -223,7 +223,6 @@ def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
 def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[str, bool]:
     if filename == None:
         data = data_input
-        print(type(data))
     else:
         error_load, data = parse_json(filename)
         if error_load:
