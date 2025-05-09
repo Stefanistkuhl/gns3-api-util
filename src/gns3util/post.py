@@ -19,6 +19,7 @@ _zero_arg = {
     "project": "create_project",
     "project_load": "load_project",
     "add_pool": "create_pool",
+    "create_compute": "create_compute",
     "authenticate": "user_authenticate"
 }
 
@@ -29,7 +30,7 @@ Has data: False
 _zero_arg_no_data = {
     "reload": "reload_node",
     "shutdown": "shutdown_controller",
-    "install_img": "install_image"
+    "install_img": "install_image",
 }
 
 """
@@ -42,7 +43,6 @@ _one_arg = {
     "link_create": "create_link",
     "drawing_create": "create_drawing",
     "snapshot_create": "create_snapshot",
-    "create_compute": "create_compute",
     "auto_idlepc": "set_auto_idlepc",
     "add_applience_version": "create_appliance_version"
 }
