@@ -98,7 +98,56 @@ select {
   color: #dc2626;
 }
 
-
 .text-sm {
   font-size: 0.875rem;
+}
+
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+    color: #1a1a1a;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.moon-icon {
+    display: none;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+body.dark-mode .theme-toggle {
+    color: #ffffff;
+}
+
+body.dark-mode .sun-icon {
+    display: none;
+}
+
+body.dark-mode .moon-icon {
+    display: block;
+}
+
+body.dark-mode input,
+body.dark-mode select {
+    background-color: #333;
+    color: #ffffff;
+    border-color: #444;
+}
+
+body.dark-mode .border {
+    border-color: #444;
 }

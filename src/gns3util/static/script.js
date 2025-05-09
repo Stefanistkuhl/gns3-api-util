@@ -13,10 +13,29 @@ const addStudentBtn = document.getElementById('addStudentBtn');
 const generateJSONBtn = document.getElementById('generateJSONBtn');
 const saveJSONBtn = document.getElementById('saveJSONBtn');
 const clearJSONBtn = document.getElementById('clearJSONBtn');
+const themeToggle = document.getElementById('themeToggle');
+const body = document.body;
 
 let groups = {};
 let selectedGroup = '';
 let groupNumberCount = 1;
+
+// Check for saved theme preference
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') {
+    body.classList.add('dark-mode');
+}
+
+themeToggle.addEventListener('click', () => {
+    body.classList.toggle('dark-mode');
+    
+    // Save theme preference
+    if (body.classList.contains('dark-mode')) {
+        localStorage.setItem('theme', 'dark');
+    } else {
+        localStorage.setItem('theme', 'light');
+    }
+});
 
 function generatePassword(length) {
 	const clampedLength = Math.max(8, Math.min(length, 128));
