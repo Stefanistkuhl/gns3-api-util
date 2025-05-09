@@ -13,10 +13,18 @@ const addStudentBtn = document.getElementById('addStudentBtn');
 const generateJSONBtn = document.getElementById('generateJSONBtn');
 const saveJSONBtn = document.getElementById('saveJSONBtn');
 const clearJSONBtn = document.getElementById('clearJSONBtn');
+const themeToggle = document.getElementById('themeToggle');
+const body = document.body;
 
 let groups = {};
 let selectedGroup = '';
 let groupNumberCount = 1;
+
+// Check for saved theme preference
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'dark') {
+	body.classList.add('dark-mode');
+}
 
 function generatePassword(length) {
 	const clampedLength = Math.max(8, Math.min(length, 128));
@@ -159,7 +167,6 @@ generateJSONBtn.addEventListener('click', async () => {
 		[className]: groups
 	};
 	const payload = JSON.stringify(output, null, 2)
-	console.log(payload)
 	const result = await sendData(payload)
 
 
@@ -195,7 +202,6 @@ async function sendData(payload) {
 		}
 
 		const json = await response.json();
-		console.log(json);
 		return json;
 	} catch (error) {
 		console.error(error.message);
@@ -230,3 +236,43 @@ function checkEmailReuse(email, data) {
 function checkGroupNumberReuse(groupname, data) {
 	return data.hasOwnProperty(groupname)
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+
+	// Function to set a cookie
+	function setCookie(name, value, days) {
+		const expires = new Date();
+		expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+		document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+	}
+
+	// Function to get a cookie value
+	function getCookie(name) {
+		const nameEQ = name + "=";
+		const ca = document.cookie.split(';');
+		for (let i = 0; i < ca.length; i++) {
+			let c = ca[i];
+			while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+			if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+		}
+		return null;
+	}
+
+	// Check if there's a saved theme preference in cookies
+	const savedTheme = getCookie('theme');
+	if (savedTheme === 'dark') {
+		body.classList.add('dark-mode');
+	}
+
+	// Theme toggle click handler
+	themeToggle.addEventListener('click', () => {
+		body.classList.toggle('dark-mode');
+
+		// Save the current theme preference in a cookie that expires in 365 days
+		if (body.classList.contains('dark-mode')) {
+			setCookie('theme', 'dark', 365);
+		} else {
+			setCookie('theme', 'light', 365);
+		}
+	});
+});

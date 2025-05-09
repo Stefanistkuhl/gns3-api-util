@@ -4,10 +4,33 @@
 <head>
 	<meta charset="UTF-8">
 	<title>Student Group JSON Generator</title>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
 	<link rel="stylesheet" href="style.css">
+	<link rel="icon" href="favicon.ico" type="image/x-icon" />
 </head>
 
 <body>
+	<div class="content-wrapper">
+		<button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+			<svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<circle cx="12" cy="12" r="5" />
+				<line x1="12" y1="1" x2="12" y2="3" />
+				<line x1="12" y1="21" x2="12" y2="23" />
+				<line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+				<line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+				<line x1="1" y1="12" x2="3" y2="12" />
+				<line x1="21" y1="12" x2="23" y2="12" />
+				<line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+				<line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+			</svg>
+			<svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+			</svg>
+		</button>
+	</div>
+
 	<main class="p-4 max-w-2xl mx-auto space-y-4">
 		<h1 class="text-2xl font-bold">Student Group JSON Generator</h1>
 
@@ -19,7 +42,7 @@
 			<h2 class="font-semibold">Create or Select Group</h2>
 			<input id="groupName" placeholder="Group Name" class="border p-1 m-1" />
 			<input id="groupNumber" placeholder="Group Number" class="border p-1 m-1" />
-			<button id="addGroupBtn" class="bg-green-500 text-white p-1 px-2 rounded">Add/Select
+			<button id="addGroupBtn" class="bg-primary text-white p-1 px-2 rounded">Add/Select
 				Group</button>
 
 			<div class="mt-2">
@@ -36,24 +59,23 @@
 			<input id="fullName" placeholder="Full Name" class="border p-1 m-1" />
 			<input id="userName" placeholder="Username" class="border p-1 m-1" />
 			<input id="email" placeholder="Email" class="border p-1 m-1" />
-			<p id="userDataError" class="text-red-600 text-sm" style="display:none"></p>
+			<p id="userDataError" class="text-error text-sm" style="display:none"></p>
 
 			<div class="m-1">
 				<label>Password Length (8–128):
 					<input type="number" id="passwordLength" min="8" max="128" value="12"
 						class="border p-1 w-20 ml-2" />
 				</label>
-				<p id="passwordError" class="text-red-600 text-sm" style="display:none"></p>
+				<p id="passwordError" class="text-error text-sm" style="display:none"></p>
 			</div>
 
-			<button id="addStudentBtn" class="bg-blue-500 text-white p-1 px-2 rounded">Add Student</button>
+			<button id="addStudentBtn" class="bg-primary text-white p-1 px-2 rounded">Add Student</button>
 		</div>
 
-		<button id="generateJSONBtn" class="bg-purple-600 text-white p-2 px-4 rounded">Generate JSON
-			File</button>
-		<button id="saveJSONBtn" class="bg-blue-500 text-white p-2 px-4 rounded">Save JSON as
+		<button id="generateJSONBtn" class="bg-tertiary text-white p-2 px-4 rounded">Generate Class</button>
+		<button id="saveJSONBtn" class="bg-warning text-white p-2 px-4 rounded">Save JSON as
 			file</button>
-		<button id="clearJSONBtn" class="bg-red-600 text-white p-2 px-4 rounded">Clear</button>
+		<button id="clearJSONBtn" class="bg-error text-white p-2 px-4 rounded">Clear</button>
 	</main>
 	<script src="script.js"></script>
 </body>
