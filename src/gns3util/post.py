@@ -1,6 +1,7 @@
 import click
 import json
 from . import auth
+import os
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise, get_command_description
 from .server import start_and_get_data
