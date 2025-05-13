@@ -53,8 +53,11 @@ def delete():
 def get_client(ctx):
     """Helper function to create GNS3DeleteAPI instance."""
     server_url = ctx.parent.obj['server']
-    _, key = auth.load_and_try_key(ctx)
-    return GNS3DeleteAPI(server_url, key['access_token'])
+    success, key = auth.load_and_try_key(ctx)
+    if success:
+        return GNS3DeleteAPI(server_url, key['access_token'])
+    else:
+        os._exit(1)
 
 
 help_path = os.path.join(os.getcwd(), "src", "gns3util",
