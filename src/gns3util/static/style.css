@@ -102,8 +102,62 @@ select {
   font-size: 0.875rem;
 }
 
+/* Rose Pine Theme Variables */
+:root {
+    /* Light theme (Dawn) */
+    --base: #faf4ed;
+    --surface: #fffaf3;
+    --overlay: #f2e9e1;
+    --muted: #9893a5;
+    --subtle: #797593;
+    --text: #575279;
+    --love: #b4637a;
+    --gold: #ea9d34;
+    --rose: #d7827e;
+    --pine: #286983;
+    --foam: #56949f;
+    --iris: #907aa9;
+}
+
+input,
+select {
+    min-width: 200px;
+    background-color: var(--surface);
+    border-color: var(--overlay);
+    color: var(--text);
+}
+
+.border {
+    border: 1px solid var(--overlay);
+}
+
+.bg-green-500 {
+    background: var(--pine);
+}
+
+.bg-blue-500 {
+    background: var(--foam);
+}
+
+.bg-purple-600 {
+    background: var(--iris);
+}
+
+.bg-red-600 {
+    background: var(--love);
+}
+
+.text-red-600 {
+    color: var(--love);
+}
+
+body {
+    background-color: var(--base);
+    color: var(--text);
+}
+
 .theme-toggle {
-    position: fixed;
+    position: absolute;  /* Change from fixed to absolute */
     top: 1rem;
     left: 1rem;
     background: none;
@@ -112,42 +166,31 @@ select {
     padding: 0.5rem;
     border-radius: 50%;
     transition: background-color 0.3s;
-    color: #1a1a1a;
+    color: var(--text);
 }
 
-.theme-toggle:hover {
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-.moon-icon {
-    display: none;
+/* Add new wrapper class for main content */
+.content-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 42rem;
+    margin: 0 auto;
+    padding: 1rem;
 }
 
 /* Dark mode styles */
 body.dark-mode {
-    background-color: #1a1a1a;
-    color: #ffffff;
-}
-
-body.dark-mode .theme-toggle {
-    color: #ffffff;
-}
-
-body.dark-mode .sun-icon {
-    display: none;
-}
-
-body.dark-mode .moon-icon {
-    display: block;
-}
-
-body.dark-mode input,
-body.dark-mode select {
-    background-color: #333;
-    color: #ffffff;
-    border-color: #444;
-}
-
-body.dark-mode .border {
-    border-color: #444;
+    /* Dark theme (Moon) */
+    --base: #232136;
+    --surface: #2a273f;
+    --overlay: #393552;
+    --muted: #6e6a86;
+    --subtle: #908caa;
+    --text: #e0def4;
+    --love: #eb6f92;
+    --gold: #f6c177;
+    --rose: #ea9a97;
+    --pine: #3e8fb0;
+    --foam: #9ccfd8;
+    --iris: #c4a7e7;
 }
