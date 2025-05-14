@@ -26,17 +26,6 @@ if (savedTheme === 'dark') {
     body.classList.add('dark-mode');
 }
 
-themeToggle.addEventListener('click', () => {
-    body.classList.toggle('dark-mode');
-    
-    // Save theme preference
-    if (body.classList.contains('dark-mode')) {
-        localStorage.setItem('theme', 'dark');
-    } else {
-        localStorage.setItem('theme', 'light');
-    }
-});
-
 function generatePassword(length) {
 	const clampedLength = Math.max(8, Math.min(length, 128));
 	const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
@@ -249,3 +238,45 @@ function checkEmailReuse(email, data) {
 function checkGroupNumberReuse(groupname, data) {
 	return data.hasOwnProperty(groupname)
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const themeToggle = document.getElementById('themeToggle');
+    const body = document.body;
+
+    // Function to set a cookie
+    function setCookie(name, value, days) {
+        const expires = new Date();
+        expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+        document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+    }
+
+    // Function to get a cookie value
+    function getCookie(name) {
+        const nameEQ = name + "=";
+        const ca = document.cookie.split(';');
+        for (let i = 0; i < ca.length; i++) {
+            let c = ca[i];
+            while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    // Check if there's a saved theme preference in cookies
+    const savedTheme = getCookie('theme');
+    if (savedTheme === 'dark') {
+        body.classList.add('dark-mode');
+    }
+
+    // Theme toggle click handler
+    themeToggle.addEventListener('click', () => {
+        body.classList.toggle('dark-mode');
+        
+        // Save the current theme preference in a cookie that expires in 365 days
+        if (body.classList.contains('dark-mode')) {
+            setCookie('theme', 'dark', 365);
+        } else {
+            setCookie('theme', 'light', 365);
+        }
+    });
+});
