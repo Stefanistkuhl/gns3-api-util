@@ -65,13 +65,13 @@ class fuzzy_params_type(Enum):
 
 def fzf_select(options, multi=False):
     """
-    Opens an fzf window with the given options and returns the selected option(s).
+    Opens an fzf window with the given options and returns the selected option(s). Falls back to `inquirer` if fzf is not installed.
 
     Args:
         options: A list of strings representing the options to choose from.
 
     Returns:
-        A list of strings containing the selected option(s), or an empty list if none were selected or if fzf is not found.
+        A list of strings containing the selected option(s), or an empty list if none were selected.
     """
     try:
         if multi:

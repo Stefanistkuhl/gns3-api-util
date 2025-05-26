@@ -5,6 +5,7 @@ from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
 from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description
 import json
+import importlib.resources
 
 
 # Commands with no arguments
@@ -83,9 +84,7 @@ def get_client(ctx):
         os._exit(1)
 
 
-help_path = os.path.join(os.getcwd(), "src", "gns3util",
-                         "help_texts", "help_get.json")
-with open(help_path, "r") as f:
+with importlib.resources.files("gns3util.help_texts").joinpath("help_get.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
 
 # Create click commands with zero arguments

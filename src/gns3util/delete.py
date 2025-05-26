@@ -1,6 +1,7 @@
 import json
 import click
 import os
+import importlib.resources
 from . import auth
 from .api.delete_endpoints import GNS3DeleteAPI
 from .utils import execute_and_print, get_command_description, fuzzy_delete_class_params, fuzzy_delete_class_wrapper
@@ -59,10 +60,7 @@ def get_client(ctx):
     else:
         os._exit(1)
 
-
-help_path = os.path.join(os.getcwd(), "src", "gns3util",
-                         "help_texts", "help_delete.json")
-with open(help_path, "r") as f:
+with importlib.resources.files("gns3util.help_texts").joinpath("help_delete.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
 
 # Create click commands with zero arguments and no data
@@ -121,13 +119,19 @@ for cmd, func in _two_arg_no_data.items():
 @click.option(
     "-y", "--confirm", default=True, is_flag=True, help="Require confirmation for deletion"
 )
+@click.option(
+    "-n", "--non_interactive", help="Run the command non interactively"
+)
 @click.pass_context
-def fuzzy_delete_class(ctx, multi, confirm):
-    params = fuzzy_delete_class_params(
-        ctx=ctx,
-        client=get_client,
-        method="groups",
-        key="name",
-        multi=multi,
-        confirm=confirm)
-    fuzzy_delete_class_wrapper(params)
+def fuzzy_delete_class(ctx, multi, confirm, non_interactive):
+    if non_interactive:
+        pass
+    else:
+        params = fuzzy_delete_class_params(
+            ctx=ctx,
+            client=get_client,
+            method="groups",
+            key="name",
+            multi=multi,
+            confirm=confirm)
+        fuzzy_delete_class_wrapper(params)

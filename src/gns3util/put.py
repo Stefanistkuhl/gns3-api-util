@@ -1,6 +1,7 @@
 import click
 import os
 import json
+import importlib.resources
 from . import auth
 from .api.put_endpoints import GNS3PutAPI
 from .utils import execute_and_print, fuzzy_password_params, fuzzy_put_wrapper, get_command_description
@@ -68,10 +69,7 @@ def get_client(ctx):
     else:
         os._exit(1)
 
-
-help_path = os.path.join(os.getcwd(), "src", "gns3util",
-                         "help_texts", "help_put.json")
-with open(help_path, "r") as f:
+with importlib.resources.files("gns3util.help_texts").joinpath("help_put.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
 
 # Create click commands with zero arguments

@@ -1,10 +1,10 @@
-from bottle import route, run, static_file, post, request, get
+from bottle import route, run, response, post, request, get
 import time
 import multiprocessing
 import webbrowser
 import os
+import importlib.resources
 
-STATIC_DIR = os.path.join(os.getcwd(), "src", "gns3util", "static")
 RECEIVED_DATA = None
 SHUTDOWN_EVENT = multiprocessing.Event()
 
@@ -15,22 +15,35 @@ class StopServerException(Exception):
 
 @route('/')
 def index():
-    return static_file("index.html", root=STATIC_DIR)
+    # Serve index.html from package resources
+    with importlib.resources.files("gns3util.static").joinpath("index.html").open("rb") as f:
+        data = f.read()
+    response.content_type = 'text/html'
+    return data
 
 
 @route('/style.css')
 def serve_css():
-    return static_file("style.css", root=STATIC_DIR)
+    with importlib.resources.files("gns3util.static").joinpath("style.css").open("rb") as f:
+        data = f.read()
+    response.content_type = 'text/css'
+    return data
 
 
 @route('/script.js')
 def serve_js():
-    return static_file("script.js", root=STATIC_DIR)
+    with importlib.resources.files("gns3util.static").joinpath("script.js").open("rb") as f:
+        data = f.read()
+    response.content_type = 'application/javascript'
+    return data
 
 
 @get('/favicon.ico')
 def serve_ico():
-    return static_file('favicon.ico', root=STATIC_DIR, mimetype='image/x-icon')
+    with importlib.resources.files("gns3util.static").joinpath("favicon.ico").open("rb") as f:
+        data = f.read()
+    response.content_type = 'image/x-icon'
+    return data
 
 
 @post('/data')

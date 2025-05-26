@@ -5,6 +5,7 @@ import os
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise, get_command_description
 from .server import start_and_get_data
+import importlib.resources
 
 """
 Number of arguments: 0
@@ -116,9 +117,8 @@ def get_client(ctx):
         os._exit(1)
 
 
-help_path = os.path.join(os.getcwd(), "src", "gns3util",
-                         "help_texts", "help_post.json")
-with open(help_path, "r") as f:
+# Replace help_path and open with importlib.resources
+with importlib.resources.files("gns3util.help_texts").joinpath("help_post.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
 
 # Create click commands with zero arguments
