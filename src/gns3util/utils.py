@@ -17,6 +17,7 @@ class fuzzy_info_params:
     client: Callable[[Any], Any]
     opt_method: Optional[str] = None
     opt_key: Optional[str] = None
+    is_class: Optional[bool] = False
     method: str = "str"
     key: str = "str"
     multi: bool = False
@@ -30,6 +31,16 @@ class fuzzy_password_params:
     method: str = "str"
     key: str = "str"
     multi: bool = False
+
+
+@dataclass
+class fuzzy_delete_class_params:
+    ctx: Any
+    client: Callable[[Any], Any]
+    method: str = "groups"
+    key: str = "name"
+    multi: bool = False
+    confirm: bool = True
 
 
 @dataclass
@@ -199,6 +210,116 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
     return change_password_error
 
 
+def fuzzy_delete_class(params=fuzzy_delete_class_params) -> GNS3Error:
+    error = GNS3Error()
+    fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
+        params)
+    if GNS3Error.has_error(get_fzf_input_error):
+        return get_fzf_input_error
+
+    class_names, class_ids, get_classes_error = get_classes(api_data)
+    if len(class_names) == 0:
+        click.secho("No classes avaliable to delete", err=True)
+        return GNS3Error
+    if GNS3Error.has_error(get_classes_error):
+        return get_classes_error
+    selected = fzf_select(class_names, multi=params.multi)
+    for selected_item in selected:
+        if params.confirm:
+            if click.confirm(f"Do you want to delete the class {selected_item}?"):
+                error = delete_class(params, selected_item,
+                                     class_names, class_ids)
+            else:
+                click.secho("Deletion aborted by the user exiting")
+        else:
+            error = delete_class(params, selected_item, class_names, class_ids)
+    return error
+
+
+def get_classes(input: list) -> tuple[list, list, GNS3Error]:
+    error = GNS3Error()
+    classes = []
+    ids = []
+    seen_classes = set()
+
+    for data in input:
+        split = data["name"].split("-")
+        if len(split) == 3:
+            class_name = split[0]
+            for classes_data in input:
+                if class_name == classes_data["name"]:
+                    if class_name not in seen_classes:
+                        id = classes_data["user_group_id"]
+                        classes.append(class_name)
+                        ids.append(id)
+                        seen_classes.add(class_name)
+
+    if len(classes) == 0:
+        error.not_found = True
+        return classes, ids, error
+    return classes, ids, error
+
+
+def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_names: list, class_ids: list) -> GNS3Error:
+    groups_to_delete = []
+    students_to_delete = []
+    groups, get_groups_in_class_error = get_groups_in_class(
+        params.ctx, selected_item)
+    if GNS3Error.has_error(get_groups_in_class_error):
+        return get_groups_in_class_error
+    for group in groups:
+        groups_to_delete.append(group['group_id'])
+    for i, class_name in enumerate(class_names):
+        if selected_item == class_name:
+            groups_to_delete.append(class_ids[i])
+
+    for group_id in groups_to_delete:
+        members_id, get_members_error = get_group_members(
+            params.ctx, group_id, id_only=True)
+        if GNS3Error.has_error(get_members_error):
+            return get_members_error
+        students_to_delete.extend(members_id)
+
+    student_ids = list(set(students_to_delete))
+    for student_id in student_ids:
+        delete_user_error = delete_from_id(
+            params.ctx, "delete_user", student_id)
+        if GNS3Error.has_error(delete_user_error):
+            return delete_user_error
+
+    group_ids = list(set(groups_to_delete))
+    for group_id in group_ids:
+        delete_groups_error = delete_from_id(
+            params.ctx, "delete_group", group_id)
+        if GNS3Error.has_error(delete_groups_error):
+            return delete_groups_error
+
+    click.secho("Success: ", nl=False, fg="green")
+    click.secho("deleted the class ", nl=False)
+    click.secho(f"{selected_item}", nl=False, bold=True)
+    return GNS3Error
+
+
+def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS3Error]:
+    members = []
+    get_members_error, members_raw, = call_client_method(
+        ctx, "get", "group_members", group_id)
+    if GNS3Error.has_error(get_members_error):
+        return get_members_error
+    if id_only:
+        for member in members_raw:
+            id = member["user_id"]
+            members.append(id)
+        return members, get_members_error
+    else:
+        return members_raw, get_members_error
+
+
+def delete_from_id(ctx: Any, method: str, id: str) -> GNS3Error:
+    delete_error, _ = call_client_method(ctx, "delete", method, id)
+    return delete_error
+
+
 def parse_json(filepath: str) -> tuple[bool, Any]:
     try:
         with open(filepath, 'r') as f:
@@ -331,8 +452,19 @@ def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool
         )
 
 
-def fuzzy_info_wrapper(params):
+def fuzzy_info_wrapper(params: fuzzy_info_params):
     error = fuzzy_info(params)
+    if GNS3Error.has_error(error):
+        if error.connection:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.secho(
+                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+            return
+        GNS3Error.print_error(error)
+
+
+def fuzzy_delete_class_wrapper(params: fuzzy_delete_class_params):
+    error = fuzzy_delete_class(params)
     if GNS3Error.has_error(error):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)

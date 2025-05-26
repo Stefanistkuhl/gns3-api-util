@@ -3,7 +3,7 @@ import click
 import os
 from . import auth
 from .api.delete_endpoints import GNS3DeleteAPI
-from .utils import execute_and_print, get_command_description
+from .utils import execute_and_print, get_command_description, fuzzy_delete_class_params, fuzzy_delete_class_wrapper
 
 """
 Number of arguments: 0
@@ -112,3 +112,22 @@ for cmd, func in _two_arg_no_data.items():
         return cmd_func
     delete.command(name=cmd, help=current_help_option,
                    epilog=epiloge)(make_cmd())
+
+
+@delete.command(name="class", help="delete a class and it's studets")
+@click.option(
+    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
+)
+@click.option(
+    "-y", "--confirm", default=True, is_flag=True, help="Require confirmation for deletion"
+)
+@click.pass_context
+def fuzzy_delete_class(ctx, multi, confirm):
+    params = fuzzy_delete_class_params(
+        ctx=ctx,
+        client=get_client,
+        method="groups",
+        key="name",
+        multi=multi,
+        confirm=confirm)
+    fuzzy_delete_class_wrapper(params)
