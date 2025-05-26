@@ -117,9 +117,6 @@ def auth():
     pass
 
 
-auth = click.Group('auth')
-
-
 def load_and_try_key(ctx) -> tuple[bool, dict]:
     key_file = os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)

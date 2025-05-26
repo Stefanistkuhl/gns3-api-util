@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import subprocess
 from typing import Callable, Any, Optional
 from .api.client import GNS3Error
+from InquirerPy import inquirer
 
 
 @dataclass
@@ -93,18 +94,7 @@ def fzf_select(options, multi=False):
         output, error = fzf_process.communicate('\n'.join(options))
 
         if error:
-            if "fzf: command not found" in error:
-                click.secho(
-                    "Error: ", nl=False, fg="red", err=True)
-                click.secho(
-                    "fzf is not installed. Please install it to use this feature.", bold=True, err=True)
-                return []
-            else:
-                click.secho(
-                    "Error running fzf: ", nl=False, fg="red", err=True)
-                click.secho(
-                    f"{error}", bold=True, err=True)
-                return []
+            return get_selection_inquirerpy(options, multi)
 
         if output:
             return [line.strip() for line in output.strip().split('\n')]
@@ -112,11 +102,23 @@ def fzf_select(options, multi=False):
             return []
 
     except FileNotFoundError:
-        click.secho(
-            "Error: ", nl=False, fg="red", err=True)
-        click.secho(
-            "fzf executable not found in PATH. Please ensure it's installed and accessible.", bold=True, err=True)
-        return []
+        return get_selection_inquirerpy(options, multi)
+
+
+def get_selection_inquirerpy(options, multi=False):
+    if multi:
+        result = inquirer.checkbox(
+            message="Select options:",
+            choices=options,
+            cycle=True
+        ).execute()
+    else:
+        result = inquirer.select(
+            message="Select an option:",
+            choices=options,
+            cycle=True
+        ).execute()
+    return result if isinstance(result, list) else [result]
 
 
 def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> tuple[GNS3Error, Any]:

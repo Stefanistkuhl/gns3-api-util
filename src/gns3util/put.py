@@ -55,7 +55,7 @@ _three_arg = {
 
 @click.group()
 def put():
-    """put commands."""
+    """Put commands."""
     pass
 
 

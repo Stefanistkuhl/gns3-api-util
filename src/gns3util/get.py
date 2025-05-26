@@ -6,7 +6,6 @@ from .api import GNS3Error
 from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description
 import json
 
-get = click.Group('get')
 
 # Commands with no arguments
 _zero_arg = {
@@ -66,6 +65,12 @@ _two_arg = {
     "link-filters": "link_filters",
     "drawing": "drawing"
 }
+
+
+@click.group()
+def get():
+    """Get commands."""
+    pass
 
 
 def get_client(ctx):

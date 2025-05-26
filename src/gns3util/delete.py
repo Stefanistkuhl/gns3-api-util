@@ -46,7 +46,7 @@ _two_arg_no_data = {
 
 @click.group()
 def delete():
-    """delete commands."""
+    """Delete commands."""
     pass
 
 
