@@ -7,7 +7,6 @@
 ![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues/stefanistkuhl/gns3-api-util)
 ![language count](https://img.shields.io/github/languages/count/stefanistkuhl/gns3-api-util)
 ![repo size](https://img.shields.io/github/repo-size/stefanistkuhl/gns3-api-util)
-![erm](https://pride-badges.pony.workers.dev/static/v1?label=Code+works+as+well+as+queer++rights+in+the+USA&labelColor=%23555&stripeWidth=8&stripeColors=E40303%2CFF8C00%2CFFED00%2C008026%2C24408E%2C732982)
 
 A command-line utility for interacting with the GNS3 API. This tool streamlines common API operations—such as authentication, GET, POST, PUT, and DELETE requests—against a GNS3 server, making it easier to integrate and automate tasks in your network emulation environments.
 
@@ -35,6 +34,8 @@ A command-line utility for interacting with the GNS3 API. This tool streamlines 
    - [click](https://click.palletsprojects.com/)
    - [requests](https://docs.python-requests.org/)
    - [rich](https://github.com/Textualize/rich)
+   - [bottle](https://github.com/bottlepy/bottle)
+   - [InquirerPy](https://github.com/kazhala/InquirerPy)
 
    Additionally [fzf](https://github.com/junegunn/fzf) can be be installed for interactive selections.
 
@@ -77,13 +78,3 @@ gns3util --help
 ```
 
 This will display usage information and options for each command.
-
-Todo
-
--[ ] Cover most common tasks with fzf
-
--[ ] Add shell completion
-
--[ ] Provide a help option for all commands
-
--[ ] Store multiple keys at once and select a server more easily

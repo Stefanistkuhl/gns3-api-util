@@ -1,4 +1,5 @@
 import json
+import sys
 from enum import Enum
 import importlib
 import uuid
@@ -42,6 +43,23 @@ class fuzzy_delete_class_params:
     key: str = "name"
     multi: bool = False
     confirm: bool = True
+    non_interactive: str = None
+
+
+@dataclass
+class fuzzy_delete_exercise_params:
+    ctx: Any
+    client: Callable[[Any], Any]
+    method: str = "projects"
+    key: str = "name"
+    multi: bool = False
+    confirm: bool = True
+    non_interactive: str = None
+    class_to_use: str = None
+    group_to_use: str = None
+    select_class: bool = False
+    select_group: bool = False
+    delete_all: bool = False
 
 
 @dataclass
@@ -92,6 +110,11 @@ def fzf_select(options, multi=False):
             )
 
         output, error = fzf_process.communicate('\n'.join(options))
+        return_code = fzf_process.returncode
+
+        if return_code != 0:
+            click.secho("Aborted!")
+            sys.exit(1)
 
         if error:
             return get_selection_inquirerpy(options, multi)
@@ -214,27 +237,48 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
 
 def fuzzy_delete_class(params=fuzzy_delete_class_params) -> GNS3Error:
     error = GNS3Error()
+    class_names = []
+    class_ids = []
+    selected = []
+
     fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
         params)
     if GNS3Error.has_error(get_fzf_input_error):
         return get_fzf_input_error
 
     class_names, class_ids, get_classes_error = get_classes(api_data)
-    if len(class_names) == 0:
-        click.secho("No classes avaliable to delete", err=True)
-        return GNS3Error
     if GNS3Error.has_error(get_classes_error):
         return get_classes_error
-    selected = fzf_select(class_names, multi=params.multi)
+
+    if not class_names:
+        click.secho("No classes available to delete", err=True)
+        return GNS3Error()
+
+    if params.non_interactive is None:
+        # Interactive mode
+        selected = fzf_select(class_names, multi=params.multi)
+    else:
+        # Non-interactive mode
+        if params.non_interactive in class_names:
+            selected = [params.non_interactive]
+        else:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.secho(f"Class ", nl=False, err=True)
+            click.secho(f"{params.non_interactive} ",
+                        bold=True, nl=False, err=True)
+            click.secho("not found.", err=True)
+            return error
+
     for selected_item in selected:
         if params.confirm:
-            if click.confirm(f"Do you want to delete the class {selected_item}?"):
-                error = delete_class(params, selected_item,
-                                     class_names, class_ids)
-            else:
-                click.secho("Deletion aborted by the user exiting")
-        else:
-            error = delete_class(params, selected_item, class_names, class_ids)
+            if not click.confirm(f"Do you want to delete the class {selected_item}?"):
+                click.secho("Deletion aborted.")
+                continue
+
+        error = delete_class(params, selected_item, class_names, class_ids)
+        if GNS3Error.has_error(error):
+            return error
+
     return error
 
 
@@ -256,10 +300,22 @@ def get_classes(input: list) -> tuple[list, list, GNS3Error]:
                         ids.append(id)
                         seen_classes.add(class_name)
 
-    if len(classes) == 0:
-        error.not_found = True
-        return classes, ids, error
     return classes, ids, error
+
+
+def get_exercises(input: list) -> tuple[list, GNS3Error]:
+    error = GNS3Error()
+    exercises = []
+
+    for data in input:
+        split = data["name"].split("-")
+        if len(split) == 3:
+            exercise_name = split[1]
+            id = data["project_id"]
+            exercises.append({"name":  exercise_name, "id": id,
+                             "class_name": split[0], "group_number": split[2]})
+
+    return exercises, error
 
 
 def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_names: list, class_ids: list) -> GNS3Error:
@@ -299,7 +355,174 @@ def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_na
     click.secho("Success: ", nl=False, fg="green")
     click.secho("deleted the class ", nl=False)
     click.secho(f"{selected_item}", nl=False, bold=True)
-    return GNS3Error
+    return GNS3Error()
+
+
+def delete_exercise(params: fuzzy_delete_exercise_params, selected_item: dict, exercises: list) -> GNS3Error:
+    projects_to_delete = []
+    pools_to_delete = []
+    acls_to_delete = []
+    for exercise in exercises:
+        projects_to_delete.append(exercise["id"])
+
+    pools, get_pools_error = get_pools_for_exercise(
+        params.ctx, selected_item["exercise_name"])
+    for pool in pools:
+        if selected_item["class_name"]:
+            if pool["class_name"] != selected_item["class_name"]:
+                continue
+            if selected_item["group_number"]:
+                if pool["group_number"] != selected_item["group_number"]:
+                    continue
+        pools_to_delete.append(pool['pool_id'])
+
+    acls_to_delete, get_pools_error = get_acls_for_exercise(
+        params.ctx, pools_to_delete)
+
+    project_ids = list(set(projects_to_delete))
+    for project_id in project_ids:
+        close_project_error = close_project(params.ctx, project_id)
+        if GNS3Error.has_error(close_project_error):
+            return close_project_error
+        delete_project_error = delete_from_id(
+            params.ctx, "delete_project", project_id)
+        if GNS3Error.has_error(delete_project_error):
+            return delete_project_error
+
+    pools_ids = list(set(pools_to_delete))
+    for pool_id in pools_ids:
+        delete_pool_error = delete_from_id(
+            params.ctx, "delete_pool", pool_id)
+        if GNS3Error.has_error(delete_pool_error):
+            return delete_pool_error
+
+    acl_ids = list(set(acls_to_delete))
+    for ace_id in acl_ids:
+        delete_ace_error = delete_from_id(
+            params.ctx, "delete_acl", ace_id)
+        if GNS3Error.has_error(delete_ace_error):
+            return delete_ace_error
+
+    click.secho("Success: ", nl=False, fg="green")
+    click.secho("deleted the exercise ", nl=False)
+    click.secho(f"{selected_item["exercise_name"]}",  bold=True)
+    return GNS3Error()
+
+
+def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
+    error = GNS3Error()
+    selected = []
+
+    fzf_input_data, api_data, get_fzf_input_error = get_values_for_fuzzy_input(
+        params)
+    if GNS3Error.has_error(get_fzf_input_error):
+        return get_fzf_input_error
+
+    exercises, get_exercies_error = get_exercises(api_data)
+    if GNS3Error.has_error(get_exercies_error):
+        return get_exercies_error
+
+    if not exercises:
+        click.secho("No exercises available to delete", err=True)
+        return GNS3Error()
+
+    if params.non_interactive is None and params.delete_all is False:
+        # Interactive mode
+        exercise_names = []
+        selected_exercise_names = []
+        selected_exercise_names
+        for exercise in exercises:
+            exercise_names.append(exercise['name'])
+        selected_exercise_names = fzf_select(
+            set(exercise_names), multi=params.multi)
+
+        # Interactively selecting the class and group
+        if params.select_class:
+            exercise_class_names = []
+            selected_class = []
+            selected_group = []
+            for exercise in exercises:
+                if exercise["name"] == selected_exercise_names[0]:
+                    exercise_class_names.append(exercise['class_name'])
+            selected_class = fzf_select(
+                set(exercise_class_names), multi=params.multi)
+            if params.select_group:
+                exercise_group_numbers = []
+                for exercise in exercises:
+                    if exercise["name"] == selected_exercise_names[0] and exercise["class_name"] == selected_class[0]:
+                        exercise_group_numbers.append(
+                            exercise['group_number'])
+                selected_group = fzf_select(
+                    set(exercise_group_numbers), multi=params.multi)
+
+            if not selected_group:
+                selected_group.append(None)
+            selected.append(
+                {"exercise_name": selected_exercise_names[0], "class_name": selected_class[0], "group_number": selected_group[0]})
+        else:
+            for selected_exercise in selected_exercise_names:
+                selected.append(
+                    {"exercise_name": selected_exercise, "class_name": None, "group_number": None})
+
+    elif params.delete_all:
+        for exercise in exercises:
+            selected.append(
+                {"exercise_name": exercise["name"], "class_name": exercise["class_name"], "group_number": exercise["group_number"]})
+    else:
+        # Non-interactive mode
+        found = False
+        for exercise in exercises:
+            if params.non_interactive != exercise["name"]:
+                continue
+
+            if params.class_to_use:
+                if params.class_to_use != exercise["class_name"]:
+                    continue
+
+            if params.group_to_use:
+                if params.group_to_use != exercise["group_number"]:
+                    continue
+
+            found = True
+
+        if not found:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.secho(f"Exercise ", nl=False, err=True)
+            click.secho(f"{params.non_interactive} ",
+                        bold=True, nl=False, err=True)
+            click.secho("not found.", err=True)
+            return error
+
+        selected.append(
+            {"exercise_name": params.non_interactive, "class_name": params.class_to_use, "group_number": params.group_to_use})
+
+    for selected_item in selected:
+        if params.confirm:
+            if not click.confirm(f"Do you want to delete the exercise {selected_item["exercise_name"]}?"):
+                click.secho("Deletion aborted.")
+                continue
+        exercises_to_delete = []
+        for exercise in exercises:
+            if exercise["name"] != selected_item["exercise_name"]:
+                continue
+
+            # If a class filter is provided then it must match.
+            if selected_item["class_name"]:
+                if exercise["class_name"] != selected_item["class_name"]:
+                    continue
+
+                # If a group filter is also provided then it must match.
+                if selected_item["group_number"]:
+                    if exercise["group_number"] != selected_item["group_number"]:
+                        continue
+
+            exercises_to_delete.append(exercise)
+
+        error = delete_exercise(params, selected_item, exercises_to_delete)
+        if GNS3Error.has_error(error):
+            return error
+
+    return error
 
 
 def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS3Error]:
@@ -476,6 +699,17 @@ def fuzzy_delete_class_wrapper(params: fuzzy_delete_class_params):
         GNS3Error.print_error(error)
 
 
+def fuzzy_delete_exercise_wrapper(params: fuzzy_delete_exercise_params):
+    error = fuzzy_delete_exercise(params)
+    if GNS3Error.has_error(error):
+        if error.connection:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.secho(
+                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+            return
+        GNS3Error.print_error(error)
+
+
 def fuzzy_put_wrapper(params):
     error = fuzzy_change_password(params)
     if GNS3Error.has_error(error):
@@ -539,6 +773,41 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
             group_list.append(group_dict)
 
     return group_list, get_groups_error
+
+
+def get_pools_for_exercise(ctx, exercise_name: str) -> (list, GNS3Error):
+    pool_list = []
+    get_pools_error, pools = call_client_method(ctx, "get", "pools")
+    if GNS3Error.has_error(get_pools_error):
+        return pool_list, get_pools_error
+    for pool in pools:
+        split = pool["name"].split("-")
+        if exercise_name in pool['name'] and len(split) == 4:
+            group_number = pool['name'].split("-")[2]
+            classname = pool['name'].split("-")[0]
+            pool_dict = {
+                "pool_id": pool["resource_pool_id"], "class_name": classname, "group_number": group_number}
+            pool_list.append(pool_dict)
+
+    return pool_list, get_pools_error
+
+
+def get_acls_for_exercise(ctx, pools: list) -> (list, GNS3Error):
+    acls_list = []
+    get_alcs_error, acls = call_client_method(ctx, "get", "acl")
+    if GNS3Error.has_error(get_alcs_error):
+        return acls_list, get_alcs_error
+    for acl in acls:
+
+        first_slash_index = acl["path"].find('/')
+        second_slash_index = acl["path"].find('/', first_slash_index + 1)
+        path_ressouce_id = acl["path"][second_slash_index + 1:]
+
+        for pool in pools:
+            if path_ressouce_id == pool:
+                acls_list.append(acl["ace_id"])
+
+    return acls_list, get_alcs_error
 
 
 def create_acl(ctx, params: create_acl_params) -> GNS3Error:

@@ -74,9 +74,9 @@ class GNS3Error:
 
         if error_instance.not_found is True:
             errors = [str(arg) for arg in args]
+            click.secho("Error: ", fg="red", err=True, nl=False)
             click.secho(
-                "Resource not found error: The following resources were not found: ", fg="red", err=True
-            )
+                "resource not found error: The following resources were not found: ",  err=True, nl=False)
             for resource in errors:
                 click.secho(f"- {resource}", bold=True, err=True)
         else:

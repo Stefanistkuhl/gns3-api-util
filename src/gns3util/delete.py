@@ -4,7 +4,7 @@ import os
 import importlib.resources
 from . import auth
 from .api.delete_endpoints import GNS3DeleteAPI
-from .utils import execute_and_print, get_command_description, fuzzy_delete_class_params, fuzzy_delete_class_wrapper
+from .utils import execute_and_print, get_command_description, fuzzy_delete_class_params, fuzzy_delete_class_wrapper, fuzzy_delete_exercise_params, fuzzy_delete_exercise_wrapper
 
 """
 Number of arguments: 0
@@ -60,6 +60,7 @@ def get_client(ctx):
     else:
         os._exit(1)
 
+
 with importlib.resources.files("gns3util.help_texts").joinpath("help_delete.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
 
@@ -112,7 +113,7 @@ for cmd, func in _two_arg_no_data.items():
                    epilog=epiloge)(make_cmd())
 
 
-@delete.command(name="class", help="delete a class and it's studets")
+@delete.command(name="class", help="Delete a class and it's students.")
 @click.option(
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
@@ -120,18 +121,83 @@ for cmd, func in _two_arg_no_data.items():
     "-y", "--confirm", default=True, is_flag=True, help="Require confirmation for deletion"
 )
 @click.option(
-    "-n", "--non_interactive", help="Run the command non interactively"
+    "-n", "--non_interactive", type=str, help="Run the command non interactively"
 )
 @click.pass_context
+# add option to delete projects aswell when deleting a class and make it default to yes and also state that in the help text
+# add -a to delete all
 def fuzzy_delete_class(ctx, multi, confirm, non_interactive):
+    params = fuzzy_delete_class_params(
+        ctx=ctx,
+        client=get_client,
+        method="groups",
+        key="name",
+        multi=multi,
+        confirm=confirm,
+        non_interactive=non_interactive
+    )
+    fuzzy_delete_class_wrapper(params)
+
+
+@delete.command(name="exercise", help="Delete an exercise")
+@click.option(
+    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
+)
+@click.option(
+    "-y", "--confirm", default=True, is_flag=True, help="Require confirmation for deletion"
+)
+@click.option(
+    "-n", "--non_interactive", type=str, help="Run the command non interactively"
+)
+@click.option(
+    "-c", "--set_class", help="Set the class from which to delete the exercise"
+)
+@click.option(
+    "-g", "--set_group", help="Set the group from which to delete the exercise"
+)
+@click.option(
+    "-fc", "--select_class", is_flag=True, help="Set the class from which to delete the exercise"
+)
+@click.option(
+    "-fg", "--select_group", is_flag=True, help="Set the group from which to delete the exercise"
+)
+@click.option(
+    "-a", "--delete_all", is_flag=True, help="Delete all exercises"
+)
+@click.pass_context
+def fuzzy_delete_exercise(
+    ctx, multi, confirm, non_interactive, set_class, set_group, delete_all, select_class, select_group
+):
     if non_interactive:
-        pass
-    else:
-        params = fuzzy_delete_class_params(
-            ctx=ctx,
-            client=get_client,
-            method="groups",
-            key="name",
-            multi=multi,
-            confirm=confirm)
-        fuzzy_delete_class_wrapper(params)
+        if set_class is None and set_group is not None:
+            raise click.UsageError(
+                "In non-interactive mode, --set_class and --set_group must both provided with string values."
+            )
+    if not non_interactive:
+        if select_class is False and select_group is True:
+            raise click.UsageError(
+                "In interactive mode, --select_class and --select_group must both be set."
+            )
+        if (select_class or select_group == True) and multi == True:
+            raise click.UsageError(
+                "In interactive mode when either, --select_class or --select_group are set multi mode is not supported."
+            )
+
+    class_to_use = set_class
+    group_to_use = set_group
+
+    params = fuzzy_delete_exercise_params(
+        ctx=ctx,
+        client=get_client,
+        method="projects",
+        key="name",
+        multi=multi,
+        confirm=confirm,
+        non_interactive=non_interactive,
+        class_to_use=class_to_use,
+        group_to_use=group_to_use,
+        select_class=select_class,
+        select_group=select_group,
+        delete_all=delete_all
+    )
+    fuzzy_delete_exercise_wrapper(params)
