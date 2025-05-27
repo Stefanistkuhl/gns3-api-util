@@ -16,3 +16,7 @@ dependencies = [
 
 [project.scripts]
 gns3util = "gns3util.cli:gns3util"
+
+[tool.setuptools.package-data]
+"gns3util.help_texts" = ["*.json"]
+"gns3util.static" = ["*"]

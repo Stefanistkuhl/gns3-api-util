@@ -1,8 +1,8 @@
-FROM python:3-alpine
+FROM python:3.13-alpine
 
 WORKDIR /app
 
-COPY src /app/src
+COPY src .
 COPY pyproject.toml .
 
 RUN pip install . --break-system-packages
