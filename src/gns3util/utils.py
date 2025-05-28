@@ -44,6 +44,8 @@ class fuzzy_delete_class_params:
     multi: bool = False
     confirm: bool = True
     non_interactive: str = None
+    delete_all: bool = False
+    delete_exercises: bool = False
 
 
 @dataclass
@@ -55,6 +57,7 @@ class fuzzy_delete_exercise_params:
     multi: bool = False
     confirm: bool = True
     non_interactive: str = None
+    unattended: bool = False
     class_to_use: str = None
     group_to_use: str = None
     select_class: bool = False
@@ -254,9 +257,11 @@ def fuzzy_delete_class(params=fuzzy_delete_class_params) -> GNS3Error:
         click.secho("No classes available to delete", err=True)
         return GNS3Error()
 
-    if params.non_interactive is None:
+    if params.non_interactive is None and params.delete_all is False:
         # Interactive mode
         selected = fzf_select(class_names, multi=params.multi)
+    elif params.delete_all:
+        selected.extend(class_names)
     else:
         # Non-interactive mode
         if params.non_interactive in class_names:
@@ -278,6 +283,25 @@ def fuzzy_delete_class(params=fuzzy_delete_class_params) -> GNS3Error:
         error = delete_class(params, selected_item, class_names, class_ids)
         if GNS3Error.has_error(error):
             return error
+        if params.delete_exercises:
+            params_del = fuzzy_delete_exercise_params(
+                ctx=params.ctx,
+                client=params.client,
+                method="projects",
+                key="name",
+                multi=False,
+                confirm=False,
+                non_interactive=None,
+                unattended=True,
+                class_to_use=selected_item,
+                group_to_use=None,
+                select_class=False,
+                select_group=False,
+                delete_all=False
+            )
+            fuzzy_delete_exercise(params_del)
+            if GNS3Error.has_error(error):
+                return error
 
     return error
 
@@ -355,7 +379,7 @@ def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_na
 
     click.secho("Success: ", nl=False, fg="green")
     click.secho("deleted the class ", nl=False)
-    click.secho(f"{selected_item}", nl=False, bold=True)
+    click.secho(f"{selected_item}",  bold=True)
     return GNS3Error()
 
 
@@ -427,7 +451,7 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
         click.secho("No exercises available to delete", err=True)
         return GNS3Error()
 
-    if params.non_interactive is None and params.delete_all is False:
+    if params.non_interactive is None and params.delete_all is False and params.unattended is False:
         # Interactive mode
         exercise_names = []
         selected_exercise_names = []
@@ -473,6 +497,25 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
         for exercise in exercise_name_list:
             selected.append(
                 {"exercise_name": exercise, "class_name": None, "group_number": None})
+    elif params.unattended:
+        found = False
+        exercise_name_list = []
+        for exercise in exercises:
+            if exercise["class_name"] == params.class_to_use:
+                exercise_name_list.append(exercise["name"])
+        exercise_name_list = set(exercise_name_list)
+        for exercise in exercise_name_list:
+            found = True
+            selected.append(
+                {"exercise_name": exercise, "class_name": params.class_to_use, "group_number": None})
+
+        if not found:
+            click.secho("Error: ", fg="red", nl=False, err=True)
+            click.secho(f"No exercises for class ", nl=False, err=True)
+            click.secho(f"{params.class_to_use} ",
+                        bold=True, nl=False, err=True)
+            click.secho("found.", err=True)
+            return error
     else:
         # Non-interactive mode
         found = False

@@ -123,10 +123,14 @@ for cmd, func in _two_arg_no_data.items():
 @click.option(
     "-n", "--non_interactive", type=str, help="Run the command non interactively"
 )
+@click.option(
+    "-a", "--delete_all", is_flag=True, help="Delete all classes"
+)
+@click.option(
+    "-e", "--delete_exercises", is_flag=True, help="Delete all exercies of that class"
+)
 @click.pass_context
-# add option to delete projects aswell when deleting a class and make it default to yes and also state that in the help text
-# add -a to delete all
-def fuzzy_delete_class(ctx, multi, confirm, non_interactive):
+def fuzzy_delete_class(ctx, multi, confirm, non_interactive, delete_all, delete_exercises):
     params = fuzzy_delete_class_params(
         ctx=ctx,
         client=get_client,
@@ -134,7 +138,9 @@ def fuzzy_delete_class(ctx, multi, confirm, non_interactive):
         key="name",
         multi=multi,
         confirm=confirm,
-        non_interactive=non_interactive
+        non_interactive=non_interactive,
+        delete_all=delete_all,
+        delete_exercises=delete_exercises
     )
     fuzzy_delete_class_wrapper(params)
 
@@ -198,6 +204,7 @@ def fuzzy_delete_exercise(
         group_to_use=group_to_use,
         select_class=select_class,
         select_group=select_group,
-        delete_all=delete_all
+        delete_all=delete_all,
+        unattended=False
     )
     fuzzy_delete_exercise_wrapper(params)
