@@ -309,11 +309,12 @@ def get_exercises(input: list) -> tuple[list, GNS3Error]:
 
     for data in input:
         split = data["name"].split("-")
-        if len(split) == 3:
+        # Only process if we have at least 4 parts (class-exercise-group-uuid)
+        if len(split) >= 4:
             exercise_name = split[1]
             id = data["project_id"]
-            exercises.append({"name":  exercise_name, "id": id,
-                             "class_name": split[0], "group_number": split[2]})
+            exercises.append({"name": exercise_name, "id": id,
+                              "class_name": split[0], "group_number": split[2]})
 
     return exercises, error
 
@@ -465,9 +466,13 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
                     {"exercise_name": selected_exercise, "class_name": None, "group_number": None})
 
     elif params.delete_all:
+        exercise_name_list = []
         for exercise in exercises:
+            exercise_name_list.append(exercise["name"])
+        exercise_name_list = set(exercise_name_list)
+        for exercise in exercise_name_list:
             selected.append(
-                {"exercise_name": exercise["name"], "class_name": exercise["class_name"], "group_number": exercise["group_number"]})
+                {"exercise_name": exercise, "class_name": None, "group_number": None})
     else:
         # Non-interactive mode
         found = False
@@ -769,7 +774,7 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
         if class_name in group['name'] and class_name != group['name']:
             group_number = group['name'].split("-")[-1]
             group_dict = {
-                "group_id": group["user_group_id"], "group_number": group_number}
+                "group_id": group["user_group_id"], "group_number": group_number, "group_name": group["name"]}
             group_list.append(group_dict)
 
     return group_list, get_groups_error
@@ -782,9 +787,10 @@ def get_pools_for_exercise(ctx, exercise_name: str) -> (list, GNS3Error):
         return pool_list, get_pools_error
     for pool in pools:
         split = pool["name"].split("-")
-        if exercise_name in pool['name'] and len(split) == 4:
-            group_number = pool['name'].split("-")[2]
-            classname = pool['name'].split("-")[0]
+        # Match pools with at least 5 parts (class-exercise-group-pool-uuid)
+        if exercise_name in pool['name'] and len(split) >= 5:
+            group_number = split[2]
+            classname = split[0]
             pool_dict = {
                 "pool_id": pool["resource_pool_id"], "class_name": classname, "group_number": group_number}
             pool_list.append(pool_dict)
@@ -845,14 +851,20 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
 
     groups, get_groups_error = get_groups_in_class(ctx, class_name)
     for group in groups:
-        project_name = f"{class_name}-{exercise_name}-{group['group_number']}"
+        split = group["group_name"].split("-")
+        if len(split) != 3:
+            continue
+        uuid_suffix = str(uuid.uuid4())[:8]
+        project_name = f"{
+            class_name}-{exercise_name}-{group['group_number']}-{uuid_suffix}"
+        pool_name = f"{
+            class_name}-{exercise_name}-{group['group_number']}-pool-{uuid_suffix}"
         project_id, create_project_error = create_project(ctx, project_name)
         if GNS3Error.has_error(create_project_error):
             GNS3Error.print_error(create_project_error)
             return False
         click.secho("Success: ", nl=False, fg="green")
         click.secho(f"created the project {project_name}")
-        pool_name = project_name + "-pool"
         pool_id, create_pool_error = create_pool(ctx, pool_name)
         if GNS3Error.has_error(create_pool_error):
             GNS3Error.print_error(create_pool_error)
