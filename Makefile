@@ -8,7 +8,7 @@ endif
 
 DOCKER_BUILDX_PRESENT := $(shell $(_DOCKER_BUILDX_CHECK_COMMAND))
 
-.PHONY: all docker-build docker-run help
+.PHONY: all docker-build docker-run help clean build-package publish
 
 all: docker-build
 
@@ -17,7 +17,10 @@ help:
 	@echo "  all            - Build the Docker image (default)."
 	@echo "  docker-build   - Build the Docker image using Dockerfile."
 	@echo "  docker-run     - Run the Docker container."
-	@echo "  help          - Show this help message."
+	@echo "  clean          - Remove build and distribution artifacts (dist/, build/, *.egg-info/)."
+	@echo "  build-package  - Build Python package distribution archives (.whl, .tar.gz) using uv."
+	@echo "  publish        - Upload Python package distributions to PyPI using uv. Requires UV_TOKEN."
+	@echo "  help           - Show this help message."
 
 DOCKERFILE := Dockerfile
 DOCKER_IMAGE_NAME := gns3-api-util:latest
@@ -35,3 +38,16 @@ ifeq ($(IS_WINDOWS),true)
 else
 	docker run -it --rm -p 8080:8080 -v "$$HOME/.gns3key:/root/.gns3key" $(DOCKER_IMAGE_NAME) $(ARGS) || true
 endif
+
+clean:
+	@echo "Cleaning up build and distribution artifacts..."
+	$(RM) -r dist/ build/ *.egg-info/ || true
+
+build-package: clean
+	@echo "Building Python package distributions with uv..."
+	uv venv
+	uv build
+
+publish: build-package
+	@echo "Uploading Python package distributions to PyPI with uv..."
+	uv publish
