@@ -157,8 +157,43 @@ body {
     color: var(--text);
 }
 
+/* Remove button outlines and update colors */
+button {
+    outline: none;
+    border: none;
+}
+
+/* Round corners for input fields and borders */
+input,
+select {
+    min-width: 200px;
+    background-color: var(--surface);
+    border-color: var(--overlay);
+    color: var(--text);
+    border-radius: 0.25rem;
+}
+
+/* Update button colors */
+.bg-green-500, 
+.bg-blue-500 {
+    background: var(--pine); /* Both Add Group and Add Student same color */
+}
+
+#saveJSONBtn {
+    background: var(--gold); /* Save button gold color */
+}
+
+#generateJSONBtn {
+    background: var(--rose); /* Generate JSON different color */
+}
+
+.bg-red-600 {
+    background: var(--love); /* Clear button */
+}
+
+/* Single theme toggle button */
 .theme-toggle {
-    position: absolute;  /* Change from fixed to absolute */
+    position: absolute;
     top: 1rem;
     left: 1rem;
     background: none;
@@ -170,13 +205,16 @@ body {
     color: var(--text);
 }
 
-/* Add new wrapper class for main content */
-.content-wrapper {
-    position: relative;
-    width: 100%;
-    max-width: 42rem;
-    margin: 0 auto;
-    padding: 1rem;
+.theme-toggle .moon-icon {
+    display: none;
+}
+
+body.dark-mode .sun-icon {
+    display: none;
+}
+
+body.dark-mode .moon-icon {
+    display: block;
 }
 
 /* Dark mode styles */
