@@ -4,7 +4,7 @@ import json
 import importlib.resources
 from . import auth
 from .api.put_endpoints import GNS3PutAPI
-from .utils import execute_and_print, fuzzy_password_params, fuzzy_put_wrapper, get_command_description
+from .utils import execute_and_print, get_command_description
 
 """
 Number of arguments: 0
@@ -20,14 +20,14 @@ Number of arguments: 1
 Has data: True
 """
 _one_arg = {
-    "update_user": "update_user",
-    "update_group": "update_group",
-    "update_acl": "update_ace",
-    "update_template": "update_template",
-    "update_project": "update_project",
-    "update_compute": "update_compute",
-    "update_pool": "update_pool",
-    "update_role": "update_role"
+    "user": "update_user",
+    "group": "update_group",
+    "acl": "update_ace",
+    "template": "update_template",
+    "project": "update_project",
+    "compute": "update_compute",
+    "pool": "update_pool",
+    "role": "update_role"
 
 }
 
@@ -36,26 +36,24 @@ Number of arguments: 2
 Has data: False
 """
 _two_arg_no_data = {
-    "add_group_member": "add_group_member",
-    "add_ressouce_to_pool": "add_resource_to_pool",
-    "update_role_privs": "update_role_privs"
+    "role_privs": "update_role_privs"
 }
 
 _two_arg = {
-    "update_node": "update_node",
-    "update_drawing": "update_drawing",
-    "update_link": "update_link"
+    "node": "update_node",
+    "drawing": "update_drawing",
+    "link": "update_link"
 
 }
 
 _three_arg = {
-    "update_disk_image": "update_disk_image"
+    "disk_image": "update_disk_image"
 
 }
 
 
 @click.group()
-def put():
+def update():
     """Put commands."""
     pass
 
@@ -68,6 +66,7 @@ def get_client(ctx):
         return GNS3PutAPI(server_url, key['access_token'])
     else:
         os._exit(1)
+
 
 with importlib.resources.files("gns3util.help_texts").joinpath("help_put.json").open("r", encoding="utf-8") as f:
     help_dict = json.load(f)
@@ -91,7 +90,8 @@ for cmd, func in _zero_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
+    update.command(name=cmd, help=current_help_option,
+                   epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument plus JSON
 for cmd, func in _one_arg.items():
@@ -113,7 +113,8 @@ for cmd, func in _one_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
+    update.command(name=cmd, help=current_help_option,
+                   epilog=epiloge)(make_cmd())
 
 
 # Create click commands with two arguments minus JSON
@@ -130,7 +131,8 @@ for cmd, func in _two_arg_no_data.items():
             execute_and_print(ctx, api_put_client, lambda client: getattr(
                 api_put_client, func)(arg1, arg2))
         return cmd_func
-    put.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
+    update.command(name=cmd, help=current_help_option,
+                   epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments plus JSON
 for cmd, func in _two_arg.items():
@@ -153,7 +155,8 @@ for cmd, func in _two_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
+    update.command(name=cmd, help=current_help_option,
+                   epilog=epiloge)(make_cmd())
 
 # Create click commands with three arguments plus JSON
 for cmd, func in _three_arg.items():
@@ -177,20 +180,5 @@ for cmd, func in _three_arg.items():
                 click.secho("Invalid JSON input", bold=True, err=True)
                 return
         return cmd_func
-    put.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
-
-
-@put.command(name="fchpw", help="find user info using fzf and change their password")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_user_info_and_groups_short(ctx, multi):
-    params = fuzzy_password_params(
-        ctx=ctx,
-        client=get_client,
-        method="users",
-        key="username",
-        multi=multi,
-    )
-    fuzzy_put_wrapper(params)
+    update.command(name=cmd, help=current_help_option,
+                   epilog=epiloge)(make_cmd())

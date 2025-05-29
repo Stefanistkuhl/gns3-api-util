@@ -74,6 +74,12 @@ def get():
     pass
 
 
+@click.group()
+def stream():
+    """Stream commands"""
+    pass
+
+
 def get_client(ctx):
     """Helper function to create GNS3GetAPI instance."""
     server_url = ctx.parent.obj['server']
@@ -135,14 +141,14 @@ for cmd, func in _two_arg.items():
 # Special commands with timeout options
 
 
-@get.command()
+@stream.command()
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
 def notifications(ctx, timeout_seconds):
     get_client(ctx).notifications(timeout_seconds)
 
 
-@get.command(name="project-id")
+@stream.command(name="project-id")
 @click.argument('project_id')
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
@@ -160,91 +166,3 @@ def usernames_and_ids(ctx):
 @click.pass_context
 def usernames_and_ids_short(ctx):
     print_usernames_and_ids(ctx)
-
-
-@get.command(name="find-user-info", help="find user info using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_user_info(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.user_info, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="fui", help="find user info using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_user_info_command_short(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.user_info, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="find-group-info", help="find group info using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_group_info(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.group_info, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="fgi", help="find group info using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_group_info_command_short(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.group_info, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="find-group-info-with-usernames", help="find group info with members using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_group_info_with_members(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="fgim", help="find group info with members using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_group_info_with_members_command_short(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="find-user-info-and-group-membership", help="find user info and group membership using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_user_info_and_groups(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)
-
-
-@get.command(name="fuig", help="find user info and group membership using fzf")
-@click.option(
-    "-m", "--multi", is_flag=True, help="Enable multi-select mode."
-)
-@click.pass_context
-def find_user_info_and_groups_short(ctx, multi):
-    params = get_fuzzy_info_params(
-        fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
-    fuzzy_info_wrapper(params)

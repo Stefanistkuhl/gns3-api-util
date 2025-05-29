@@ -1,8 +1,11 @@
 import click
 from .auth import auth
-from .get import get
-from .post import post
-from .put import put
+from .get import get, stream
+from .fuzzy import fuzzy
+from .post import post, controller, compute, project, node, image, snapshot
+from .add import add
+from .create import create
+from .update import update
 from .delete import delete
 
 
@@ -17,8 +20,18 @@ def gns3util(ctx, server):
 
 gns3util.add_command(auth)
 gns3util.add_command(get)
+gns3util.add_command(stream)
+gns3util.add_command(fuzzy)
 gns3util.add_command(post)
-gns3util.add_command(put)
+gns3util.add_command(controller)
+gns3util.add_command(compute)
+gns3util.add_command(project)
+gns3util.add_command(node)
+gns3util.add_command(image)
+gns3util.add_command(snapshot)
+gns3util.add_command(create)
+gns3util.add_command(update)
+gns3util.add_command(add)
 gns3util.add_command(delete)
 
 if __name__ == '__main__':

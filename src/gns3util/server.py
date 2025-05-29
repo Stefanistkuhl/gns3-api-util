@@ -2,7 +2,6 @@ from bottle import route, run, response, post, request, get
 import time
 import multiprocessing
 import webbrowser
-import os
 import importlib.resources
 
 RECEIVED_DATA = None

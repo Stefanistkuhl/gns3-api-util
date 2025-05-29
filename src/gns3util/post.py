@@ -1,58 +1,26 @@
 import click
 import json
-from . import auth
 import os
-from .api.post_endpoints import GNS3PostAPI
-from .utils import execute_and_print, create_class, create_Exercise, get_command_description
-from .server import start_and_get_data
 import importlib.resources
 
-"""
-Number of arguments: 0
-Has data: True
-"""
-_zero_arg = {
-    "check_version": "check_version",
-    "user": "create_user",
-    "group": "create_group",
-    "role": "create_role",
-    "acl": "create_acl",
-    "template": "create_template",
-    "project": "create_project",
-    "project_load": "load_project",
-    "add_pool": "create_pool",
-    "create_compute": "create_compute",
-    "authenticate": "user_authenticate"
-}
+from . import auth
+from .api.post_endpoints import GNS3PostAPI
+from .utils import (
+    execute_and_print,
+    create_class,
+    create_Exercise,
+    get_command_description,
+)
+from .server import start_and_get_data
 
-"""
-Number of arguments: 0
-Has data: False
-"""
+# endpoint definitions
+
 _zero_arg_no_data = {
     "reload": "reload_node",
     "shutdown": "shutdown_controller",
     "install_img": "install_image",
 }
 
-"""
-Number of arguments: 1
-Has data: True
-"""
-_one_arg = {
-    "qemu_img": "create_qemu_image",
-    "node": "create_node",
-    "link_create": "create_link",
-    "drawing_create": "create_drawing",
-    "snapshot_create": "create_snapshot",
-    "auto_idlepc": "set_auto_idlepc",
-    "add_applience_version": "create_appliance_version"
-}
-
-"""
-Number of arguments: 1
-Has data: False
-"""
 _one_arg_no_data = {
     "duplicate_template": "duplicate_template",
     "project_close": "close_project",
@@ -64,14 +32,9 @@ _one_arg_no_data = {
     "suspend_nodes": "suspend_node",
     "reload_nodes": "reload_node",
     "nodes_console_reset": "reset_nodes_console",
-    "symbol_create": "create_symbol",
-    "connect_compute": "connect_compute"
+    "connect_compute": "connect_compute",
 }
 
-"""
-Number of arguments: 2
-Has data: False
-"""
 _two_arg_no_data = {
     "upload_img": "upload_image",
     "project_import": "import_project",
@@ -82,259 +45,244 @@ _two_arg_no_data = {
     "reset_link": "reset_link",
     "stop_link_capture": "stop_link_capture",
     "snapshot_restore": "restore_snapshot",
-    "add_applience_version": "install_appliance_version"
+    "add_applience_version": "install_appliance_version",
 }
-
 
 _two_arg = {
-    "project_node_from_template": "create_project_node_from_template",
     "duplicate_node": "duplicate_node",
-    "start_link_capture": "start_link_capture"
+    "start_link_capture": "start_link_capture",
 }
 
-_three_arg = {
-    "create_disk_img": "create_disk_image"
-}
-
-_three_arg_no_data = {
-    "create_node_file": "create_node_file"
-}
+# load help texts
+with importlib.resources.files("gns3util.help_texts") \
+        .joinpath("help_post.json") \
+        .open("r", encoding="utf-8") as f:
+    help_dict = json.load(f)
 
 
 @click.group()
 def post():
-    """Post commands."""
+    """Misc post commands."""
     pass
 
 
 def get_client(ctx):
-    """Helper function to create GNS3PostAPI instance."""
-    server_url = ctx.parent.obj['server']
+    server_url = ctx.parent.obj["server"]
     success, key = auth.load_and_try_key(ctx)
-    if success:
-        return GNS3PostAPI(server_url, key['access_token'])
-    else:
+    if not success:
         os._exit(1)
+    return GNS3PostAPI(server_url, key["access_token"])
 
 
-# Replace help_path and open with importlib.resources
-with importlib.resources.files("gns3util.help_texts").joinpath("help_post.json").open("r", encoding="utf-8") as f:
-    help_dict = json.load(f)
+# define sub‐command groups
+@post.group()
+def controller():
+    """Controller operations."""
+    pass
 
-# Create click commands with zero arguments
-for cmd, func in _zero_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "zero_arg_data")
 
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('json_data')
+@post.group()
+def project():
+    """Project operations."""
+    pass
+
+
+@post.group()
+def node():
+    """Node operations."""
+    pass
+
+
+@post.group()
+def image():
+    """Image operations."""
+    pass
+
+
+@post.group()
+def link():
+    """Link operations."""
+    pass
+
+
+@post.group()
+def snapshot():
+    """Snapshot operations."""
+    pass
+
+
+@post.group()
+def compute():
+    """Compute operations."""
+    pass
+
+
+# helper to attach a cmd to a group
+def attach(group, name, func, help_text, epilog):
+    group.command(name=name, help=help_text, epilog=epilog)(func)
+
+
+# zero‐arg, no data
+for cmd, api_name in _zero_arg_no_data.items():
+    help_txt, ep = get_command_description(cmd, help_dict, "zero_arg_no_data")
+
+    def make_cmd(api_name=api_name):
         @click.pass_context
-        def cmd_func(ctx, json_data):
-            api_post_client = get_client(ctx)
+        def _cmd(ctx):
+            client = get_client(ctx)
+            execute_and_print(ctx, client, lambda c: getattr(c, api_name)())
+        return _cmd
+
+    grp = controller if cmd in ("reload", "shutdown") else image
+    attach(grp, cmd, make_cmd(), help_txt, ep)
+
+
+# one‐arg, no data
+for cmd, api_name in _one_arg_no_data.items():
+    help_txt, ep = get_command_description(cmd, help_dict, "one_arg_no_data")
+
+    def make_cmd(api_name=api_name):
+        @click.argument("arg")
+        @click.pass_context
+        def _cmd(ctx, arg):
+            client = get_client(ctx)
+            execute_and_print(ctx, client, lambda c: getattr(c, api_name)(arg))
+        return _cmd
+
+    if cmd.startswith("project_") or cmd == "duplicate_template":
+        grp = project
+    elif cmd.endswith("_nodes") or cmd.endswith("nodes_reset"):
+        grp = node
+    else:
+        grp = compute
+    attach(grp, cmd, make_cmd(), help_txt, ep)
+
+
+# two‐arg, no data
+for cmd, api_name in _two_arg_no_data.items():
+    help_txt, ep = get_command_description(cmd, help_dict, "two_arg_no_data")
+
+    def make_cmd(api_name=api_name):
+        @click.argument("arg1")
+        @click.argument("arg2")
+        @click.pass_context
+        def _cmd(ctx, arg1, arg2):
+            client = get_client(ctx)
+            execute_and_print(ctx, client, lambda c: getattr(
+                c, api_name)(arg1, arg2))
+        return _cmd
+
+    if cmd.startswith("project_"):
+        grp = project
+    elif cmd.startswith("node_"):
+        grp = node
+    elif cmd.startswith("upload_img") or cmd == "add_applience_version":
+        grp = image
+    elif cmd.startswith("reset_link") or cmd.endswith("capture"):
+        grp = link
+    elif cmd.startswith("snapshot_restore"):
+        grp = snapshot
+    else:
+        grp = image
+    attach(grp, cmd, make_cmd(), help_txt, ep)
+
+
+# two‐arg + JSON
+for cmd, api_name in _two_arg.items():
+    help_txt, ep = get_command_description(cmd, help_dict, "two_arg")
+
+    def make_cmd(api_name=api_name):
+        @click.argument("arg1")
+        @click.argument("arg2")
+        @click.argument("json_data")
+        @click.pass_context
+        def _cmd(ctx, arg1, arg2, json_data):
+            client = get_client(ctx)
             try:
                 data = json.loads(json_data)
-                execute_and_print(
-                    ctx, api_post_client, lambda client: getattr(api_post_client, func)(data))
             except json.JSONDecodeError:
-                click.secho("Error: ", nl=True, fg="red", err=True)
-                click.secho("Invalid JSON input", bold=True, err=True)
+                click.secho("Error: Invalid JSON input",
+                            fg="red", bold=True, err=True)
                 return
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
+            execute_and_print(ctx, client, lambda c: getattr(
+                c, api_name)(arg1, arg2, data))
+        return _cmd
 
-# Create click commands with zero arguments and no data
-for cmd, func in _zero_arg_no_data.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "zero_arg_no_data")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.pass_context
-        def cmd_func(ctx):
-            api_post_client = get_client(ctx)
-            execute_and_print(
-                ctx, api_post_client, lambda client: getattr(api_post_client, func)())
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with one argument plus JSON
-for cmd, func in _one_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "one_arg_data")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg, json_data):
-            api_post_client = get_client(ctx)
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    api_post_client, func)(arg, data))
-            except json.JSONDecodeError:
-                click.secho("Error: ", nl=True, fg="red", err=True)
-                click.secho("Invalid JSON input", bold=True, err=True)
-                return
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with one argument minus JSON
-for cmd, func in _one_arg_no_data.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "one_arg_no_data")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg')
-        @click.pass_context
-        def cmd_func(ctx, arg):
-            api_post_client = get_client(ctx)
-            execute_and_print(ctx, api_post_client, lambda client: getattr(
-                api_post_client, func)(arg))
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with two arguments minus JSON
-for cmd, func in _two_arg_no_data.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "two_arg_no_data")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2):
-            api_post_client = get_client(ctx)
-            execute_and_print(ctx, api_post_client, lambda client: getattr(
-                api_post_client, func)(arg1, arg2))
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with two arguments plus JSON
-for cmd, func in _two_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "two_arg")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, json_data):
-            api_post_client = get_client(ctx)
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    api_post_client, func)(arg1, arg2, data))
-            except json.JSONDecodeError:
-                click.secho("Error: ", nl=True, fg="red", err=True)
-                click.secho("Invalid JSON input", bold=True, err=True)
-                return
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with three arguments plus JSON
-for cmd, func in _three_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "three_arg")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('arg3')
-        @click.argument('json_data')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3, json_data):
-            api_post_client = get_client(ctx)
-            try:
-                data = json.loads(json_data)
-                execute_and_print(ctx, api_post_client, lambda client: getattr(
-                    api_post_client, func)(arg1, arg2, arg3, data))
-            except json.JSONDecodeError:
-                click.secho("Error: ", nl=True, fg="red", err=True)
-                click.secho("Invalid JSON input", bold=True, err=True)
-                return
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
-
-# Create click commands with two arguments minus JSON
-for cmd, func in _three_arg_no_data.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "three_arg_no_data")
-
-    def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg1')
-        @click.argument('arg2')
-        @click.argument('arg3')
-        @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3):
-            api_post_client = get_client(ctx)
-            execute_and_print(ctx, api_post_client, lambda client: getattr(
-                api_post_client, func)(arg1, arg2, arg3))
-        return cmd_func
-    post.command(name=cmd, help=current_help_option,
-                 epilog=epiloge)(make_cmd())
+    grp = node if cmd == "duplicate_node" else link
+    attach(grp, cmd, make_cmd(), help_txt, ep)
 
 
-@post.command(name="class", help="create everything need to setup a class and it's students")
-@click.argument('filename', required=False, type=click.Path(exists=True, readable=True))
+# misc: class & exercise under top‐level
+@post.command(name="class", help="Setup a class and its students")
+@click.argument("filename", required=False, type=click.Path(exists=True))
 @click.option(
-    "-c", "--create", is_flag=True, help="Launch a local webpage to enter the info to create a class"
+    "-c",
+    "--create",
+    is_flag=True,
+    help="Launch a webpage to enter class data interactively",
 )
 @click.pass_context
 def make_class(ctx, filename, create):
-
-    if filename == None and create == False:
-        click.secho(
-            "Please either use the -c flag or give a json file as input to use")
+    if not filename and not create:
+        click.secho("Use -c or provide a JSON file", fg="red")
         return
 
     if create:
-        data = start_and_get_data(host='localhost', port=8080, debug=True)
-        if data:
-            class_name, success = create_class(ctx, None, data)
-            if success:
-                click.secho("Success: ", nl=False, fg="green")
-                click.secho("created class ", nl=False)
-                click.secho(f"{class_name}", bold=True)
-            else:
-                click.secho("Error: ", nl=False, fg="red", err=True)
-                click.secho(
-                    "failed to create class", bold=True, err=True)
-        else:
-            click.secho("no data", err=True)
+        data = start_and_get_data(host="localhost", port=8080, debug=True)
+        if not data:
+            click.secho("No data received", fg="red")
             return
+        class_name, ok = create_class(ctx, None, data)
     else:
-        file = click.format_filename(filename)
-        class_name, success = create_class(ctx, file)
-        if success:
-            click.secho("Success: ", nl=False, fg="green")
-            click.secho("created class ", nl=False)
-            click.secho(f"{class_name}", bold=True)
-        else:
-            click.secho("Error: ", nl=False, fg="red", err=True)
-            click.secho(
-                "failed to create class", bold=True, err=True)
+        class_name, ok = create_class(ctx, filename)
+
+    if ok:
+        click.secho(f"Class '{class_name}' created", fg="green")
+    else:
+        click.secho(f"Failed to create class '{
+                    class_name}'", fg="red", err=True)
 
 
-@post.command(name="exercise", help="create everything need to setup a class and it's students")
-@click.argument('class_name', type=str)
-@click.argument('exercise_name', type=str)
+@post.command(name="exercise", help="Create an exercise for a class")
+@click.argument("class_name")
+@click.argument("exercise_name")
 @click.pass_context
 def make_exercise(ctx, class_name, exercise_name):
-    success = create_Exercise(ctx, class_name, exercise_name)
-    if success:
-        click.secho("Success: ", nl=False, fg="green")
-        click.secho("Exercise ", nl=False)
-        click.secho(f"{exercise_name} ", bold=True, nl=False)
-        click.secho("and it's acls created sucessfully")
+    ok = create_Exercise(ctx, class_name, exercise_name)
+    if ok:
+        click.secho(f"Exercise '{exercise_name}' created", fg="green")
     else:
-        click.secho("Error: ", nl=False, fg="red", err=True)
-        click.secho("failed to create exercise ", nl=False, err=True)
-        click.secho(f"{exercise_name}", bold=True, err=True)
+        click.secho(f"Failed to create exercise '{
+                    exercise_name}'", fg="red", err=True)
+
+
+@post.command(
+    help="Check server version against provided JSON data",
+    epilog="Example: gns3util -s [server] post check_version '{...}'",
+)
+@click.argument("json_data")
+@click.pass_context
+def check_version(ctx, json_data):
+    client = get_client(ctx)
+    try:
+        data = json.loads(json_data)
+    except json.JSONDecodeError:
+        click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+        return
+    execute_and_print(ctx, client, lambda c: c.check_version(data))
+
+
+@post.command(
+    help="Create or authenticate a user with JSON data",
+    epilog="Example: gns3util -s [server] post user_authenticate '{...}'",
+)
+@click.argument("json_data")
+@click.pass_context
+def user_authenticate(ctx, json_data):
+    client = get_client(ctx)
+    try:
+        data = json.loads(json_data)
+    except json.JSONDecodeError:
+        click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+        return
+    execute_and_print(ctx, client, lambda c: c.user_authenticate(data))

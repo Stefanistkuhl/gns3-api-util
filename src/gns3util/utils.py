@@ -227,7 +227,7 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
                 pw = getpass.getpass("Enter the desired password:\n")
                 input_data = {"password": pw}
                 change_password_error, result = call_client_method(
-                    params.ctx, "put", "update_user", a['user_id'], input_data)
+                    params.ctx, "update", "update_user", a['user_id'], input_data)
                 if GNS3Error.has_error(change_password_error):
                     GNS3Error.print_error(change_password_error)
                     return change_password_error
@@ -608,7 +608,7 @@ def parse_json(filepath: str) -> tuple[bool, Any]:
 
 def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
     add_user_to_group_error, result = call_client_method(
-        ctx, "put", "add_group_member", group_id, user_id)
+        ctx, "add", "add_group_member", group_id, user_id)
     if GNS3Error.has_error(add_user_to_group_error):
         return add_user_to_group_error
     return add_user_to_group_error
@@ -662,7 +662,7 @@ def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[st
 def create_user_group(ctx, group_name) -> (str, GNS3Error):
     input_data = {"name": group_name}
     create_group_error, result = call_client_method(
-        ctx, "post", "create_group", input_data)
+        ctx, "create", "create_group", input_data)
     if GNS3Error.has_error(create_group_error):
         return "", create_group_error
     return result['user_group_id'], create_group_error
@@ -676,7 +676,7 @@ def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
         input_data = {
             "username": user_dict["userName"], "email": user_dict["email"], "password": user_dict["password"]}
     create_user_error, result = call_client_method(
-        ctx, "post", "create_user", input_data)
+        ctx, "create", "create_user", input_data)
     if GNS3Error.has_error(create_user_error):
         return "", create_user_error
     return result['user_id'], create_user_error
@@ -791,7 +791,7 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
     input_data = {
         "name": name, "project_id": project_id}
     create_project_error, result = call_client_method(
-        ctx, "post", "create_project", input_data)
+        ctx, "create", "create_project", input_data)
     if GNS3Error.has_error(create_project_error):
         return project_id, create_project_error
     close_project_error = close_project(ctx, project_id)
@@ -867,14 +867,14 @@ def create_acl(ctx, params: create_acl_params) -> GNS3Error:
         input_data = {"ace_type": params.ace_type,
                       "allowed": params.allowed, "user_id": params.id, "path": params.path, "propagate": params.propagate, "role_id": params.role_id}
     create_acl_error, result = call_client_method(
-        ctx, "post", "create_acl", input_data)
+        ctx, "create", "create_acl", input_data)
     return create_acl_error
 
 
 def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
     input_data = {"name": pool_name}
     create_pool_error, result = call_client_method(
-        ctx, "post", "create_pool", input_data)
+        ctx, "create", "create_pool", input_data)
     if GNS3Error.has_error(create_pool_error):
         return "", create_pool_error
     return result['resource_pool_id'], create_pool_error
@@ -882,7 +882,7 @@ def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
 
 def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
     add_to_pool_error, result = call_client_method(
-        ctx, "put", "add_resource_to_pool", pool_id, resource_id)
+        ctx, "add", "add_resource_to_pool", pool_id, resource_id)
     return add_to_pool_error
 
 

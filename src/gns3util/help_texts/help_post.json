@@ -1,13 +1,5 @@
 {
     "zero_arg_data": {
-        "check_version": {
-            "description": "Check if version is the same as the server with the given data.",
-            "example": "Example: gns3util -s [server_url] post check_version [JSON DATA]"
-        },
-        "user": {
-            "description": "Create a new user with the given data.",
-            "example": "Example: gns3util -s [server_url] post user [JSON DATA]"
-        },
         "group": {
             "description": "Create a new user group with the given data.",
             "example": "Example: gns3util -s [server_url] post group [JSON DATA]"

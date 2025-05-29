@@ -66,26 +66,33 @@ class GNS3Error:
             'start': 'Start Error',
             'unexpected': 'Unexpected Error'
         }
+        errors = [
+            msg for fld, msg in error_types.items()
+            if getattr(error_instance, fld, False)
+        ]
 
-        errors = []
-        for error_type, error_message in error_types.items():
-            if getattr(error_instance, error_type, False):
-                errors.append(error_message)
+        display_msg = error_instance.msg
+        if isinstance(display_msg, str):
+            try:
+                payload = json.loads(display_msg)
+                if isinstance(payload, dict) and 'message' in payload:
+                    display_msg = payload['message']
+            except json.JSONDecodeError:
+                pass
 
-        if error_instance.not_found is True:
-            errors = [str(arg) for arg in args]
+        if error_instance.not_found:
             click.secho("Error: ", fg="red", err=True, nl=False)
             click.secho(
-                "resource not found error: The following resources were not found: ",  err=True, nl=False)
-            for resource in errors:
+                "resource not found error: The following resources were not found: ",
+                err=True, nl=False
+            )
+            for resource in args:
                 click.secho(f"- {resource}", bold=True, err=True)
         else:
             if errors:
-                click.secho(", ".join(errors)+": ",
+                click.secho(", ".join(errors) + ": ",
                             fg="red", nl=False, err=True)
-                click.secho(
-                    error_instance.msg, bold=True, err=True
-                )
+                click.secho(display_msg, bold=True, err=True)
 
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
