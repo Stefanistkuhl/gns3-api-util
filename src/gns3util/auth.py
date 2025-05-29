@@ -1,30 +1,16 @@
 import click
 from .api.client import GNS3Error
+from click.exceptions import Abort
+from click import UsageError
 import json
+import sys
 import os
-import getpass
 
 
 def insert_as_first_val(dict_obj, key, value):
     """Insert a key-value pair as the first item in a dictionary."""
     new_dict = {key: value, **dict_obj}
     return new_dict
-
-
-def get_user_credentials() -> tuple[bool, tuple[str, str]]:
-    """Prompt user for username and password."""
-    try:
-        username = input("Enter the user to login in as:\n")
-        password = getpass.getpass("Enter your password:\n")
-        return False, (username, password)
-    except KeyboardInterrupt:
-        click.secho("\nOperation cancelled by user.", err=True)
-        return True, ("", "")
-    except Exception as e:
-        click.secho("Error getting credentials: ",
-                    nl=False, err=True, fg="red")
-        click.secho(f"{str(e)}", bold=True, err=True)
-        return True, ("", "")
 
 
 def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, any]:
@@ -147,60 +133,89 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
 
 
 @auth.command()
+@click.option("-u", "--user",
+              default=None, envvar="GNS3_USER",
+              help="Username for authentication (env: GNS3_USER)"
+              )
+@click.option("-p", "--password",
+              default=None, envvar="GNS3_PASSWORD",
+              help="Password for authentication (env: GNS3_PASSWORD). "
+              "Use '-' to read from stdin."
+              )
 @click.pass_context
-def login(ctx):
+def login(ctx, user, password):
     """Perform authentication."""
     try:
-        load_and_try_key_success, result = load_and_try_key(ctx)
-        if load_and_try_key_success:
-            click.secho("Success: ", nl=False, fg="green")
+        ok, key = load_and_try_key(ctx)
+        if ok:
+            click.secho("Success: ", fg="green", nl=False)
             click.secho("API key works, logged in as ", nl=False)
-            click.secho(f"{result["user"]}", bold=True)
-            return
-        key_file = os.path.expanduser("~/.gns3key")
-        server_url = ctx.parent.obj['server']
-        get_credentials_error, credentials = get_user_credentials()
-        if get_credentials_error:
+            click.secho(f"{key['user']}", bold=True)
             return
 
-        auth_error, auth_data = authenticate_user(
-            ctx, credentials)
+        if not user and password == "-":
+            raise click.UsageError(
+                "When using a password from stdin use -u to set a user aswell"
+            )
+
+        if not user:
+            user = click.prompt("Enter the user to login in as", type=str)
+
+        if password == "-":
+            password = sys.stdin.read().rstrip("\n")
+        elif password is None:
+            try:
+                password = click.prompt(
+                    "Enter your password",
+                    hide_input=True,
+                    confirmation_prompt=False
+                )
+            except Abort:
+                click.secho("Authentication cancelled.", err=True)
+                return
+
+        auth_error, auth_data = authenticate_user(ctx, (user, password))
         if GNS3Error.has_error(auth_error):
             if auth_error.unauthorized:
                 click.secho(
-                    "Authentication failed: ", fg="red", err=True, nl=False)
-                click.secho(
-                    "Invalid username or password.", err=True)
-                return
+                    "Authentication failed: ", fg="red", err=True, nl=False
+                )
+                click.secho("Invalid username or password.", err=True)
             else:
                 GNS3Error.print_error(auth_error)
-                return
-
-        save_data_error = save_auth_data(
-            auth_data, server_url, credentials[0], key_file)
-        if save_data_error:
-            click.secho("Success: ", nl=False, fg="green")
-            click.secho("authenticated as ", nl=False)
-            click.secho(f"{credentials[0]} ", nl=False, bold=True)
-            click.secho("and token saved in ", nl=False)
-            click.secho(f"{key_file}", bold=True, nl=False)
-            return
-        else:
-            click.secho(
-                "Authentication failed: ", fg="red", err=True, nl=False)
-            click.secho(
-                f"Failed to write token to {key_file}", err=True)
             return
 
-    except KeyboardInterrupt:
-        click.secho("\nAuthentication interrupted by user.", err=True)
+        key_file = os.path.expanduser("~/.gns3key")
+        server_url = ctx.parent.obj["server"]
+        saved = save_auth_data(auth_data, server_url, user, key_file)
+        if not saved:
+            click.secho(
+                "Authentication failed: ", fg="red", err=True, nl=False
+            )
+            click.secho(f"Failed to write token to {key_file}", err=True)
+            return
+
+        click.secho("Success: ", fg="green", nl=False)
+        click.secho("authenticated as ", nl=False)
+        click.secho(f"{user} ", bold=True, nl=False)
+        click.secho("and token saved in ", nl=False)
+        click.secho(f"{key_file}", bold=True, nl=False)
+
+    except (Abort, KeyboardInterrupt):
+        click.secho("Authentication cancelled.", err=True)
         return
+
+    except UsageError:
+        raise click.UsageError(
+            "When using a password from stdin use -u to set a user aswell"
+        )
 
     except Exception as e:
-        click.secho("An unexpected error occured: ",
-                    nl=False, fg="red", err=True)
+        click.secho(
+            "An unexpected error occurred: ", fg="red", err=True, nl=False
+        )
         click.secho(f"{str(e)}", bold=True, err=True)
-        return
+        ctx.exit(1)
 
 
 @auth.command()
