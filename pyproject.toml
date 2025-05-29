@@ -4,14 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gns3util"
-version = "0.5.4"
+description = "A cli util based arround the GN3v3 api"
+readme = "README.md"
+license = { file = "LICENSE" }
+version = "0.6.4"
 requires-python = ">=3.13"
+keywords = ["gns3", "api", "utility"]
+
+authors = [
+  { name = "stefi", email = "wedm1ebmf@mozmail.com" },
+]
+
 dependencies = [
     "click",
     "requests",
     "rich",
     "bottle",
     "InquirerPy",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GPL-3.0",
+    "Operating System :: OS Independent",
 ]
 
 [project.scripts]

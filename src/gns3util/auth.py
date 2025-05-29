@@ -19,7 +19,8 @@ def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, any
         "username": credentials[0], "password": credentials[1]}
     from .api.post_endpoints import GNS3PostAPI
     server_url = ctx.parent.obj['server']
-    client = GNS3PostAPI(server_url, key=None)
+    verify = ctx.parent.obj['verify']
+    client = GNS3PostAPI(server_url, key=None, verify=verify)
     auth_error, result = client.user_authenticate(input_data)
     return auth_error, result
 
@@ -92,7 +93,8 @@ def load_key(key_file) -> tuple[bool, list]:
 def try_key(ctx, key) -> tuple[GNS3Error, any]:
     from .api.get_endpoints import GNS3GetAPI
     server_url = ctx.parent.obj['server']
-    client = GNS3GetAPI(server_url, key)
+    verify = ctx.parent.obj['verify']
+    client = GNS3GetAPI(server_url, key, verify=verify)
     try_key_error, result = client.current_user_info()
     return try_key_error, result
 
@@ -112,6 +114,13 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
                 token = key['access_token']
                 try_key_error, result = try_key(ctx, token)
                 if GNS3Error.has_error(try_key_error):
+                    if try_key_error.connection:
+                        GNS3Error.print_error(try_key_error)
+                        click.secho(
+                            "You are probably using a selfsinged SSL-Cert so try again with the ", nl=False)
+                        click.secho("-i", bold=True, nl=False)
+                        click.secho(" flag")
+                        sys.exit(1)
                     if not try_key_error.unauthorized:
                         GNS3Error.print_error(try_key_error)
                         return False, {}

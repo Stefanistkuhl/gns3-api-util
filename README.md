@@ -7,6 +7,7 @@
 ![GitHub Issues or Pull Requests by label](https://img.shields.io/github/issues/stefanistkuhl/gns3-api-util)
 ![language count](https://img.shields.io/github/languages/count/stefanistkuhl/gns3-api-util)
 ![repo size](https://img.shields.io/github/repo-size/stefanistkuhl/gns3-api-util)
+![GitHub License](https://img.shields.io/github/license/stefanistkuhl/gns3-api-util)
 
 A command-line utility for interacting with the GNS3 API. This tool streamlines common API operations—such as authentication, GET, POST, PUT, and DELETE requests—against a GNS3 server, making it easier to integrate and automate tasks in your network emulation environments.
 
@@ -37,7 +38,7 @@ A command-line utility for interacting with the GNS3 API. This tool streamlines 
    - [bottle](https://github.com/bottlepy/bottle)
    - [InquirerPy](https://github.com/kazhala/InquirerPy)
 
-   Additionally [fzf](https://github.com/junegunn/fzf) can be be installed for interactive selections.
+   Additionally [fzf](https://github.com/junegunn/fzf) can be be installed for enhanced interactive selections.
 
 ## Usage
 

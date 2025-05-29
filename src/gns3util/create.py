@@ -54,9 +54,10 @@ def create():
 def get_client(ctx):
     """Helper function to create GNS3PostAPI instance."""
     server_url = ctx.parent.obj['server']
+    verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
     if success:
-        return GNS3PostAPI(server_url, key['access_token'])
+        return GNS3PostAPI(server_url, key['access_token'], verify=verify)
     else:
         os._exit(1)
 

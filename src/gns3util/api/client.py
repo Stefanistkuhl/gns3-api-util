@@ -95,13 +95,13 @@ class GNS3Error:
                 click.secho(display_msg, bold=True, err=True)
 
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-
 class GNS3APIClient:
-    def __init__(self, server_url, key=None):
+    def __init__(self, server_url, key=None, verify=True):
         self.server_url = server_url.rstrip('/')
         self.key = key
+        self.verify = verify
+        if not verify:
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
     def _get_headers(self):
         headers = {'accept': 'application/json'}
@@ -109,11 +109,11 @@ class GNS3APIClient:
             headers['Authorization'] = f'Bearer {self.key}'
         return headers
 
-    def _handle_request(self, url, headers=None, method="GET", data=None, timeout=10, stream=False) -> (GNS3Error, any):
+    def _handle_request(self, url, headers=None, method="GET", data=None, timeout=10, stream=False, verify=True) -> (GNS3Error, any):
         error = GNS3Error()
         try:
             response = requests.request(
-                method, url, headers=headers, json=data, timeout=timeout, stream=stream, verify=False
+                method, url, headers=headers, json=data, timeout=timeout, stream=stream, verify=verify
             )
             if response.status_code in (200, 201, 204):
                 if stream:
@@ -190,20 +190,21 @@ class GNS3APIClient:
             error.msg = str(e)
             return error, None
 
-    def _api_call(self, endpoint, stream=False, method="GET", data=None):
+    def _api_call(self, endpoint, stream=False, method="GET", data=None, verify=True):
         url = f"{self.server_url}/v3/{endpoint}"
-        return self._handle_request(url, headers=self._get_headers(), stream=stream, method=method, data=data)
+        return self._handle_request(url, headers=self._get_headers(), stream=stream, method=method, data=data, verify=verify)
 
-    def _stream_notifications(self, endpoint, timeout_seconds=60) -> GNS3Error:
-        error, response = self._api_call(endpoint, stream=True)
+    def _stream_notifications(self, endpoint, timeout_seconds=60, verify=True) -> GNS3Error:
+        error, response = self._api_call(endpoint, stream=True, verify=verify)
         notification_error = GNS3Error()
         if not GNS3Error.has_error(error):
             def close_stream():
                 try:
-                    print(f"Closing stream after {timeout_seconds} seconds.")
+                    click.secho(f"Closing stream after {
+                                timeout_seconds} seconds.")
                     response.close()
                 except Exception as e:
-                    print(f"Error closing stream: {e}")
+                    click.secho(f"Error closing stream: {e}")
 
             timer = threading.Timer(timeout_seconds, close_stream)
             timer.start()
@@ -214,7 +215,8 @@ class GNS3APIClient:
                         decoded_line = line.decode('utf-8')
                         try:
                             notification = json.loads(decoded_line)
-                            print(f"Received notification: {notification}")
+                            click.secho(f"Received notification: {
+                                        notification}")
                         except json.JSONDecodeError:
                             notification_error.json_decode = True
                             notification_error.msg = f"Received non-JSON line: {

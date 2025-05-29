@@ -83,9 +83,10 @@ def stream():
 def get_client(ctx):
     """Helper function to create GNS3GetAPI instance."""
     server_url = ctx.parent.obj['server']
+    verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
     if success:
-        return GNS3GetAPI(server_url, key['access_token'])
+        return GNS3GetAPI(server_url, key['access_token'], verify=verify)
     else:
         os._exit(1)
 

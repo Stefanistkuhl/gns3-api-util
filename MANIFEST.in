@@ -1,0 +1,19 @@
+exclude .git/
+recursive-exclude .github *
+recursive-exclude .vscode *
+exclude .gitignore
+exclude .env
+
+recursive-exclude docs *
+recursive-exclude tests *
+exclude examples/
+exclude Dockerfile
+exclude venv/
+exclude scripts/
+exclude tests/
+
+exclude build/
+exclude dist/
+exclude *.egg-info/
+recursive-exclude * __pycache__ *
+exclude *.pyc

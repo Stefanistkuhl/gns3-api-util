@@ -11,11 +11,12 @@ from .delete import delete
 
 @click.group()
 @click.option('--server', '-s', required=True, type=str, help="GNS3 server URL")
+@click.option('--insecure', '-i', required=False, is_flag=True, default=True, flag_value=False, help="Ignore unsigned SSL-Certificates")
 @click.pass_context
-def gns3util(ctx, server):
+def gns3util(ctx, server, insecure):
     """A utility for GNS3."""
     ctx.ensure_object(dict)
-    ctx.obj = {'server': server}
+    ctx.obj = {'server': server, 'verify': insecure}
 
 
 gns3util.add_command(auth)
