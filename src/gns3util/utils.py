@@ -1,4 +1,5 @@
 import json
+import yaml
 import sys
 from enum import Enum
 import importlib
@@ -591,6 +592,19 @@ def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS
 def delete_from_id(ctx: Any, method: str, id: str) -> GNS3Error:
     delete_error, _ = call_client_method(ctx, "delete", method, id)
     return delete_error
+
+
+def parse_yml(filepath: str) -> tuple[Any, bool]:
+    try:
+        with open(filepath, 'r') as f:
+            data = yaml.safe_load(f)
+        return data, True
+    except FileNotFoundError:
+        return f"File not found: {filepath}", False
+    except json.JSONDecodeError as e:
+        return f"Invalid yml in {filepath}: {e}", False
+    except Exception as e:
+        return f"An unexpected error occurred: {e}", False
 
 
 def parse_json(filepath: str) -> tuple[bool, Any]:
