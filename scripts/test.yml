@@ -1,0 +1,11 @@
+options:
+  - name: test
+
+commands:
+  - name: get
+    subcommands:
+      - name: projects
+
+  - name: get
+    subcommands:
+      - name: users
