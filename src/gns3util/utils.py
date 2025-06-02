@@ -597,11 +597,15 @@ def delete_from_id(ctx: Any, method: str, id: str) -> GNS3Error:
 def parse_yml(filepath: str) -> tuple[Any, bool]:
     try:
         with open(filepath, 'r') as f:
-            data = yaml.safe_load(f)
-        return data, True
+            file_content = f.read().strip()
+        if not file_content:
+            return "YAML file is empty.", False
+        data = yaml.safe_load(file_content)
+        if data is not None and file_content:
+            return data, True
     except FileNotFoundError:
         return f"File not found: {filepath}", False
-    except json.JSONDecodeError as e:
+    except yaml.YAMLError as e:
         return f"Invalid yml in {filepath}: {e}", False
     except Exception as e:
         return f"An unexpected error occurred: {e}", False
