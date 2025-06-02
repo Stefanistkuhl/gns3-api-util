@@ -86,6 +86,8 @@ def load_key(key_file) -> tuple[bool, list]:
             for line in f:
                 data_arr.append(json.loads(line))
         return True, data_arr
+    except ValueError:
+        return False, data_arr
     except FileNotFoundError:
         return False, data_arr
 
@@ -106,8 +108,17 @@ def auth():
 
 
 def load_and_try_key(ctx) -> tuple[bool, dict]:
-    key_file = os.path.expanduser("~/.gns3key")
+    key_file = ctx.parent.obj['key_file'] or os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)
+    if not load_success:
+        no_confirm = ctx.obj.get('no_keyfile_confirm', False)
+        if no_confirm or click.confirm("Your keyfile contains invalid characters do you want the file to get overwritten?"):
+            with open(key_file, "w") as f:
+                f.write("")
+            load_success = True
+        else:
+            click.secho("Authentication cancelled.")
+            sys.exit(1)
     if load_success:
         for key in keyData:
             if key["server_url"] == ctx.parent.obj['server']:
@@ -116,10 +127,11 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
                 if GNS3Error.has_error(try_key_error):
                     if try_key_error.connection:
                         GNS3Error.print_error(try_key_error)
-                        click.secho(
-                            "You are probably using a selfsinged SSL-Cert so try again with the ", nl=False)
-                        click.secho("-i", bold=True, nl=False)
-                        click.secho(" flag")
+                        if "https://" in ctx.parent.obj['server']:
+                            click.secho(
+                                "You are probably using a selfsinged SSL-Cert so try again with the ", nl=False)
+                            click.secho("-i", bold=True, nl=False)
+                            click.secho(" flag")
                         sys.exit(1)
                     if not try_key_error.unauthorized:
                         GNS3Error.print_error(try_key_error)
@@ -151,9 +163,17 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
               help="Password for authentication (env: GNS3_PASSWORD). "
               "Use '-' to read from stdin."
               )
+@click.option("--no-keyfile-confirm",
+              is_flag=True,
+              help="Skip confirmation when keyfile is corrupt"
+              )
 @click.pass_context
-def login(ctx, user, password):
+def login(ctx, user, password, no_keyfile_confirm):
     """Perform authentication."""
+    ctx.obj = ctx.obj or {}
+    if no_keyfile_confirm:
+        ctx.obj['no_keyfile_confirm'] = True
+
     try:
         ok, key = load_and_try_key(ctx)
         if ok:
@@ -194,7 +214,8 @@ def login(ctx, user, password):
                 GNS3Error.print_error(auth_error)
             return
 
-        key_file = os.path.expanduser("~/.gns3key")
+        key_file = ctx.parent.obj['key_file'] or os.path.expanduser(
+            "~/.gns3key")
         server_url = ctx.parent.obj["server"]
         saved = save_auth_data(auth_data, server_url, user, key_file)
         if not saved:

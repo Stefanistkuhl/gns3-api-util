@@ -10,13 +10,14 @@ from .delete import delete
 
 
 @click.group()
-@click.option('--server', '-s', required=True, type=str, help="GNS3 server URL")
+@click.option('--server', '-s', envvar="GNS3_SERVER", required=True, type=str, help="GNS3 server URL")
 @click.option('--insecure', '-i', required=False, is_flag=True, default=True, flag_value=False, help="Ignore unsigned SSL-Certificates")
+@click.option('--key_file', '-k', required=False, type=click.Path(exists=True, readable=True), help="Set a location for a keyfile to use")
 @click.pass_context
-def gns3util(ctx, server, insecure):
+def gns3util(ctx, server, insecure, key_file):
     """A utility for GNS3."""
     ctx.ensure_object(dict)
-    ctx.obj = {'server': server, 'verify': insecure}
+    ctx.obj = {'server': server, 'verify': insecure, 'key_file': key_file}
 
 
 gns3util.add_command(auth)

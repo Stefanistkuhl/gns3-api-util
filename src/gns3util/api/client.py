@@ -26,6 +26,7 @@ class GNS3Error:
     empty_data: bool = False
     other_code: int = 0
     msg: str = ""
+    resource: str = ""
 
     @staticmethod
     def has_error(error_instance) -> bool:
@@ -86,8 +87,14 @@ class GNS3Error:
                 "resource not found error: The following resources were not found: ",
                 err=True, nl=False
             )
-            for resource in args:
-                click.secho(f"- {resource}", bold=True, err=True)
+            if error_instance.resource:
+                click.secho(f"- {error_instance.resource}", bold=True, err=True)
+            elif args:
+                for resource in args:
+                    click.secho(f"- {resource}", bold=True, err=True)
+            else:
+                if display_msg:
+                    click.secho(display_msg, bold=True, err=True)
         else:
             if errors:
                 click.secho(", ".join(errors) + ": ",
@@ -131,6 +138,15 @@ class GNS3APIClient:
                 return error, None
             elif response.status_code == 404:
                 error.not_found = True
+                try:
+                    from urllib.parse import urlparse
+                    path = urlparse(url).path
+                    if path.endswith('/'):
+                        path = path[:-1]
+                    resource = path.split('/')[-1]
+                    error.resource = resource
+                except Exception:
+                    error.resource = ""
                 try:
                     error.msg = response.json().get('message')
                 except json.JSONDecodeError:
