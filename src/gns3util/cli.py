@@ -8,6 +8,7 @@ from .create import create
 from .update import update
 from .delete import delete
 from . scripts import script
+from . utils import install_completion
 
 
 @click.group()
@@ -37,6 +38,8 @@ gns3util.add_command(update)
 gns3util.add_command(add)
 gns3util.add_command(delete)
 gns3util.add_command(script)
+gns3util.add_command(install_completion)
+
 
 if __name__ == '__main__':
     gns3util()

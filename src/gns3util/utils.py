@@ -2,6 +2,7 @@ import json
 import yaml
 import sys
 from enum import Enum
+import os
 import importlib
 import uuid
 import getpass
@@ -1003,3 +1004,100 @@ def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> tuple[s
             break
 
     return current_help_option, epiloge
+
+
+@click.command(name="install-completion")
+@click.option(
+    "--shell",
+    type=click.Choice(["bash", "zsh", "fish"]),
+    required=True,
+    help="Shell to act on (install or uninstall completion).",
+)
+@click.option(
+    "--install",
+    is_flag=True,
+    help="Automatically install completion (POSIX only).",
+)
+@click.option(
+    "--uninstall",
+    is_flag=True,
+    help="Automatically remove completion (POSIX only).",
+)
+@click.pass_context
+def install_completion(ctx, shell, install, uninstall):
+    """
+    Install or uninstall shell completion for bash, zsh, or fish.
+
+    If neither --install nor --uninstall is given, prints instructions.
+    """
+    if install and uninstall:
+        raise click.UsageError(
+            "Error: --install and --uninstall are mutually exclusive."
+        )
+        ctx.exit(1)
+
+    install_cmds = {
+        "bash": [
+            "_GNS3UTIL_COMPLETE=bash_source gns3util "
+            "> ~/.gns3util-complete.bash",
+            "echo '. ~/.gns3util-complete.bash' "
+            ">> ~/.bashrc",
+        ],
+        "zsh": [
+            "_GNS3UTIL_COMPLETE=zsh_source gns3util "
+            "> ~/.gns3util-complete.zsh",
+            "echo '. ~/.gns3util-complete.zsh' "
+            ">> ~/.zshrc",
+        ],
+        "fish": [
+            "_GNS3UTIL_COMPLETE=fish_source gns3util "
+            "> ~/.config/fish/completions/gns3util.fish",
+        ],
+    }
+    uninstall_cmds = {
+        "bash": [
+            "rm -f ~/.gns3util-complete.bash",
+            "sed -i '/gns3util-complete.bash/d' ~/.bashrc",
+        ],
+        "zsh": [
+            "rm -f ~/.gns3util-complete.zsh",
+            "sed -i '/gns3util-complete.zsh/d' ~/.zshrc",
+        ],
+        "fish": [
+            "rm -f ~/.config/fish/completions/gns3util.fish",
+        ],
+    }
+
+    cmds_to_run = None
+    action = None
+
+    if install:
+        action = "install"
+        cmds_to_run = install_cmds[shell]
+    elif uninstall:
+        action = "uninstall"
+        cmds_to_run = uninstall_cmds[shell]
+
+    if action:
+        if os.name == "posix":
+            os.system("\n".join(cmds_to_run))
+            click.secho(
+                f"Completion {action}ed. Please reopen your terminal."
+            )
+            return
+        else:
+            click.secho(
+                "Automatic install/uninstall is supported only on "
+                "POSIX systems."
+            )
+            return
+
+    click.secho("To install shell completion, run:")
+    for c in install_cmds[shell]:
+        click.secho(f"  $ {c}", bold=True)
+    click.secho("")
+    click.secho("To uninstall shell completion, run:")
+    for c in uninstall_cmds[shell]:
+        click.secho(f"  $ {c}", bold=True)
+    click.secho("")
+    click.secho("When done, please reopen your terminal.")
