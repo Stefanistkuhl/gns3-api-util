@@ -7,6 +7,7 @@ from .add import add
 from .create import create
 from .update import update
 from .delete import delete
+from .ssl import install
 
 
 @click.group()
@@ -35,6 +36,7 @@ gns3util.add_command(create)
 gns3util.add_command(update)
 gns3util.add_command(add)
 gns3util.add_command(delete)
+gns3util.add_command(install)
 
 if __name__ == '__main__':
     gns3util()

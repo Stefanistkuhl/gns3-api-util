@@ -40,6 +40,7 @@ A command-line utility for interacting with the GNS3 API, designed especially fo
 - **Automation**: Scriptable for bulk operations and integration into CI/CD or lab provisioning.
 - **Web-based Class Generator**: Launch a local web UI to generate class JSON for bulk student creation.
 - **Comprehensive API Coverage**: Supports most GNS3 v3 API endpoints for GET, POST, DELETE.
+- **Remote SSL Setup**: Install and configure HTTPS (via Caddy reverse proxy) on your GNS3 server remotely over SSH with a single command.
 
 ## Installation
 
@@ -165,6 +166,88 @@ At a minimum, provide the `--server` (or `-s`) option with the URL of your GNS3 
 ```bash
 gns3util --server http://<GNS3_SERVER_ADDRESS>
 ```
+
+### Install HTTPS/SSL on GNS3 Server (Remote)
+
+You can set up HTTPS for your GNS3 server using the built-in `install ssl` command, which connects to your server via SSH and installs/configures [Caddy](https://caddyserver.com/) as a reverse proxy. This enables secure access to your GNS3 server with SSL.
+
+#### Usage
+
+```bash
+gns3util --server http://<GNS3_SERVER_ADDRESS> install ssl <user> [OPTIONS]
+```
+
+- `<user>`: The SSH username for the remote server.
+
+#### Options
+
+- `-p, --port INTEGER`  
+  SSH port (default: 22).
+
+- `-k, --key PATH`  
+  Path to a custom SSH private key file.
+
+- `-rp, --reverse-proxy-port INTEGER`  
+  Port for the reverse proxy to use (default: 443).
+
+- `-gp, --gns3-port INTEGER`  
+  Port of the GNS3 Server (default: 3080).
+
+- `-d, --domain TEXT`  
+  Domain to use for the reverse proxy (default: none).
+
+- `-s, --subject TEXT`  
+  Subject for the SSL certificate (default: `/CN=localhost`).  
+  Format: `/C=COUNTRY/ST=STATE/L=CITY/O=ORG/OU=UNIT/CN=NAME/emailAddress=EMAIL`
+
+- `-fa, --firewall-allow TEXT`  
+  Allow only a given subnet to access the GNS3 server port (e.g., `10.0.0.0/24`).  
+  Requires `--firewall-block`.
+
+- `-fb, --firewall-block`  
+  Block all connections to the GNS3 server port except those allowed by `--firewall-allow`.
+
+- `-i, --interactive`  
+  Edit all options interactively in your editor before running.
+
+- `-v, --verbose`  
+  Enable extra logging.
+
+#### Example
+
+```bash
+gns3util --server http://10.10.10.10 install ssl ubuntu -k ~/.ssh/id_ed25519 -d mylab.example.com -fa 10.0.0.0/24 -fb
+```
+
+This will:
+- Connect to `10.10.10.10` as user `ubuntu` using the specified SSH key.
+- Set up Caddy as a reverse proxy on port 443 for the GNS3 server on port 3080.
+- Use `mylab.example.com` as the domain.
+- Restrict GNS3 server port access to the `10.0.0.0/24` subnet.
+
+#### Interactive Mode
+
+To edit all options in your editor before running:
+
+```bash
+gns3util --server http://10.10.10.10 install ssl ubuntu --interactive
+```
+
+#### Script Location
+
+The script that is pushed and executed on the remote server can be found in the source tree at:
+
+```
+src/gns3util/resources/setup_https.sh
+```
+
+You can review or modify this script as needed before running the command.
+
+#### Requirements & Notes
+
+- The remote user must be `root` or have passwordless `sudo` privileges.
+- Only works on Linux servers.
+- The command will attempt to use SSH keys from `~/.ssh` or a custom path, and will fall back to password authentication if needed.
 
 ### Main Commands
 
@@ -483,6 +566,12 @@ Below is a list of all subcommands grouped by their command groups:
 
 - `notifications`
 - `project-id`
+</details>
+
+<details>
+<summary><strong>install</strong> (Remote installation commands)</summary>
+
+- `ssl` &mdash; Install and configure HTTPS (Caddy reverse proxy) on the remote GNS3 server via SSH.
 </details>
 
 ---

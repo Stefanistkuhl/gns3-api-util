@@ -7,7 +7,7 @@ name = "gns3util"
 description = "A cli util based arround the GN3v3 api"
 readme = "README.md"
 license = { file = "LICENSE" }
-version = "0.6.6"
+version = "0.7.6"
 requires-python = ">=3.12"
 keywords = ["gns3", "api", "utility"]
 
@@ -21,6 +21,7 @@ dependencies = [
     "rich~=14.0.0",
     "bottle~=0.13.0",
     "InquirerPy~=0.3.0",
+    "paramiko~=3.5.1"
 ]
 
 classifiers = [
@@ -34,3 +35,4 @@ gns3util = "gns3util.cli:gns3util"
 [tool.setuptools.package-data]
 "gns3util.help_texts" = ["*.json"]
 "gns3util.static" = ["*"]
+"gns3util.resources" = ["*"]
