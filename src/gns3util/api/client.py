@@ -88,7 +88,8 @@ class GNS3Error:
                 err=True, nl=False
             )
             if error_instance.resource:
-                click.secho(f"- {error_instance.resource}", bold=True, err=True)
+                click.secho(f"- {error_instance.resource}",
+                            bold=True, err=True)
             elif args:
                 for resource in args:
                     click.secho(f"- {resource}", bold=True, err=True)

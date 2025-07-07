@@ -1,11 +1,55 @@
+vars:
+  DEFAULT_USERNAME: "alice"
+  DEFAULT_EMAIL_DOMAIN: "example.com"
+  DEFAULT_GROUP: "engineering"
+  EXCLUDED_USERS: "admin,system"
+  EXCLUDED_GROUPS: "Administrators,ReservedGroup"
+
 options:
-  - name: test
+  name: "Full Example Workflow"
+  description: "Demonstrates friendly name resolution, direct ID usage, conditions, command repetition, and bulk filters."
+  progress_bar: true
+  exit_on_fail: false
 
-commands:
-  - name: get
-    subcommands:
-      - name: projects
-
-  - name: get
-    subcommands:
-      - name: users
+jobs:
+  - create_users:
+      commands:
+        - name: create
+          repeat: 3
+          subcommands:
+            - name: user
+              parameters:
+                friendly_name: "User_{{iteration}}"
+                username: "user_{{iteration}}"
+                email: "user{{iteration}}@{{DEFAULT_EMAIL_DOMAIN}}"
+                id: ""
+  - delete_user:
+      commands:
+        - name: delete
+          subcommands:
+            - name: user
+              parameters:
+                friendly_name: "erm"
+              condition: "user.email.endswith('@{{DEFAULT_EMAIL_DOMAIN}}')"
+  - delte_groups:
+      commands:
+        - name: delete
+          subcommands:
+            - name: group
+              parameters:
+                filter:
+                  field: "group_name"
+                  operator: "not_in"
+                  value: "{{EXCLUDED_GROUPS}}"
+                delete_all: true
+  - delte_users:
+      commands:
+        - name: delete
+          subcommands:
+            - name: user
+              parameters:
+                filter:
+                  field: "username"
+                  operator: "not_in"
+                  value: "{{EXCLUDED_USERS}}"
+                delete_all: true

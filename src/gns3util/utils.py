@@ -1,4 +1,5 @@
 import json
+import re
 import yaml
 import sys
 from enum import Enum
@@ -99,22 +100,22 @@ def fzf_select(options, multi=False):
     try:
         if multi:
             fzf_process = subprocess.Popen(
-                ['fzf', '--multi'],
+                ["fzf", "--multi"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
             )
         else:
             fzf_process = subprocess.Popen(
-                ['fzf'],
+                ["fzf"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
             )
 
-        output, error = fzf_process.communicate('\n'.join(options))
+        output, error = fzf_process.communicate("\n".join(options))
         return_code = fzf_process.returncode
 
         if return_code != 0:
@@ -125,7 +126,7 @@ def fzf_select(options, multi=False):
             return get_selection_inquirerpy(options, multi)
 
         if output:
-            return [line.strip() for line in output.strip().split('\n')]
+            return [line.strip() for line in output.strip().split("\n")]
         else:
             return []
 
@@ -136,20 +137,18 @@ def fzf_select(options, multi=False):
 def get_selection_inquirerpy(options, multi=False):
     if multi:
         result = inquirer.checkbox(
-            message="Select options:",
-            choices=options,
-            cycle=True
+            message="Select options:", choices=options, cycle=True
         ).execute()
     else:
         result = inquirer.select(
-            message="Select an option:",
-            choices=options,
-            cycle=True
+            message="Select an option:", choices=options, cycle=True
         ).execute()
     return result if isinstance(result, list) else [result]
 
 
-def call_client_method(ctx, module_name: str, method_name: str, *args: Any) -> tuple[GNS3Error, Any]:
+def call_client_method(
+    ctx, module_name: str, method_name: str, *args: Any
+) -> tuple[GNS3Error, Any]:
     module = importlib.import_module(f".{module_name}", package=__package__)
     client = module.get_client(ctx)
     method = getattr(client, method_name)
@@ -182,15 +181,21 @@ def fuzzy_info(params=fuzzy_info_params) -> GNS3Error:
                     print_key_value_with_secho(k, v)
                 print_separator_with_secho()
                 if params.opt_data:
-                    opt_data_error, opt_data = getattr(params.client(
-                        params.ctx), params.opt_method)(a[params.opt_key])
+                    opt_data_error, opt_data = getattr(
+                        params.client(params.ctx), params.opt_method
+                    )(a[params.opt_key])
                     if GNS3Error.has_error(opt_data_error):
                         GNS3Error.print_error(opt_data_error)
-                        error.request_network_error = True
+                        error.request = True
                         return error
                     if opt_data == []:
-                        click.secho(f"Empty data returned from method {
-                            params.opt_method} for the {a[params.key]} value", bold=True, err=True)
+                        click.secho(
+                            f"Empty data returned from method {
+                                params.opt_method
+                            } for the {a[params.key]} value",
+                            bold=True,
+                            err=True,
+                        )
                     else:
                         for d in opt_data:
                             print_separator_with_secho()
@@ -229,7 +234,8 @@ def fuzzy_change_password(params=fuzzy_password_params) -> GNS3Error:
                 pw = getpass.getpass("Enter the desired password:\n")
                 input_data = {"password": pw}
                 change_password_error, result = call_client_method(
-                    params.ctx, "update", "update_user", a['user_id'], input_data)
+                    params.ctx, "update", "update_user", a["user_id"], input_data
+                )
                 if GNS3Error.has_error(change_password_error):
                     GNS3Error.print_error(change_password_error)
                     return change_password_error
@@ -299,7 +305,7 @@ def fuzzy_delete_class(params=fuzzy_delete_class_params) -> GNS3Error:
                 group_to_use=None,
                 select_class=False,
                 select_group=False,
-                delete_all=False
+                delete_all=False,
             )
             fuzzy_delete_exercise(params_del)
             if GNS3Error.has_error(error):
@@ -339,13 +345,24 @@ def get_exercises(input: list) -> tuple[list, GNS3Error]:
         if len(split) >= 4:
             exercise_name = split[1]
             id = data["project_id"]
-            exercises.append({"name": exercise_name, "id": id,
-                              "class_name": split[0], "group_number": split[2]})
+            exercises.append(
+                {
+                    "name": exercise_name,
+                    "id": id,
+                    "class_name": split[0],
+                    "group_number": split[2],
+                }
+            )
 
     return exercises, error
 
 
-def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_names: list, class_ids: list) -> GNS3Error:
+def delete_class(
+    params: fuzzy_delete_class_params,
+    selected_item: str,
+    class_names: list,
+    class_ids: list,
+) -> GNS3Error:
     groups_to_delete = []
     students_to_delete = []
     groups, get_groups_in_class_error = get_groups_in_class(
@@ -353,14 +370,15 @@ def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_na
     if GNS3Error.has_error(get_groups_in_class_error):
         return get_groups_in_class_error
     for group in groups:
-        groups_to_delete.append(group['group_id'])
+        groups_to_delete.append(group["group_id"])
     for i, class_name in enumerate(class_names):
         if selected_item == class_name:
             groups_to_delete.append(class_ids[i])
 
     for group_id in groups_to_delete:
         members_id, get_members_error = get_group_members(
-            params.ctx, group_id, id_only=True)
+            params.ctx, group_id, id_only=True
+        )
         if GNS3Error.has_error(get_members_error):
             return get_members_error
         students_to_delete.extend(members_id)
@@ -381,11 +399,13 @@ def delete_class(params: fuzzy_delete_class_params, selected_item: str, class_na
 
     click.secho("Success: ", nl=False, fg="green")
     click.secho("deleted the class ", nl=False)
-    click.secho(f"{selected_item}",  bold=True)
+    click.secho(f"{selected_item}", bold=True)
     return GNS3Error()
 
 
-def delete_exercise(params: fuzzy_delete_exercise_params, selected_item: dict, exercises: list) -> GNS3Error:
+def delete_exercise(
+    params: fuzzy_delete_exercise_params, selected_item: dict, exercises: list
+) -> GNS3Error:
     projects_to_delete = []
     pools_to_delete = []
     acls_to_delete = []
@@ -393,7 +413,8 @@ def delete_exercise(params: fuzzy_delete_exercise_params, selected_item: dict, e
         projects_to_delete.append(exercise["id"])
 
     pools, get_pools_error = get_pools_for_exercise(
-        params.ctx, selected_item["exercise_name"])
+        params.ctx, selected_item["exercise_name"]
+    )
     for pool in pools:
         if selected_item["class_name"]:
             if pool["class_name"] != selected_item["class_name"]:
@@ -401,7 +422,7 @@ def delete_exercise(params: fuzzy_delete_exercise_params, selected_item: dict, e
             if selected_item["group_number"]:
                 if pool["group_number"] != selected_item["group_number"]:
                     continue
-        pools_to_delete.append(pool['pool_id'])
+        pools_to_delete.append(pool["pool_id"])
 
     acls_to_delete, get_pools_error = get_acls_for_exercise(
         params.ctx, pools_to_delete)
@@ -418,21 +439,19 @@ def delete_exercise(params: fuzzy_delete_exercise_params, selected_item: dict, e
 
     pools_ids = list(set(pools_to_delete))
     for pool_id in pools_ids:
-        delete_pool_error = delete_from_id(
-            params.ctx, "delete_pool", pool_id)
+        delete_pool_error = delete_from_id(params.ctx, "delete_pool", pool_id)
         if GNS3Error.has_error(delete_pool_error):
             return delete_pool_error
 
     acl_ids = list(set(acls_to_delete))
     for ace_id in acl_ids:
-        delete_ace_error = delete_from_id(
-            params.ctx, "delete_acl", ace_id)
+        delete_ace_error = delete_from_id(params.ctx, "delete_acl", ace_id)
         if GNS3Error.has_error(delete_ace_error):
             return delete_ace_error
 
     click.secho("Success: ", nl=False, fg="green")
     click.secho("deleted the exercise ", nl=False)
-    click.secho(f"{selected_item["exercise_name"]}",  bold=True)
+    click.secho(f"{selected_item['exercise_name']}", bold=True)
     return GNS3Error()
 
 
@@ -453,13 +472,17 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
         click.secho("No exercises available to delete", err=True)
         return GNS3Error()
 
-    if params.non_interactive is None and params.delete_all is False and params.unattended is False:
+    if (
+        params.non_interactive is None
+        and params.delete_all is False
+        and params.unattended is False
+    ):
         # Interactive mode
         exercise_names = []
         selected_exercise_names = []
         selected_exercise_names
         for exercise in exercises:
-            exercise_names.append(exercise['name'])
+            exercise_names.append(exercise["name"])
         selected_exercise_names = fzf_select(
             set(exercise_names), multi=params.multi)
 
@@ -470,26 +493,39 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
             selected_group = []
             for exercise in exercises:
                 if exercise["name"] == selected_exercise_names[0]:
-                    exercise_class_names.append(exercise['class_name'])
+                    exercise_class_names.append(exercise["class_name"])
             selected_class = fzf_select(
                 set(exercise_class_names), multi=params.multi)
             if params.select_group:
                 exercise_group_numbers = []
                 for exercise in exercises:
-                    if exercise["name"] == selected_exercise_names[0] and exercise["class_name"] == selected_class[0]:
-                        exercise_group_numbers.append(
-                            exercise['group_number'])
+                    if (
+                        exercise["name"] == selected_exercise_names[0]
+                        and exercise["class_name"] == selected_class[0]
+                    ):
+                        exercise_group_numbers.append(exercise["group_number"])
                 selected_group = fzf_select(
-                    set(exercise_group_numbers), multi=params.multi)
+                    set(exercise_group_numbers), multi=params.multi
+                )
 
             if not selected_group:
                 selected_group.append(None)
             selected.append(
-                {"exercise_name": selected_exercise_names[0], "class_name": selected_class[0], "group_number": selected_group[0]})
+                {
+                    "exercise_name": selected_exercise_names[0],
+                    "class_name": selected_class[0],
+                    "group_number": selected_group[0],
+                }
+            )
         else:
             for selected_exercise in selected_exercise_names:
                 selected.append(
-                    {"exercise_name": selected_exercise, "class_name": None, "group_number": None})
+                    {
+                        "exercise_name": selected_exercise,
+                        "class_name": None,
+                        "group_number": None,
+                    }
+                )
 
     elif params.delete_all:
         exercise_name_list = []
@@ -498,7 +534,8 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
         exercise_name_list = set(exercise_name_list)
         for exercise in exercise_name_list:
             selected.append(
-                {"exercise_name": exercise, "class_name": None, "group_number": None})
+                {"exercise_name": exercise, "class_name": None, "group_number": None}
+            )
     elif params.unattended:
         found = False
         exercise_name_list = []
@@ -509,7 +546,12 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
         for exercise in exercise_name_list:
             found = True
             selected.append(
-                {"exercise_name": exercise, "class_name": params.class_to_use, "group_number": None})
+                {
+                    "exercise_name": exercise,
+                    "class_name": params.class_to_use,
+                    "group_number": None,
+                }
+            )
 
         if not found:
             click.secho("Error: ", fg="red", nl=False, err=True)
@@ -544,11 +586,19 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
             return error
 
         selected.append(
-            {"exercise_name": params.non_interactive, "class_name": params.class_to_use, "group_number": params.group_to_use})
+            {
+                "exercise_name": params.non_interactive,
+                "class_name": params.class_to_use,
+                "group_number": params.group_to_use,
+            }
+        )
 
     for selected_item in selected:
         if params.confirm:
-            if not click.confirm(f"Do you want to delete the exercise {selected_item["exercise_name"]}?"):
+            if not click.confirm(
+                f"Do you want to delete the exercise {
+                    selected_item['exercise_name']}?"
+            ):
                 click.secho("Deletion aborted.")
                 continue
         exercises_to_delete = []
@@ -577,10 +627,12 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
 
 def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS3Error]:
     members = []
-    get_members_error, members_raw, = call_client_method(
-        ctx, "get", "group_members", group_id)
+    (
+        get_members_error,
+        members_raw,
+    ) = call_client_method(ctx, "get", "group_members", group_id)
     if GNS3Error.has_error(get_members_error):
-        return get_members_error
+        return [], get_members_error
     if id_only:
         for member in members_raw:
             id = member["user_id"]
@@ -597,7 +649,7 @@ def delete_from_id(ctx: Any, method: str, id: str) -> GNS3Error:
 
 def parse_yml(filepath: str) -> tuple[Any, bool]:
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             file_content = f.read().strip()
         if not file_content:
             return "YAML file is empty.", False
@@ -614,7 +666,7 @@ def parse_yml(filepath: str) -> tuple[Any, bool]:
 
 def parse_json(filepath: str) -> tuple[bool, Any]:
     try:
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             data = json.load(f)
         return False, data
     except FileNotFoundError:
@@ -627,13 +679,16 @@ def parse_json(filepath: str) -> tuple[bool, Any]:
 
 def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
     add_user_to_group_error, result = call_client_method(
-        ctx, "add", "add_group_member", group_id, user_id)
+        ctx, "add", "add_group_member", group_id, user_id
+    )
     if GNS3Error.has_error(add_user_to_group_error):
         return add_user_to_group_error
     return add_user_to_group_error
 
 
-def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[str, bool]:
+def create_class(
+    ctx, filename: str = None, data_input: dict = None
+) -> tuple[str, bool]:
     if filename == None:
         data = data_input
     else:
@@ -681,27 +736,38 @@ def create_class(ctx, filename: str = None, data_input: dict = None) -> tuple[st
 def create_user_group(ctx, group_name) -> (str, GNS3Error):
     input_data = {"name": group_name}
     create_group_error, result = call_client_method(
-        ctx, "create", "create_group", input_data)
+        ctx, "create", "create_group", input_data
+    )
     if GNS3Error.has_error(create_group_error):
         return "", create_group_error
-    return result['user_group_id'], create_group_error
+    return result["user_group_id"], create_group_error
 
 
 def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
     if user_dict["fullName"] != "":
         input_data = {
-            "username": user_dict["userName"], "full_name": user_dict["fullName"], "email": user_dict["email"], "password": user_dict["password"]}
+            "username": user_dict["userName"],
+            "full_name": user_dict["fullName"],
+            "email": user_dict["email"],
+            "password": user_dict["password"],
+        }
     else:
         input_data = {
-            "username": user_dict["userName"], "email": user_dict["email"], "password": user_dict["password"]}
+            "username": user_dict["userName"],
+            "email": user_dict["email"],
+            "password": user_dict["password"],
+        }
     create_user_error, result = call_client_method(
-        ctx, "create", "create_user", input_data)
+        ctx, "create", "create_user", input_data
+    )
     if GNS3Error.has_error(create_user_error):
         return "", create_user_error
-    return result['user_id'], create_user_error
+    return result["user_id"], create_user_error
 
 
-def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool) -> fuzzy_info_params:
+def get_fuzzy_info_params(
+    input: fuzzy_params_type, ctx, get_client, multi: bool
+) -> fuzzy_info_params:
     if input == fuzzy_params_type.user_info:
         return fuzzy_info_params(
             ctx=ctx,
@@ -709,7 +775,7 @@ def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool
             method="users",
             key="username",
             multi=multi,
-            opt_data=False
+            opt_data=False,
         )
     elif input == fuzzy_params_type.group_info:
         return fuzzy_info_params(
@@ -718,7 +784,7 @@ def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool
             method="groups",
             key="name",
             multi=multi,
-            opt_data=False
+            opt_data=False,
         )
     elif input == fuzzy_params_type.group_info_with_usernames:
         return fuzzy_info_params(
@@ -729,7 +795,7 @@ def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool
             method="groups",
             key="name",
             multi=multi,
-            opt_data=True
+            opt_data=True,
         )
     elif input == fuzzy_params_type.user_info_and_group_membership:
         return fuzzy_info_params(
@@ -740,7 +806,7 @@ def get_fuzzy_info_params(input: fuzzy_params_type, ctx, get_client, multi: bool
             method="users",
             key="username",
             multi=multi,
-            opt_data=True
+            opt_data=True,
         )
 
 
@@ -750,7 +816,10 @@ def fuzzy_info_wrapper(params: fuzzy_info_params):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
             click.secho(
-                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+                "Failed to fetch data from the API check your Network connection to the server",
+                bold=True,
+                err=True,
+            )
             return
         GNS3Error.print_error(error)
 
@@ -761,7 +830,10 @@ def fuzzy_delete_class_wrapper(params: fuzzy_delete_class_params):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
             click.secho(
-                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+                "Failed to fetch data from the API check your Network connection to the server",
+                bold=True,
+                err=True,
+            )
             return
         GNS3Error.print_error(error)
 
@@ -772,7 +844,10 @@ def fuzzy_delete_exercise_wrapper(params: fuzzy_delete_exercise_params):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
             click.secho(
-                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+                "Failed to fetch data from the API check your Network connection to the server",
+                bold=True,
+                err=True,
+            )
             return
         GNS3Error.print_error(error)
 
@@ -783,7 +858,10 @@ def fuzzy_put_wrapper(params):
         if error.connection:
             click.secho("Error: ", fg="red", nl=False, err=True)
             click.secho(
-                "Failed to fetch data from the API check your Network connection to the server", bold=True, err=True)
+                "Failed to fetch data from the API check your Network connection to the server",
+                bold=True,
+                err=True,
+            )
             return
         GNS3Error.print_error(error)
 
@@ -801,16 +879,16 @@ def get_role_id(ctx, name: str) -> (str, GNS3Error):
     if GNS3Error.has_error(get_roles_error):
         return "", get_roles_error
     for role in roles:
-        if role['name'] == name:
-            return role['role_id'], get_roles_error
+        if role["name"] == name:
+            return role["role_id"], get_roles_error
 
 
 def create_project(ctx, name: str) -> (str, GNS3Error):
     project_id = str(uuid.uuid4())
-    input_data = {
-        "name": name, "project_id": project_id}
+    input_data = {"name": name, "project_id": project_id}
     create_project_error, result = call_client_method(
-        ctx, "create", "create_project", input_data)
+        ctx, "create", "create_project", input_data
+    )
     if GNS3Error.has_error(create_project_error):
         return project_id, create_project_error
     close_project_error = close_project(ctx, project_id)
@@ -821,7 +899,8 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
 
 def close_project(ctx, project_id: str) -> GNS3Error:
     close_project_error, _ = call_client_method(
-        ctx, "post", "close_project", project_id)
+        ctx, "post", "close_project", project_id
+    )
     if GNS3Error.has_error(close_project_error):
         return close_project_error
     return close_project_error
@@ -833,10 +912,13 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
     if GNS3Error.has_error(get_groups_error):
         return group_list, get_groups_error
     for group in groups:
-        if class_name in group['name'] and class_name != group['name']:
-            group_number = group['name'].split("-")[-1]
+        if class_name in group["name"] and class_name != group["name"]:
+            group_number = group["name"].split("-")[-1]
             group_dict = {
-                "group_id": group["user_group_id"], "group_number": group_number, "group_name": group["name"]}
+                "group_id": group["user_group_id"],
+                "group_number": group_number,
+                "group_name": group["name"],
+            }
             group_list.append(group_dict)
 
     return group_list, get_groups_error
@@ -850,11 +932,14 @@ def get_pools_for_exercise(ctx, exercise_name: str) -> (list, GNS3Error):
     for pool in pools:
         split = pool["name"].split("-")
         # Match pools with at least 5 parts (class-exercise-group-pool-uuid)
-        if exercise_name in pool['name'] and len(split) >= 5:
+        if exercise_name in pool["name"] and len(split) >= 5:
             group_number = split[2]
             classname = split[0]
             pool_dict = {
-                "pool_id": pool["resource_pool_id"], "class_name": classname, "group_number": group_number}
+                "pool_id": pool["resource_pool_id"],
+                "class_name": classname,
+                "group_number": group_number,
+            }
             pool_list.append(pool_dict)
 
     return pool_list, get_pools_error
@@ -866,9 +951,8 @@ def get_acls_for_exercise(ctx, pools: list) -> (list, GNS3Error):
     if GNS3Error.has_error(get_alcs_error):
         return acls_list, get_alcs_error
     for acl in acls:
-
-        first_slash_index = acl["path"].find('/')
-        second_slash_index = acl["path"].find('/', first_slash_index + 1)
+        first_slash_index = acl["path"].find("/")
+        second_slash_index = acl["path"].find("/", first_slash_index + 1)
         path_ressouce_id = acl["path"][second_slash_index + 1:]
 
         for pool in pools:
@@ -880,28 +964,43 @@ def get_acls_for_exercise(ctx, pools: list) -> (list, GNS3Error):
 
 def create_acl(ctx, params: create_acl_params) -> GNS3Error:
     if params.isGroup:
-        input_data = {"ace_type": params.ace_type,
-                      "allowed": params.allowed, "group_id": params.id, "path": params.path, "propagate": params.propagate, "role_id": params.role_id}
+        input_data = {
+            "ace_type": params.ace_type,
+            "allowed": params.allowed,
+            "group_id": params.id,
+            "path": params.path,
+            "propagate": params.propagate,
+            "role_id": params.role_id,
+        }
     else:
-        input_data = {"ace_type": params.ace_type,
-                      "allowed": params.allowed, "user_id": params.id, "path": params.path, "propagate": params.propagate, "role_id": params.role_id}
+        input_data = {
+            "ace_type": params.ace_type,
+            "allowed": params.allowed,
+            "user_id": params.id,
+            "path": params.path,
+            "propagate": params.propagate,
+            "role_id": params.role_id,
+        }
     create_acl_error, result = call_client_method(
-        ctx, "create", "create_acl", input_data)
+        ctx, "create", "create_acl", input_data
+    )
     return create_acl_error
 
 
 def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
     input_data = {"name": pool_name}
     create_pool_error, result = call_client_method(
-        ctx, "create", "create_pool", input_data)
+        ctx, "create", "create_pool", input_data
+    )
     if GNS3Error.has_error(create_pool_error):
         return "", create_pool_error
-    return result['resource_pool_id'], create_pool_error
+    return result["resource_pool_id"], create_pool_error
 
 
-def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> (GNS3Error):
+def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> GNS3Error:
     add_to_pool_error, result = call_client_method(
-        ctx, "add", "add_resource_to_pool", pool_id, resource_id)
+        ctx, "add", "add_resource_to_pool", pool_id, resource_id
+    )
     return add_to_pool_error
 
 
@@ -917,10 +1016,14 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         if len(split) != 3:
             continue
         uuid_suffix = str(uuid.uuid4())[:8]
-        project_name = f"{
-            class_name}-{exercise_name}-{group['group_number']}-{uuid_suffix}"
-        pool_name = f"{
-            class_name}-{exercise_name}-{group['group_number']}-pool-{uuid_suffix}"
+        project_name = (
+            f"{class_name}-{exercise_name}-{
+                group['group_number']}-{uuid_suffix}"
+        )
+        pool_name = (
+            f"{class_name}-{exercise_name}-{
+                group['group_number']}-pool-{uuid_suffix}"
+        )
         project_id, create_project_error = create_project(ctx, project_name)
         if GNS3Error.has_error(create_project_error):
             GNS3Error.print_error(create_project_error)
@@ -935,7 +1038,8 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
         if GNS3Error.has_error(add_to_pool_error):
             if add_to_pool_error.not_found:
                 GNS3Error.print_error(
-                    add_to_pool_error, "project id: "+project_id, "pool_id: missing")
+                    add_to_pool_error, "project id: " + project_id, "pool_id: missing"
+                )
             else:
                 GNS3Error.print_error(add_to_pool_error)
             return False
@@ -944,10 +1048,10 @@ def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
             ace_type="group",
             allowed=True,
             isGroup=True,
-            id=group['group_id'],
+            id=group["group_id"],
             path=f"/pools/{pool_id}",
             propagate=True,
-            role_id=role_id
+            role_id=role_id,
         )
         create_acl_error = create_acl(ctx, params)
         if GNS3Error.has_error(create_acl_error):
@@ -972,8 +1076,8 @@ def print_usernames_and_ids(ctx):
         click.secho("List of all users and their id:", fg="green")
         for user in users:
             print_separator_with_secho()
-            username = user.get('username', 'N/A')
-            user_id = user.get('user_id', 'N/A')
+            username = user.get("username", "N/A")
+            user_id = user.get("user_id", "N/A")
             click.secho("Username: ", fg="cyan", nl=False)
             click.secho(f"{username}")
             click.secho("ID: ", fg="cyan", nl=False)
@@ -981,7 +1085,9 @@ def print_usernames_and_ids(ctx):
             print_separator_with_secho()
 
 
-def get_command_description(cmd: str, help_dict: dict, arg_type: str) -> tuple[str, str]:
+def get_command_description(
+    cmd: str, help_dict: dict, arg_type: str
+) -> tuple[str, str]:
     """
     Retrieves the description of a command from the help dictionary.
 
@@ -1038,16 +1144,12 @@ def install_completion(ctx, shell, install, uninstall):
 
     install_cmds = {
         "bash": [
-            "_GNS3UTIL_COMPLETE=bash_source gns3util "
-            "> ~/.gns3util-complete.bash",
-            "echo '. ~/.gns3util-complete.bash' "
-            ">> ~/.bashrc",
+            "_GNS3UTIL_COMPLETE=bash_source gns3util > ~/.gns3util-complete.bash",
+            "echo '. ~/.gns3util-complete.bash' >> ~/.bashrc",
         ],
         "zsh": [
-            "_GNS3UTIL_COMPLETE=zsh_source gns3util "
-            "> ~/.gns3util-complete.zsh",
-            "echo '. ~/.gns3util-complete.zsh' "
-            ">> ~/.zshrc",
+            "_GNS3UTIL_COMPLETE=zsh_source gns3util > ~/.gns3util-complete.zsh",
+            "echo '. ~/.gns3util-complete.zsh' >> ~/.zshrc",
         ],
         "fish": [
             "_GNS3UTIL_COMPLETE=fish_source gns3util "
@@ -1081,14 +1183,11 @@ def install_completion(ctx, shell, install, uninstall):
     if action:
         if os.name == "posix":
             os.system("\n".join(cmds_to_run))
-            click.secho(
-                f"Completion {action}ed. Please reopen your terminal."
-            )
+            click.secho(f"Completion {action}ed. Please reopen your terminal.")
             return
         else:
             click.secho(
-                "Automatic install/uninstall is supported only on "
-                "POSIX systems."
+                "Automatic install/uninstall is supported only on POSIX systems."
             )
             return
 
@@ -1101,3 +1200,18 @@ def install_completion(ctx, shell, install, uninstall):
         click.secho(f"  $ {c}", bold=True)
     click.secho("")
     click.secho("When done, please reopen your terminal.")
+
+
+def replace_vars(input_string: str, replacements: list) -> str:
+    current_string = input_string
+    pattern = r"{{(\w*)}}"
+    for i, replacement_value in enumerate(replacements):
+        m = re.search(pattern, current_string)
+        if m:
+            current_string = re.sub(pattern, str(
+                replacement_value), current_string, count=1)
+        else:
+            click.secho(
+                f"Warning: No more placeholders found to replace remaining values from index {i}.")
+            break
+    return current_string

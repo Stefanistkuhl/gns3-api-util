@@ -1,10 +1,11 @@
 import click
 import os
 import shutil
-import sys
-from .utils import call_client_method, parse_yml, GNS3Error
-from typing import Callable, Any, Optional
-import itertools
+from .utils import call_client_method, parse_yml, GNS3Error, replace_vars
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional, Any
+import dacite
+import yaml
 
 command_group_package = {
     "add": "add",
@@ -22,6 +23,21 @@ command_group_package = {
     "fuzzy": "fuzzy",
 }
 
+
+@dataclass
+class script_opts:
+    name: str = ""
+    description: str = ""
+    progress_bar: bool = False
+    exit_on_fail: bool = True
+
+
+@dataclass
+class command_atributes:
+    repeat: str = ""
+    resolve_id: bool = False
+
+
 GNS3UTIL_SCRIPTS_DIR = os.path.expanduser("~/.gns3util_scripts")
 
 
@@ -38,8 +54,7 @@ def get_yml_files(script_dir):
         for file in files:
             if file.endswith(".yml"):
                 relative_path = os.path.relpath(
-                    os.path.join(root, file), script_dir
-                )
+                    os.path.join(root, file), script_dir)
                 yml_files.append(relative_path)
     return yml_files
 
@@ -62,6 +77,26 @@ script add
 
 show commands/steps
 loading bars option
+
+run steps method
+
+
+  - equals
+  - not_equals
+
+  - contains
+  - not_contains
+  - startswith
+  - endswith
+
+  - in
+  - not_in
+
+  - greater_than
+  - less_than
+  - greater_or_equal
+  - less_or_equal
+
 """
 
 
@@ -90,10 +125,8 @@ def list_scripts(ctx):
 
 
 @script.command(name="add")
-@click.argument(
-    "filename",  type=click.Path(exists=True, readable=True), required=True)
-@click.argument(
-    "dst",  type=str, required=False)
+@click.argument("filename", type=click.Path(exists=True, readable=True), required=True)
+@click.argument("dst", type=str, required=False)
 @click.pass_context
 def add_script(ctx, filename, dst: str):
     """Add script to the gns3util scripts directory"""
@@ -110,7 +143,11 @@ def add_script(ctx, filename, dst: str):
         dst_path = GNS3UTIL_SCRIPTS_DIR
 
     if os.path.exists(os.path.join(dst_path, filename)):
-        if click.confirm(f"The file {filename} is already present in {dst} do you want to overwrite it?"):
+        if click.confirm(
+            f"The file {filename} is already present in {
+                dst
+            } do you want to overwrite it?"
+        ):
             os.remove(os.path.join(dst_path, filename))
     shutil.copy(filename, dst_path)
 
@@ -119,17 +156,24 @@ def add_script(ctx, filename, dst: str):
 
 @script.command(name="rm")
 @click.argument(
-    "filename", shell_complete=get_script_names_for_completion, required=True)
+    "filename", shell_complete=get_script_names_for_completion, required=True
+)
 @click.pass_context
 def remove_script(ctx, filename):
     """Remove script from the gns3util scripts directory"""
     if not os.path.exists(GNS3UTIL_SCRIPTS_DIR):
-        raise click.ClickException(f"The scripts directory does not exist at {
-                                   GNS3UTIL_SCRIPTS_DIR}. \n Exiting.")
+        raise click.ClickException(
+            f"The scripts directory does not exist at {
+                GNS3UTIL_SCRIPTS_DIR
+            }. \n Exiting."
+        )
         ctx.exit(1)
     if not os.path.exists(os.path.join(GNS3UTIL_SCRIPTS_DIR, filename)):
-        raise click.ClickException(f"The script does not exist in the script directory at {
-                                   GNS3UTIL_SCRIPTS_DIR}. \n Exiting.")
+        raise click.ClickException(
+            f"The script does not exist in the script directory at {
+                GNS3UTIL_SCRIPTS_DIR
+            }. \n Exiting."
+        )
 
     if click.confirm(f"Do you want to delete script {filename}?"):
         os.remove(os.path.join(GNS3UTIL_SCRIPTS_DIR, filename))
@@ -139,21 +183,24 @@ def remove_script(ctx, filename):
 
 @script.command(name="run")
 @click.argument(
-    "filename", shell_complete=get_script_names_for_completion,  required=True)
+    "filename", shell_complete=get_script_names_for_completion, required=True
+)
 @click.pass_context
 def run(ctx, filename):
     """Run yml based scripts"""
     if not filename:
-        click.secho("Error: No script filename provided. "
-                    "Usage: gns3util script run <filename>", err=True)
+        click.secho(
+            "Error: No script filename provided. Usage: gns3util script run <filename>",
+            err=True,
+        )
         ctx.exit(1)
 
     full_path = os.path.join(GNS3UTIL_SCRIPTS_DIR, filename)
 
     if not os.path.exists(full_path):
         click.secho(
-            f"Error: Script file '{filename}' not found in "
-            f"'{GNS3UTIL_SCRIPTS_DIR}'.",
+            f"Error: Script file '{filename}' not found in '{
+                GNS3UTIL_SCRIPTS_DIR}'.",
             err=True,
         )
         ctx.exit(1)
@@ -162,46 +209,100 @@ def run(ctx, filename):
     if not ok:
         raise click.ClickException("Invalid yml file: " + str(yml))
 
+    print_script_details(yml)
+
+    # cmds = get_commands(yml)
+    # for cmd in cmds:
+    #     out, err = run_command(ctx, cmd)
+    #     if GNS3Error.has_error(err):
+    #         GNS3Error.print_error(err)
+    #         return
+    #     print(out)
+
+
+def print_script_details(yml: dict):
     click.secho("Executing script: ", nl=False)
     script_name = "Unnamed Script"
     if yml and "options" in yml and yml["options"]:
-        if "name" in yml["options"][0]:
-            script_name = yml["options"][0]["name"]
+        if "name" in yml["options"]:
+            script_name = yml["options"]["name"]
     click.secho(f"{script_name}", bold=True)
+    if yml and "options" in yml and yml["options"]:
+        if "description" in yml["options"]:
+            script_description = yml["options"]["description"]
+            click.secho(f"{script_description}")
 
-    cmds = get_commands(yml)
-    for cmd in cmds:
-        out, err = run_command(ctx, cmd)
-        if GNS3Error.has_error(err):
-            GNS3Error.print_error(err)
-            return
-        print(out)
+
+def get_vars(yml: dict) -> list[dict]:
+    vars = []
+    if yml and "vars" in yml and yml["vars"]:
+        for key in yml["vars"].keys():
+            vars.append({key: yml["vars"][key]})
+    return vars
+
+
+def get_opts(yml: dict) -> script_opts:
+    name = ""
+    desc = ""
+    progress_bar = (False,)
+    exit_on_fail = (True,)
+
+    if yml and "options" in yml and yml["options"]:
+        if "name" in yml["options"]:
+            name = yml["options"]["name"]
+        if "description" in yml["options"]:
+            desc = yml["options"]["description"]
+        if "progress_bar" in yml["options"]:
+            if (
+                str(yml["options"]["progress_bar"]).rstrip().lower() == "true"
+                or str(yml["options"]["progress_bar"]).rstrip().lower() == "false"
+            ):
+                progress_bar = bool(yml["options"]["progress_bar"])
+        if "exit_on_fail" in yml["options"]:
+            if (
+                str(yml["options"]["exit_on_fail"]).rstrip().lower() == "true"
+                or str(yml["options"]["progress_bar"]).rstrip().lower() == "false"
+            ):
+                exit_on_fail = bool(yml["options"]["progress_bar"])
+
+    return script_opts(
+        name=name,
+        description=desc,
+        progress_bar=progress_bar,
+        exit_on_fail=exit_on_fail,
+    )
 
 
 @script.command(name="run-file")
-@click.argument(
-    "filename",  type=click.Path(exists=True, readable=True), required=True)
+@click.argument("filename", type=click.Path(exists=True, readable=True), required=True)
 @click.pass_context
 def run_file(ctx, filename):
     """Run yml based scripts"""
     yml, ok = parse_yml(filename)
     if not ok:
-        raise click.Exception("Invalid yml file: " + str(yml))
+        raise click.UsageError("Invalid yml file: " + str(yml))
 
-    click.secho("Executing script: ", nl=False)
-    script_name = "Unnamed Script"
-    if yml and "options" in yml and yml["options"]:
-        if "name" in yml["options"][0]:
-            script_name = yml["options"][0]["name"]
-    click.secho(f"{script_name}", bold=True)
+    print_script_details(yml)
+    print(yml)
 
-    cmds = get_commands(yml)
-    for cmd in cmds:
-        out, err = run_command(ctx, cmd)
-        if GNS3Error.has_error(err):
-            GNS3Error.print_error(err)
-            return
-        print(out)
+    vars = get_vars(yml)
+    opts = get_opts(yml)
+    print(vars)
+    print(opts)
+
+    script_obj = load_script(filename)
+    import pprint
+
+    pprint.pprint(script_obj)
+    cmds = get_commands(ctx, script_obj)
+    # thing_with_vars = replace_vars_in_script(script_obj)
+    print(cmds)
+    # for cmd in cmds:
+    #     out, err = run_command(ctx, cmd)
+    #     if GNS3Error.has_error(err):
+    #         GNS3Error.print_error(err)
+    #         return
+    #     print(out)
 
 
 def _run_shell_completion(ctx, args, incomplete):
@@ -222,24 +323,63 @@ def _run_shell_completion(ctx, args, incomplete):
 
 run.shell_completion = _run_shell_completion
 
+id_element_name = {
+    "user": ["user_id", "username"],
+    "group": ["user_group_id", "name"],
+    "roles": ["role_id", "name"],
+    "privilege": ["privilege_id", "name"],
+    "acl-rule": ["ace_id", "path"],
+    "template": ["template_id", "name"],
+    "project": ["project_id", "name"],
+    "compute": ["compute_id", "name"],
+    "appliance": ["appliance_id", "name"],
+    "pool": ["resource_pool_id", "name"],
+}
 
-def get_commands(yml: dict) -> list:
-    commands_list = []
-    if "commands" in yml and isinstance(yml["commands"], list):
-        for commands_dict in yml["commands"]:
-            cmd = []
-            cmd_name = commands_dict.get("name")
-            if cmd_name and "subcommands" in commands_dict and isinstance(commands_dict["subcommands"], list):
-                for sub_command_dict in commands_dict["subcommands"]:
-                    sub_cmd_name = sub_command_dict.get("name")
-                    if sub_cmd_name:
-                        commands_list.append([cmd_name, sub_cmd_name])
-    return commands_list
+subcommand_key_map = {
+    "user": "users",
+    "group": "groups",
+    "role": "roles",
+    "privilege": "privileges",
+    "acl-rule": "acl",
+    "template": "templates",
+    "project": "projects",
+    "compute": "computes",
+    "appliance": "appliances",
+    "pool": "pools",
+}
+
+
+def resolve_ids(ctx, subcommand: str, name: str) -> tuple[str, bool]:
+    id = ""
+    key = None
+    # get method name to get all of the thing like users
+    for map_entry in subcommand_key_map.items():
+        if map_entry[0] == subcommand:
+            key = map_entry[1]
+            break
+    if not key:
+        return "Could not find the method used to reoslve this id", False
+
+    get_opts_err, data = call_client_method(ctx, "get", key)
+    if GNS3Error.has_error(get_opts_err):
+        GNS3Error.print_error(get_opts_err)
+        return "", False
+    for entry in data:
+        for element in id_element_name.items():
+            if element[0] == subcommand:
+                if entry[element[1][1]] == name:
+                    id = entry[element[1][0]]
+    if len(id) == 0:
+        return f"Failed to resolve the name {name} to a valid id", False
+    return id, True
 
 
 def run_command(ctx, input: list) -> tuple[Any, GNS3Error]:
+    err = GNS3Error()
     if not input or len(input) < 2:
-        return None, GNS3Error("Invalid command format in YML.")
+        err.msg = "Invalid command format in YML."
+        return None, err
 
     pkg = input[0]
     sub_cmd = input[1]
@@ -250,4 +390,178 @@ def run_command(ctx, input: list) -> tuple[Any, GNS3Error]:
             return None, run_cmd_err
         return out, run_cmd_err
     else:
-        return None, GNS3Error(f"Unknown command package: {pkg}")
+        err.msg = f"Unknown command package: {pkg}"
+        return None, err
+
+
+# --- Dataclasses for YAML structure ---
+
+
+@dataclass
+class Filter:
+    field: str
+    operator: str
+    value: str
+
+
+@dataclass
+class Parameters:
+    friendly_name: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    id: Optional[str] = None
+    description: Optional[str] = None
+    filter: Optional[Filter] = None
+    delete_all: Optional[bool] = None
+
+
+@dataclass
+class Subcommand:
+    name: str
+    parameters: Optional[Parameters] = None
+    condition: Optional[str] = None
+
+
+@dataclass
+class Command:
+    name: str
+    repeat: Optional[int] = None
+    subcommands: List[Subcommand] = field(default_factory=list)
+
+
+@dataclass
+class JobContent:
+    commands: Optional[List[Command]] = None
+
+
+@dataclass
+class Script:
+    vars: Dict[str, Any] = field(default_factory=dict)
+    options: Dict[str, Any] = field(default_factory=dict)
+    jobs: Dict[str, JobContent] = field(default_factory=dict)
+
+
+def get_commands(ctx, script: Script) -> list:
+    command_list = []
+    for job in script.jobs.items():
+        job_content = job[1]
+        get_commands_from_job(ctx, job_content)
+    return command_list
+
+
+def get_commands_from_job(ctx, job: JobContent):
+    command_list = []
+    for command in job.commands:
+        for subcommand in command.subcommands:
+            if subcommand.parameters:
+                params = subcommand.parameters
+                if (params.id == "" or params.id is None) and params.friendly_name is not None:
+                    id, ok = resolve_ids(
+                        ctx, subcommand.name, params.friendly_name)
+                    if not ok:
+                        if id != "":
+                            click.secho(id, err=True)
+                        return
+                    print(f"thing works, id of the thingy {
+                          params.friendly_name} is {id}")
+
+        if command.repeat is not None and command.repeat > 0:
+            # make add thing to list for as often as counter and replaces the [[itoration{{ var
+            pass
+
+
+# def replace_vars_in_script(script: Script) -> Script:
+#     current_script = script
+#     for job in current_script.jobs:
+#         print(job)
+#     return current_script
+
+
+def load_script(path: str) -> Optional[Script]:
+    try:
+        with open(path) as f:
+            data = yaml.safe_load(f)
+        if not isinstance(data, dict):
+            raise ValueError("YAML root is not a dict")
+
+        def fix_parameters(d):
+            if not d:
+                return None
+            return dacite.from_dict(Parameters, d)
+
+        def fix_subcommands(lst):
+            out = []
+            for sc in lst:
+                if "name" not in sc:
+                    raise ValueError("Subcommand missing 'name' field.")
+                params = fix_parameters(sc.get("parameters"))
+                out.append(
+                    Subcommand(
+                        name=sc["name"],
+                        parameters=params,
+                        condition=sc.get("condition"),
+                    )
+                )
+            return out
+
+        def fix_commands(lst):
+            out = []
+            for c in lst:
+                if "name" not in c:
+                    raise ValueError("Command missing 'name' field.")
+                subcommands = fix_subcommands(c.get("subcommands", []))
+                repeat = c.get("repeat")
+                out.append(
+                    Command(
+                        name=c["name"],
+                        repeat=repeat,
+                        subcommands=subcommands,
+                    )
+                )
+            return out
+
+        parsed_jobs_dict = {}
+        raw_jobs_list = data.get("jobs", [])
+
+        if not isinstance(raw_jobs_list, list):
+            raise ValueError("'jobs' section must be a list.")
+
+        for job_item_dict in raw_jobs_list:
+            if not isinstance(job_item_dict, dict) or len(job_item_dict) != 1:
+                raise ValueError(
+                    "Each item in 'jobs' list must be a single-key dictionary representing a job."
+                )
+
+            job_name, job_content_raw = list(job_item_dict.items())[0]
+
+            if job_content_raw is None:
+                parsed_jobs_dict[job_name] = JobContent(commands=None)
+                continue
+
+            if not isinstance(job_content_raw, dict):
+                raise ValueError(f"Content for job '{
+                                 job_name}' must be a dictionary.")
+
+            commands_data = job_content_raw.get("commands")
+
+            fixed_commands_list = None
+            if commands_data is not None:
+                if not isinstance(commands_data, list):
+                    raise ValueError(f"Commands for job '{
+                                     job_name}' must be a list.")
+                fixed_commands_list = fix_commands(commands_data)
+
+            parsed_jobs_dict[job_name] = JobContent(
+                commands=fixed_commands_list)
+
+        script_data_for_dacite = {
+            "vars": data.get("vars", {}),
+            "options": data.get("options", {}),
+            "jobs": parsed_jobs_dict,
+        }
+
+        return dacite.from_dict(Script, script_data_for_dacite)
+
+    except (yaml.YAMLError, KeyError, TypeError, dacite.DaciteError, ValueError) as e:
+        print(f"Error parsing YAML script: {e}")
+        return None
