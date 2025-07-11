@@ -30,6 +30,7 @@ class script_opts:
     description: str = ""
     progress_bar: bool = False
     exit_on_fail: bool = True
+    iterations_var_name: str = "iteration"
 
 
 @dataclass
@@ -242,35 +243,13 @@ def get_vars(yml: dict) -> list[dict]:
 
 
 def get_opts(yml: dict) -> script_opts:
-    name = ""
-    desc = ""
-    progress_bar = (False,)
-    exit_on_fail = (True,)
-
+    opts = script_opts()
     if yml and "options" in yml and yml["options"]:
-        if "name" in yml["options"]:
-            name = yml["options"]["name"]
-        if "description" in yml["options"]:
-            desc = yml["options"]["description"]
-        if "progress_bar" in yml["options"]:
-            if (
-                str(yml["options"]["progress_bar"]).rstrip().lower() == "true"
-                or str(yml["options"]["progress_bar"]).rstrip().lower() == "false"
-            ):
-                progress_bar = bool(yml["options"]["progress_bar"])
-        if "exit_on_fail" in yml["options"]:
-            if (
-                str(yml["options"]["exit_on_fail"]).rstrip().lower() == "true"
-                or str(yml["options"]["progress_bar"]).rstrip().lower() == "false"
-            ):
-                exit_on_fail = bool(yml["options"]["progress_bar"])
-
-    return script_opts(
-        name=name,
-        description=desc,
-        progress_bar=progress_bar,
-        exit_on_fail=exit_on_fail,
-    )
+        options = yml["options"]
+        for field in script_opts.__dataclass_fields__:
+            if field in options:
+                setattr(opts, field, options[field])
+    return opts
 
 
 @script.command(name="run-file")
@@ -286,9 +265,7 @@ def run_file(ctx, filename):
     print(yml)
 
     vars = get_vars(yml)
-    opts = get_opts(yml)
     print(vars)
-    print(opts)
 
     script_obj = load_script(filename)
     import pprint
@@ -437,7 +414,7 @@ class JobContent:
 @dataclass
 class Script:
     vars: Dict[str, Any] = field(default_factory=dict)
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: script_opts = field(default_factory=script_opts)
     jobs: Dict[str, JobContent] = field(default_factory=dict)
 
 
@@ -445,30 +422,55 @@ def get_commands(ctx, script: Script) -> list:
     command_list = []
     for job in script.jobs.items():
         job_content = job[1]
-        get_commands_from_job(ctx, job_content)
+        job_command_list, ok = get_commands_from_job(
+            ctx, job_content, script.options)
+        command_list.append(job_command_list)
     return command_list
 
 
-def get_commands_from_job(ctx, job: JobContent):
-    command_list = []
+def get_commands_from_job(ctx, job: JobContent, opts: script_opts) -> tuple[list, bool]:
+    command_list_final = []
     for command in job.commands:
+        command_list = []
         for subcommand in command.subcommands:
+            if command.repeat is not None and command.repeat > 0:
+
+                # make add thing to list for as often as counter and replaces the {{itoration}} var
+                pass
+
             if subcommand.parameters:
                 params = subcommand.parameters
                 if (params.id == "" or params.id is None) and params.friendly_name is not None:
-                    id, ok = resolve_ids(
-                        ctx, subcommand.name, params.friendly_name)
-                    if not ok:
-                        if id != "":
-                            click.secho(id, err=True)
-                        return
-                    print(f"thing works, id of the thingy {
-                          params.friendly_name} is {id}")
+                    if command.repeat is not None and command.repeat > 0:
+                        for i in range(command.repeat):
+                            iterator_var_name_list = []
+                            iterator_var_name_list.append(i)
+                            name = replace_vars(
+                                params.friendly_name, iterator_var_name_list, replace_iterations=True, iteration_var_name=opts.iterations_var_name)
+                            id, ok = resolve_ids(
+                                ctx, subcommand.name, name)
+                            if not ok:
+                                if id != "":
+                                    click.secho(id, err=True)
+                                return command_list_final, False
+                            command_list.append(command.name)
+                            command_list.append(subcommand.name)
+                            command_list.append(id)
 
-        if command.repeat is not None and command.repeat > 0:
-            # make add thing to list for as often as counter and replaces the [[itoration{{ var
-            pass
+                    else:
+                        id, ok = resolve_ids(
+                            ctx, subcommand.name, params.friendly_name)
+                        if not ok:
+                            if id != "":
+                                click.secho(id, err=True)
+                            return command_list_final, False
+                    command_list.append(command.name)
+                    command_list.append(subcommand.name)
+                    command_list.append(id)
 
+            command_list_final.append(command_list)
+
+        return command_list_final, True
 
 # def replace_vars_in_script(script: Script) -> Script:
 #     current_script = script
@@ -549,6 +551,34 @@ def load_script(path: str) -> Optional[Script]:
                 if not isinstance(commands_data, list):
                     raise ValueError(f"Commands for job '{
                                      job_name}' must be a list.")
+                fixed_commands_list = fix_commands(commands_data)
+
+            parsed_jobs_dict[job_name] = JobContent(
+                commands=fixed_commands_list)
+
+        opts = get_opts(data)
+
+        script_data_for_dacite = {
+            "vars": data.get("vars", {}),
+            "options": opts,
+            "jobs": parsed_jobs_dict,
+        }
+
+        return dacite.from_dict(Script, script_data_for_dacite)
+
+    except (yaml.YAMLError, KeyError, TypeError, dacite.DaciteError, ValueError) as e:
+        print(f"Error parsing YAML script: {e}")
+        return None
+        raise ValueError(f"Content for job '{
+            job_name}' must be a dictionary.")
+
+        commands_data = job_content_raw.get("commands")
+
+        fixed_commands_list = None
+        if commands_data is not None:
+            if not isinstance(commands_data, list):
+                raise ValueError(f"Commands for job '{
+                    job_name}' must be a list.")
                 fixed_commands_list = fix_commands(commands_data)
 
             parsed_jobs_dict[job_name] = JobContent(

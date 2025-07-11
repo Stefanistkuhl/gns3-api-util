@@ -1202,7 +1202,20 @@ def install_completion(ctx, shell, install, uninstall):
     click.secho("When done, please reopen your terminal.")
 
 
-def replace_vars(input_string: str, replacements: list) -> str:
+def replace_vars(input_string: str, replacements: list, replace_iterations=False, iteration_var_name="iteration") -> str:
+    current_string = input_string
+    if replace_iterations:
+        pattern = re.compile(r"{{("+re.escape(iteration_var_name) + r")}}")
+        for i, replacement_value in enumerate(replacements):
+            m = re.search(pattern, current_string)
+            if m:
+                current_string = re.sub(pattern, str(
+                    replacement_value), current_string, count=1)
+            else:
+                click.secho(
+                    f"Warning: write this later kekw")
+                break
+        return current_string
     current_string = input_string
     pattern = r"{{(\w*)}}"
     for i, replacement_value in enumerate(replacements):

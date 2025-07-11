@@ -22,8 +22,9 @@ dependencies = [
     "bottle~=0.13.0",
     "InquirerPy~=0.3.0",
     "paramiko~=3.5.1",
-    "pyaml",
-    "dacite"
+    "param>=2.2.1",
+    "dacite>=1.9.2",
+    "pyaml>=25.5.0",
 ]
 
 classifiers = [

@@ -10,6 +10,7 @@ options:
   description: "Demonstrates friendly name resolution, direct ID usage, conditions, command repetition, and bulk filters."
   progress_bar: true
   exit_on_fail: false
+  iterations_var_name: test
 
 jobs:
   - create_users:
@@ -19,17 +20,17 @@ jobs:
           subcommands:
             - name: user
               parameters:
-                friendly_name: "User_{{iteration}}"
-                username: "user_{{iteration}}"
-                email: "user{{iteration}}@{{DEFAULT_EMAIL_DOMAIN}}"
+                username: "user_{{test}}"
+                email: "user{{test}}@{{DEFAULT_EMAIL_DOMAIN}}"
                 id: ""
   - delete_user:
       commands:
         - name: delete
+          repeat: 3
           subcommands:
             - name: user
               parameters:
-                friendly_name: "erm"
+                friendly_name: "user_{{test}}"
               condition: "user.email.endswith('@{{DEFAULT_EMAIL_DOMAIN}}')"
   - delte_groups:
       commands:
