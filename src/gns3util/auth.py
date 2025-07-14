@@ -2,6 +2,7 @@ import click
 from .api.client import GNS3Error
 from click.exceptions import Abort
 from click import UsageError
+from typing import Any
 import json
 import sys
 import os
@@ -13,7 +14,7 @@ def insert_as_first_val(dict_obj, key, value):
     return new_dict
 
 
-def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, any]:
+def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, Any]:
     """Authenticate user against GNS3 server and return the response."""
     input_data = {
         "username": credentials[0], "password": credentials[1]}
@@ -92,7 +93,7 @@ def load_key(key_file) -> tuple[bool, list]:
         return False, data_arr
 
 
-def try_key(ctx, key) -> tuple[GNS3Error, any]:
+def try_key(ctx, key) -> tuple[GNS3Error, Any]:
     from .api.get_endpoints import GNS3GetAPI
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']

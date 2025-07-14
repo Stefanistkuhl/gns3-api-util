@@ -1,6 +1,6 @@
 import click
 from .auth import auth
-from .get import get, stream
+from .get import get, stream, export
 from .fuzzy import fuzzy
 from .post import post, controller, compute, project, node, image, snapshot
 from .add import add
@@ -26,6 +26,7 @@ def gns3util(ctx, server, insecure, key_file):
 gns3util.add_command(auth)
 gns3util.add_command(get)
 gns3util.add_command(stream)
+gns3util.add_command(export)
 gns3util.add_command(fuzzy)
 gns3util.add_command(post)
 gns3util.add_command(controller)

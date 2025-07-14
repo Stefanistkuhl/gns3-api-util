@@ -1,4 +1,3 @@
-# from . import GNS3APIClient
 from .client import GNS3APIClient
 
 
@@ -89,17 +88,29 @@ class GNS3PostAPI(GNS3APIClient):
     def create_node(self, project_id, data):
         return self._api_call(f"projects/{project_id}/nodes", method="POST", data=data, verify=self.verify)
 
-    def start_node(self, project_id):
+    def start_nodes(self, project_id):
         return self._api_call(f"projects/{project_id}/nodes/start", method="POST", verify=self.verify)
 
-    def stop_node(self, project_id):
+    def start_node(self, project_id, node_id):
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/start", method="POST", verify=self.verify)
+
+    def stop_nodes(self, project_id):
         return self._api_call(f"projects/{project_id}/nodes/stop", method="POST", verify=self.verify)
 
-    def suspend_node(self, project_id):
+    def stop_node(self, project_id, node_id):
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/stop", method="POST", verify=self.verify)
+
+    def suspend_nodes(self, project_id):
         return self._api_call(f"projects/{project_id}/nodes/suspend", method="POST", verify=self.verify)
 
-    def reload_node(self, project_id):
+    def reload_nodes(self, project_id):
         return self._api_call(f"projects/{project_id}/nodes/reload", method="POST", verify=self.verify)
+
+    def suspend_node(self, project_id, node_id):
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/suspend", method="POST", verify=self.verify)
+
+    def reload_nodes(self, project_id, node_id):
+        return self._api_call(f"projects/{project_id}/nodes/{node_id}/reload", method="POST", verify=self.verify)
 
     def duplicate_node(self, project_id, node_id, data):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/duplicate", method="POST", data=data, verify=self.verify)

@@ -24,7 +24,7 @@ _one_arg_no_data = {
     "project": "delete_project",
     "template": "delete_template",
     "image": "delete_image",
-    "acl": "delete_acl",
+    "ace": "delete_ace",
     "role": "delete_role",
     "group": "delete_group",
     "pool": "delete_pool"

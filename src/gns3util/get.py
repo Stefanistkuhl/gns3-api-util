@@ -46,7 +46,7 @@ _one_arg = {
     "docker-images": "compute_by_id_docker_images",
     "virtualbox-vms": "compute_by_id_virtualbox_vms",
     "vmware-vms": "compute_by_id_vmware_vms",
-    "images_by_path": "images_by_path",
+    "image": "image_by_path",
     "snapshots": "snapshots",
     "appliance": "appliance",
     "pool": "pool",
@@ -64,13 +64,20 @@ _two_arg = {
     "node-links": "node_links_by_id",
     "link": "link",
     "link-filters": "link_filters",
-    "drawing": "drawing"
+    "drawing": "drawing",
+    "link-interface": "link_interface"
 }
 
 
 @click.group()
 def get():
     """Get commands."""
+    pass
+
+
+@click.group()
+def export():
+    """Export commands."""
     pass
 
 
@@ -140,6 +147,74 @@ for cmd, func in _two_arg.items():
     get.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
 
 # Special commands with timeout options
+
+
+@export.command(name="project", help="Export a project from GNS3")
+@click.option(
+    "--include-snapshots",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Include snapshots in the export.",
+)
+@click.option(
+    "--include-images",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Include images in the export.",
+)
+@click.option(
+    "--reset-mac-addresses",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Reset MAC addresses in the export.",
+)
+@click.option(
+    "--keep-compute-ids",
+    type=bool,
+    default=False,
+    is_flag=True,
+    help="Keep compute IDs in the export.",
+)
+@click.option(
+    "--compression",
+    type=click.Choice(["deflate", "bz2", "xz", "zstd", "none"]),
+    default="zstd",
+    help="Compression type for the export.",
+)
+@click.option(
+    "--compression-level",
+    type=click.IntRange(0, 9),
+    default=3,
+    help="Compression level for the export (0-9).",
+)
+@click.argument("project-id")
+@click.pass_context
+def project_export_command(
+    ctx,
+    project_id,
+    include_snapshots,
+    include_images,
+    reset_mac_addresses,
+    keep_compute_ids,
+    compression,
+    compression_level,
+):
+    """
+    Exports a GNS3 project with specified options and downloads it.
+    """
+    export_params = {
+        "include_snapshots": include_snapshots,
+        "include_images": include_images,
+        "reset_mac_addresses": reset_mac_addresses,
+        "keep_compute_ids": keep_compute_ids,
+        "compression": str(compression),
+        "compression_level": compression_level,
+    }
+    get_client(ctx).download_exported_project(
+        project_id=project_id, export_params=export_params)
 
 
 @stream.command()

@@ -1,10 +1,10 @@
-# Package init file
 import requests
 import click
 import urllib3
 import json
 import threading
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -117,11 +117,11 @@ class GNS3APIClient:
             headers['Authorization'] = f'Bearer {self.key}'
         return headers
 
-    def _handle_request(self, url, headers=None, method="GET", data=None, timeout=10, stream=False, verify=True) -> (GNS3Error, any):
+    def _handle_request(self, url, headers=None, method="GET", data=None, timeout=10, stream=False, verify=True, params={}) -> tuple[GNS3Error, Any]:
         error = GNS3Error()
         try:
             response = requests.request(
-                method, url, headers=headers, json=data, timeout=timeout, stream=stream, verify=verify
+                method, url, headers=headers, json=data, timeout=timeout, stream=stream, verify=verify, params=params
             )
             if response.status_code in (200, 201, 204):
                 if stream:
@@ -189,16 +189,16 @@ class GNS3APIClient:
                 error.other_code = response.status_code
                 error.msg = response.text
                 return error, None
-        except requests.exceptions.ConnectionError:
+        except requests.ConnectionError:
             error.connection = True
             base_url = url.split('/v3/')[0] if '/v3/' in url else url
             error.msg = f"Connection error: Could not connect to {base_url}"
             return error, None
-        except requests.exceptions.Timeout:
+        except requests.Timeout:
             error.timeout = True
             error.msg = "Connection timeout: The server took too long to respond."
             return error, None
-        except requests.exceptions.RequestException as e:
+        except requests.RequestException as e:
             error.request = True
             error.msg = str(e)
             return error, None
@@ -207,9 +207,9 @@ class GNS3APIClient:
             error.msg = str(e)
             return error, None
 
-    def _api_call(self, endpoint, stream=False, method="GET", data=None, verify=True):
+    def _api_call(self, endpoint, stream=False, method="GET", data=None, verify=True, params={}) -> tuple[GNS3Error, Any]:
         url = f"{self.server_url}/v3/{endpoint}"
-        return self._handle_request(url, headers=self._get_headers(), stream=stream, method=method, data=data, verify=verify)
+        return self._handle_request(url, headers=self._get_headers(), stream=stream, method=method, data=data, verify=verify, params=params)
 
     def _stream_notifications(self, endpoint, timeout_seconds=60, verify=True) -> GNS3Error:
         error, response = self._api_call(endpoint, stream=True, verify=verify)

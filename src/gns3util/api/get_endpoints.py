@@ -1,5 +1,6 @@
-from .client import GNS3APIClient
+from .client import GNS3APIClient, GNS3Error
 import urllib.parse
+import click
 
 
 class GNS3GetAPI(GNS3APIClient):
@@ -116,6 +117,9 @@ class GNS3GetAPI(GNS3APIClient):
     def link(self, project_id, link_id):
         return self._api_call(f"projects/{project_id}/links/{link_id}", verify=self.verify)
 
+    def link_interface(self, project_id, link_id):
+        return self._api_call(f"projects/{project_id}/links/{link_id}", verify=self.verify)
+
     # Drawing endpoints
     def drawings(self, project_id):
         return self._api_call(f"projects/{project_id}/drawings", verify=self.verify)
@@ -168,28 +172,64 @@ class GNS3GetAPI(GNS3APIClient):
     def pools(self):
         return self._api_call("pools", verify=self.verify)
 
-    # Images endpoints
-    def images(self, image_type):
-        return self._api_call(f"images?image_type={image_type}", verify=self.verify)
-
-    def images_by_path(self, image_path):
-        return self._api_call(f"images/{image_path}", verify=self.verify)
-
     def pool(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}", verify=self.verify)
 
     def pool_resources(self, resource_pool_id):
         return self._api_call(f"pools/{resource_pool_id}/resources", verify=self.verify)
 
+    # Images endpoints
+    def images(self, image_type):
+        return self._api_call(f"images?image_type={image_type}", verify=self.verify)
+
+    def image_by_path(self, image_path):
+        return self._api_call(f"images/{image_path}", verify=self.verify)
+
     # Project file and export methods
+
     def download_project_file(self, project_id, file_path):
         encoded_file_path = urllib.parse.quote(file_path)
         return self._api_call(f"projects/{project_id}/files/{encoded_file_path}", verify=self.verify)
 
+    def project_export(self, project_id=str, export_params={}):
+        """Export a project with the given parameters."""
+        params = {
+            "include_snapshots": str(export_params["include_snapshots"]).lower(),
+            "include_images": str(export_params["include_images"]).lower(),
+            "reset_mac_addresses": str(export_params["reset_mac_addresses"]).lower(),
+            "keep_compute_ids": str(export_params["keep_compute_ids"]).lower(),
+            "compression": export_params["compression"],
+            "compression_level": export_params["compression_level"],
+        }
+        return self._api_call(f"projects/{project_id}/export", stream=True, params=params)
+
+    def download_exported_project(self, project_id=str, export_params={}):
+        """Downloads an exported project and saves it to a file."""
+        ok, response = self.project_export(project_id, export_params)
+        if GNS3Error.has_error(ok):
+            GNS3Error.print_error(ok)
+            return
+
+        filename = response.headers.get('content-disposition')
+
+        if filename:
+            filename = filename.split("filename=")[1].replace('"', '')
+        else:
+            filename = "exported_project.gns3project"
+
+        with open(filename, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        click.secho("Success: ", fg="green", nl=False)
+        click.secho("Project exported successfully to ", nl=False)
+        click.secho(f"{filename}", bold=True)
+
     def link_capture_stream(self, project_id, link_id, output_file=None, timeout=None):
         """Stream the PCAP capture file from a link."""
         url = f"projects/{project_id}/links/{link_id}/capture/stream"
-        success, response = self._api_call(url, stream=True, verify=self.verify)
+        success, response = self._api_call(
+            url, stream=True, verify=self.verify)
         if success and output_file:
             with open(output_file, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):

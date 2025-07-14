@@ -1,4 +1,3 @@
-# from . import GNS3APIClient
 from .client import GNS3APIClient
 
 
@@ -27,7 +26,7 @@ class GNS3DeleteAPI(GNS3APIClient):
 
     # acl endpoint
 
-    def delete_acl(self, ace_id):
+    def delete_ace(self, ace_id):
         return self._api_call(f"access/acl/{ace_id}", method="DELETE", verify=self.verify)
 
     # images endpoints
