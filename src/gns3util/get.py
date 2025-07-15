@@ -87,7 +87,7 @@ def stream():
     pass
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     """Helper function to create GNS3GetAPI instance."""
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -108,7 +108,7 @@ for cmd, func in _zero_arg.items():
 
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.pass_context
-        def cmd_func(ctx):
+        def cmd_func(ctx: click.Context):
             api_get_client = get_client(ctx)
             execute_and_print(
                 ctx, api_get_client, lambda client: getattr(api_get_client, func)())
@@ -123,7 +123,7 @@ for cmd, func in _one_arg.items():
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg')
         @click.pass_context
-        def cmd_func(ctx, arg):
+        def cmd_func(ctx: click.Context, arg):
             api_get_client = get_client(ctx)
             execute_and_print(
                 ctx, api_get_client, lambda client: getattr(api_get_client, func)(arg))
@@ -139,7 +139,7 @@ for cmd, func in _two_arg.items():
         @click.argument('project_id')
         @click.argument('id')
         @click.pass_context
-        def cmd_func(ctx, project_id, id):
+        def cmd_func(ctx: click.Context, project_id, id):
             api_get_client = get_client(ctx)
             execute_and_print(ctx, api_get_client, lambda client: getattr(
                 api_get_client, func)(project_id, id))
@@ -193,7 +193,7 @@ for cmd, func in _two_arg.items():
 @click.argument("project-id")
 @click.pass_context
 def project_export_command(
-    ctx,
+    ctx: click.Context,
     project_id,
     include_snapshots,
     include_images,
@@ -220,7 +220,7 @@ def project_export_command(
 @stream.command()
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
-def notifications(ctx, timeout_seconds):
+def notifications(ctx: click.Context, timeout_seconds):
     get_client(ctx).notifications(timeout_seconds)
 
 
@@ -228,17 +228,17 @@ def notifications(ctx, timeout_seconds):
 @click.argument('project_id')
 @click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
 @click.pass_context
-def project_notifications(ctx, project_id, timeout_seconds):
+def project_notifications(ctx: click.Context, project_id, timeout_seconds):
     get_client(ctx).project_notifications(project_id, timeout_seconds)
 
 
 @get.command(name="usernames-and-ids", help="Listing all users and their ids")
 @click.pass_context
-def usernames_and_ids(ctx):
+def usernames_and_ids(ctx: click.Context):
     print_usernames_and_ids(ctx)
 
 
 @get.command(name="uai", help="Listing all users and their ids")
 @click.pass_context
-def usernames_and_ids_short(ctx):
+def usernames_and_ids_short(ctx: click.Context):
     print_usernames_and_ids(ctx)

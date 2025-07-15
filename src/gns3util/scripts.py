@@ -60,7 +60,7 @@ def get_yml_files(script_dir):
     return yml_files
 
 
-def get_script_names_for_completion(ctx, param, incomplete):
+def get_script_names_for_completion(ctx: click.Context, param, incomplete):
     """
     Provides the list of available YML script names for shell completion.
     """
@@ -109,7 +109,7 @@ def script():
 
 @script.command(name="ls")
 @click.pass_context
-def list_scripts(ctx):
+def list_scripts(ctx: click.Context):
     """List all avaliable scripts"""
     if not os.path.exists(GNS3UTIL_SCRIPTS_DIR):
         os.mkdir(GNS3UTIL_SCRIPTS_DIR)
@@ -129,7 +129,7 @@ def list_scripts(ctx):
 @click.argument("filename", type=click.Path(exists=True, readable=True), required=True)
 @click.argument("dst", type=str, required=False)
 @click.pass_context
-def add_script(ctx, filename, dst: str):
+def add_script(ctx: click.Context, filename, dst: str):
     """Add script to the gns3util scripts directory"""
     if not os.path.exists(GNS3UTIL_SCRIPTS_DIR):
         os.mkdir(GNS3UTIL_SCRIPTS_DIR)
@@ -160,7 +160,7 @@ def add_script(ctx, filename, dst: str):
     "filename", shell_complete=get_script_names_for_completion, required=True
 )
 @click.pass_context
-def remove_script(ctx, filename):
+def remove_script(ctx: click.Context, filename):
     """Remove script from the gns3util scripts directory"""
     if not os.path.exists(GNS3UTIL_SCRIPTS_DIR):
         raise click.ClickException(
@@ -187,7 +187,7 @@ def remove_script(ctx, filename):
     "filename", shell_complete=get_script_names_for_completion, required=True
 )
 @click.pass_context
-def run(ctx, filename):
+def run(ctx: click.Context, filename):
     """Run yml based scripts"""
     if not filename:
         click.secho(
@@ -255,7 +255,7 @@ def get_opts(yml: dict) -> script_opts:
 @script.command(name="run-file")
 @click.argument("filename", type=click.Path(exists=True, readable=True), required=True)
 @click.pass_context
-def run_file(ctx, filename):
+def run_file(ctx: click.Context, filename):
     """Run yml based scripts"""
     yml, ok = parse_yml(filename)
     if not ok:
@@ -282,7 +282,7 @@ def run_file(ctx, filename):
     #     print(out)
 
 
-def _run_shell_completion(ctx, args, incomplete):
+def _run_shell_completion(ctx: click.Context, args, incomplete):
     """
     Provides dynamic completion for the 'run' subcommand's 'filename' argument.
     `args` is a list of arguments already provided on the command line.
@@ -327,7 +327,7 @@ subcommand_key_map = {
 }
 
 
-def resolve_ids(ctx, subcommand: str, name: str) -> tuple[str, bool]:
+def resolve_ids(ctx: click.Context, subcommand: str, name: str) -> tuple[str, bool]:
     id = ""
     key = None
     # get method name to get all of the thing like users
@@ -352,7 +352,7 @@ def resolve_ids(ctx, subcommand: str, name: str) -> tuple[str, bool]:
     return id, True
 
 
-def run_command(ctx, input: list) -> tuple[Any, GNS3Error]:
+def run_command(ctx: click.Context, input: list) -> tuple[Any, GNS3Error]:
     err = GNS3Error()
     if not input or len(input) < 2:
         err.msg = "Invalid command format in YML."
@@ -418,7 +418,7 @@ class Script:
     jobs: Dict[str, JobContent] = field(default_factory=dict)
 
 
-def get_commands(ctx, script: Script) -> list:
+def get_commands(ctx: click.Context, script: Script) -> list:
     command_list = []
     for job in script.jobs.items():
         job_content = job[1]
@@ -428,7 +428,7 @@ def get_commands(ctx, script: Script) -> list:
     return command_list
 
 
-def get_commands_from_job(ctx, job: JobContent, opts: script_opts) -> tuple[list, bool]:
+def get_commands_from_job(ctx: click.Context, job: JobContent, opts: script_opts) -> tuple[list, bool]:
     command_list_final = []
     for command in job.commands:
         command_list = []

@@ -70,7 +70,7 @@ def post():
     pass
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     server_url = ctx.parent.obj["server"]
     verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
@@ -133,7 +133,7 @@ for cmd, api_name in _zero_arg_no_data.items():
 
     def make_cmd(api_name=api_name):
         @click.pass_context
-        def _cmd(ctx):
+        def _cmd(ctx: click.Context):
             client = get_client(ctx)
             execute_and_print(ctx, client, lambda c: getattr(c, api_name)())
         return _cmd
@@ -149,7 +149,7 @@ for cmd, api_name in _one_arg_no_data.items():
     def make_cmd(api_name=api_name):
         @click.argument("arg")
         @click.pass_context
-        def _cmd(ctx, arg):
+        def _cmd(ctx: click.Context, arg):
             client = get_client(ctx)
             execute_and_print(ctx, client, lambda c: getattr(c, api_name)(arg))
         return _cmd
@@ -171,7 +171,7 @@ for cmd, api_name in _two_arg_no_data.items():
         @click.argument("arg1")
         @click.argument("arg2")
         @click.pass_context
-        def _cmd(ctx, arg1, arg2):
+        def _cmd(ctx: click.Context, arg1, arg2):
             client = get_client(ctx)
             execute_and_print(ctx, client, lambda c: getattr(
                 c, api_name)(arg1, arg2))
@@ -201,7 +201,7 @@ for cmd, api_name in _two_arg.items():
         @click.argument("arg2")
         @click.argument("json_data")
         @click.pass_context
-        def _cmd(ctx, arg1, arg2, json_data):
+        def _cmd(ctx: click.Context, arg1, arg2, json_data):
             client = get_client(ctx)
             try:
                 data = json.loads(json_data)
@@ -227,7 +227,7 @@ for cmd, api_name in _two_arg.items():
     help="Launch a webpage to enter class data interactively",
 )
 @click.pass_context
-def make_class(ctx, filename, create):
+def make_class(ctx: click.Context, filename, create):
     if not filename and not create:
         click.secho("Use -c or provide a JSON file", fg="red")
         return
@@ -252,7 +252,7 @@ def make_class(ctx, filename, create):
 @click.argument("class_name")
 @click.argument("exercise_name")
 @click.pass_context
-def make_exercise(ctx, class_name, exercise_name):
+def make_exercise(ctx: click.Context, class_name, exercise_name):
     ok = create_Exercise(ctx, class_name, exercise_name)
     if ok:
         click.secho(f"Exercise '{exercise_name}' created", fg="green")
@@ -267,7 +267,7 @@ def make_exercise(ctx, class_name, exercise_name):
 )
 @click.argument("json_data")
 @click.pass_context
-def check_version(ctx, json_data):
+def check_version(ctx: click.Context, json_data):
     client = get_client(ctx)
     try:
         data = json.loads(json_data)
@@ -283,7 +283,7 @@ def check_version(ctx, json_data):
 )
 @click.argument("json_data")
 @click.pass_context
-def user_authenticate(ctx, json_data):
+def user_authenticate(ctx: click.Context, json_data):
     client = get_client(ctx)
     try:
         data = json.loads(json_data)

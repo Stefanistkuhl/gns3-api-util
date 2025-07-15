@@ -51,7 +51,7 @@ def create():
     pass
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     """Helper function to create GNS3PostAPI instance."""
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -74,7 +74,7 @@ for cmd, func in _zero_arg.items():
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('json_data')
         @click.pass_context
-        def cmd_func(ctx, json_data):
+        def cmd_func(ctx: click.Context, json_data):
             api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
@@ -98,7 +98,7 @@ for cmd, func in _one_arg.items():
         @click.argument('arg')
         @click.argument('json_data')
         @click.pass_context
-        def cmd_func(ctx, arg, json_data):
+        def cmd_func(ctx: click.Context, arg, json_data):
             api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
@@ -120,7 +120,7 @@ for cmd, func in _one_arg_no_data.items():
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg')
         @click.pass_context
-        def cmd_func(ctx, arg):
+        def cmd_func(ctx: click.Context, arg):
             api_post_client = get_client(ctx)
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg))
@@ -138,7 +138,7 @@ for cmd, func in _two_arg.items():
         @click.argument('arg2')
         @click.argument('json_data')
         @click.pass_context
-        def cmd_func(ctx, arg1, arg2, json_data):
+        def cmd_func(ctx: click.Context, arg1, arg2, json_data):
             api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
@@ -163,7 +163,7 @@ for cmd, func in _three_arg.items():
         @click.argument('arg3')
         @click.argument('json_data')
         @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3, json_data):
+        def cmd_func(ctx: click.Context, arg1, arg2, arg3, json_data):
             api_post_client = get_client(ctx)
             try:
                 data = json.loads(json_data)
@@ -187,7 +187,7 @@ for cmd, func in _three_arg_no_data.items():
         @click.argument('arg2')
         @click.argument('arg3')
         @click.pass_context
-        def cmd_func(ctx, arg1, arg2, arg3):
+        def cmd_func(ctx: click.Context, arg1, arg2, arg3):
             api_post_client = get_client(ctx)
             execute_and_print(ctx, api_post_client, lambda client: getattr(
                 api_post_client, func)(arg1, arg2, arg3))
@@ -202,7 +202,7 @@ for cmd, func in _three_arg_no_data.items():
     "-c", "--create", is_flag=True, help="Launch a local webpage to enter the info to create a class"
 )
 @click.pass_context
-def make_class(ctx, filename, create):
+def make_class(ctx: click.Context, filename, create):
 
     if filename is None and create is False:
         click.secho(
@@ -241,7 +241,7 @@ def make_class(ctx, filename, create):
 @click.argument('class_name', type=str)
 @click.argument('exercise_name', type=str)
 @click.pass_context
-def make_exercise(ctx, class_name, exercise_name):
+def make_exercise(ctx: click.Context, class_name, exercise_name):
     success = create_Exercise(ctx, class_name, exercise_name)
     if success:
         click.secho("Success: ", nl=False, fg="green")

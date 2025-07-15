@@ -22,7 +22,7 @@ def add():
     pass
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     """Helper function to create GNS3PutAPI instance."""
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -46,7 +46,7 @@ for cmd, func in _two_arg_no_data.items():
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
-        def cmd_func(ctx, arg1, arg2):
+        def cmd_func(ctx: click.Context, arg1, arg2):
             api_put_client = get_client(ctx)
             execute_and_print(ctx, api_put_client, lambda client: getattr(
                 api_put_client, func)(arg1, arg2))

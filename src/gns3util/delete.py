@@ -51,7 +51,7 @@ def delete():
     pass
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     """Helper function to create GNS3DeleteAPI instance."""
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -72,7 +72,7 @@ for cmd, func in _zero_arg_no_data.items():
 
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.pass_context
-        def cmd_func(ctx):
+        def cmd_func(ctx: click.Context):
             api_delete_client = get_client(ctx)
             execute_and_print(
                 ctx, api_delete_client, lambda client: getattr(api_delete_client, func)())
@@ -88,7 +88,7 @@ for cmd, func in _one_arg_no_data.items():
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.argument('arg')
         @click.pass_context
-        def cmd_func(ctx, arg):
+        def cmd_func(ctx: click.Context, arg):
             api_delete_client = get_client(ctx)
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
                 api_delete_client, func)(arg))
@@ -105,7 +105,7 @@ for cmd, func in _two_arg_no_data.items():
         @click.argument('arg1')
         @click.argument('arg2')
         @click.pass_context
-        def cmd_func(ctx, arg1, arg2):
+        def cmd_func(ctx: click.Context, arg1, arg2):
             api_delete_client = get_client(ctx)
             execute_and_print(ctx, api_delete_client, lambda client: getattr(
                 api_delete_client, func)(arg1, arg2))
@@ -131,7 +131,7 @@ for cmd, func in _two_arg_no_data.items():
     "-e", "--delete_exercises", is_flag=True, help="Delete all exercies of that class"
 )
 @click.pass_context
-def fuzzy_delete_class(ctx, multi, confirm, non_interactive, delete_all, delete_exercises):
+def fuzzy_delete_class(ctx: click.Context, multi, confirm, non_interactive, delete_all, delete_exercises):
     params = fuzzy_delete_class_params(
         ctx=ctx,
         client=get_client,
@@ -173,7 +173,7 @@ def fuzzy_delete_class(ctx, multi, confirm, non_interactive, delete_all, delete_
 )
 @click.pass_context
 def fuzzy_delete_exercise(
-    ctx, multi, confirm, non_interactive, set_class, set_group, delete_all, select_class, select_group
+    ctx: click.Context, multi, confirm, non_interactive, set_class, set_group, delete_all, select_class, select_group
 ):
     if non_interactive:
         if set_class is None and set_group is not None:

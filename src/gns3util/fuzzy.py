@@ -5,7 +5,7 @@ from .api.get_endpoints import GNS3GetAPI
 from .utils import fuzzy_info_wrapper, get_fuzzy_info_params, fuzzy_params_type, fuzzy_put_wrapper, fuzzy_password_params
 
 
-def get_client(ctx):
+def get_client(ctx: click.Context):
     """Helper function to create GNS3GetAPI instance."""
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -27,7 +27,7 @@ def fuzzy():
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_user_info(ctx, multi):
+def find_user_info(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.user_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -38,7 +38,7 @@ def find_user_info(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_user_info_command_short(ctx, multi):
+def find_user_info_command_short(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.user_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -49,7 +49,7 @@ def find_user_info_command_short(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_group_info(ctx, multi):
+def find_group_info(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.group_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -60,7 +60,7 @@ def find_group_info(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_group_info_command_short(ctx, multi):
+def find_group_info_command_short(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.group_info, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -71,7 +71,7 @@ def find_group_info_command_short(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_group_info_with_members(ctx, multi):
+def find_group_info_with_members(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -82,7 +82,7 @@ def find_group_info_with_members(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_group_info_with_members_command_short(ctx, multi):
+def find_group_info_with_members_command_short(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.group_info_with_usernames, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -93,7 +93,7 @@ def find_group_info_with_members_command_short(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_user_info_and_groups(ctx, multi):
+def find_user_info_and_groups(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -104,7 +104,7 @@ def find_user_info_and_groups(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def find_user_info_and_groups_short(ctx, multi):
+def find_user_info_and_groups_short(ctx: click.Context, multi):
     params = get_fuzzy_info_params(
         fuzzy_params_type.user_info_and_group_membership, ctx, get_client, multi)
     fuzzy_info_wrapper(params)
@@ -115,7 +115,7 @@ def find_user_info_and_groups_short(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def change_password_short(ctx, multi):
+def change_password_short(ctx: click.Context, multi):
     params = fuzzy_password_params(
         ctx=ctx,
         client=get_client,
@@ -131,7 +131,7 @@ def change_password_short(ctx, multi):
     "-m", "--multi", is_flag=True, help="Enable multi-select mode."
 )
 @click.pass_context
-def change_password(ctx, multi):
+def change_password(ctx: click.Context, multi):
     params = fuzzy_password_params(
         ctx=ctx,
         client=get_client,

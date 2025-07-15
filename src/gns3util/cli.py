@@ -17,7 +17,7 @@ from . utils import install_completion
 @click.option('--insecure', '-i', required=False, is_flag=True, default=True, flag_value=False, help="Ignore unsigned SSL-Certificates")
 @click.option('--key_file', '-k', required=False, type=click.Path(exists=True, readable=True), help="Set a location for a keyfile to use")
 @click.pass_context
-def gns3util(ctx, server, insecure, key_file):
+def gns3util(ctx: click.Context, server, insecure, key_file):
     """A utility for GNS3."""
     ctx.ensure_object(dict)
     ctx.obj = {'server': server, 'verify': insecure, 'key_file': key_file}

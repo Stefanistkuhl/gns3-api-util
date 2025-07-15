@@ -14,7 +14,7 @@ def insert_as_first_val(dict_obj, key, value):
     return new_dict
 
 
-def authenticate_user(ctx, credentials: tuple[str, str]) -> tuple[GNS3Error, Any]:
+def authenticate_user(ctx: click.Context, credentials: tuple[str, str]) -> tuple[GNS3Error, Any]:
     """Authenticate user against GNS3 server and return the response."""
     input_data = {
         "username": credentials[0], "password": credentials[1]}
@@ -93,7 +93,7 @@ def load_key(key_file) -> tuple[bool, list]:
         return False, data_arr
 
 
-def try_key(ctx, key) -> tuple[GNS3Error, Any]:
+def try_key(ctx: click.Context, key) -> tuple[GNS3Error, Any]:
     from .api.get_endpoints import GNS3GetAPI
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
@@ -108,7 +108,7 @@ def auth():
     pass
 
 
-def load_and_try_key(ctx) -> tuple[bool, dict]:
+def load_and_try_key(ctx: click.Context) -> tuple[bool, dict]:
     key_file = ctx.parent.obj['key_file'] or os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)
     if not load_success:
@@ -169,7 +169,7 @@ def load_and_try_key(ctx) -> tuple[bool, dict]:
               help="Skip confirmation when keyfile is corrupt"
               )
 @click.pass_context
-def login(ctx, user, password, no_keyfile_confirm):
+def login(ctx: click.Context, user, password, no_keyfile_confirm):
     """Perform authentication."""
     ctx.obj = ctx.obj or {}
     if no_keyfile_confirm:
@@ -251,7 +251,7 @@ def login(ctx, user, password, no_keyfile_confirm):
 
 @auth.command()
 @click.pass_context
-def status(ctx):
+def status(ctx: click.Context):
     """Display authentication status."""
     load_and_try_key_success,  result = load_and_try_key(ctx)
     if load_and_try_key_success:

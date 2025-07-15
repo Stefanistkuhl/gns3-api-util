@@ -470,7 +470,7 @@ VERBOSE=False
 )
 @click.pass_context
 def install_ssl(
-    ctx,
+    ctx: click.Context,
     user,
     port,
     private_key_path,

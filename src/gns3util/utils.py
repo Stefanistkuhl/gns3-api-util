@@ -18,7 +18,7 @@ from InquirerPy import inquirer
 
 @dataclass
 class fuzzy_info_params:
-    ctx: Any
+    ctx: click.Context
     client: Callable[[Any], Any]
     opt_method: Optional[str] = None
     opt_key: Optional[str] = None
@@ -31,7 +31,7 @@ class fuzzy_info_params:
 
 @dataclass
 class fuzzy_password_params:
-    ctx: Any
+    ctx: click.Context
     client: Callable[[Any], Any]
     method: str = "str"
     key: str = "str"
@@ -40,7 +40,7 @@ class fuzzy_password_params:
 
 @dataclass
 class fuzzy_delete_class_params:
-    ctx: Any
+    ctx: click.Context
     client: Callable[[Any], Any]
     method: str = "groups"
     key: str = "name"
@@ -53,7 +53,7 @@ class fuzzy_delete_class_params:
 
 @dataclass
 class fuzzy_delete_exercise_params:
-    ctx: Any
+    ctx: click.Context
     client: Callable[[Any], Any]
     method: str = "projects"
     key: str = "name"
@@ -70,7 +70,7 @@ class fuzzy_delete_exercise_params:
 
 @dataclass
 class create_acl_params:
-    ctx: Any
+    ctx: click.Context
     ace_type: str = "str"
     allowed: bool = False
     isGroup: bool = False
@@ -147,7 +147,7 @@ def get_selection_inquirerpy(options, multi=False):
 
 
 def call_client_method(
-    ctx, module_name: str, method_name: str, *args: Any
+    ctx: click.Context, module_name: str, method_name: str, *args: Any
 ) -> tuple[GNS3Error, Any]:
     module = importlib.import_module(f".{module_name}", package=__package__)
     client = module.get_client(ctx)
@@ -625,7 +625,7 @@ def fuzzy_delete_exercise(params=fuzzy_delete_exercise_params) -> GNS3Error:
     return error
 
 
-def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS3Error]:
+def get_group_members(ctx: click.Context, group_id: str, id_only=False) -> tuple[list, GNS3Error]:
     members = []
     (
         get_members_error,
@@ -642,7 +642,7 @@ def get_group_members(ctx: Any, group_id: str, id_only=False) -> tuple[list, GNS
         return members_raw, get_members_error
 
 
-def delete_from_id(ctx: Any, method: str, id: str) -> GNS3Error:
+def delete_from_id(ctx: click.Context, method: str, id: str) -> GNS3Error:
     delete_error, _ = call_client_method(ctx, "delete", method, id)
     return delete_error
 
@@ -677,7 +677,7 @@ def parse_json(filepath: str) -> tuple[bool, Any]:
         return True, f"An unexpected error occurred: {e}"
 
 
-def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
+def add_user_to_group(ctx: click.Context, user_id: str, group_id: str) -> GNS3Error:
     add_user_to_group_error, result = call_client_method(
         ctx, "add", "add_group_member", group_id, user_id
     )
@@ -687,7 +687,7 @@ def add_user_to_group(ctx, user_id: str, group_id: str) -> GNS3Error:
 
 
 def create_class(
-    ctx, filename: str = None, data_input: dict = None
+    ctx: click.Context, filename: str = None, data_input: dict = None
 ) -> tuple[str, bool]:
     if filename == None:
         data = data_input
@@ -733,7 +733,7 @@ def create_class(
     return class_name, True
 
 
-def create_user_group(ctx, group_name) -> (str, GNS3Error):
+def create_user_group(ctx: click.Context, group_name) -> (str, GNS3Error):
     input_data = {"name": group_name}
     create_group_error, result = call_client_method(
         ctx, "create", "create_group", input_data
@@ -743,7 +743,7 @@ def create_user_group(ctx, group_name) -> (str, GNS3Error):
     return result["user_group_id"], create_group_error
 
 
-def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
+def create_user(ctx: click.Context, user_dict: dict) -> (str, GNS3Error):
     if user_dict["fullName"] != "":
         input_data = {
             "username": user_dict["userName"],
@@ -766,7 +766,7 @@ def create_user(ctx, user_dict: dict) -> (str, GNS3Error):
 
 
 def get_fuzzy_info_params(
-    input: fuzzy_params_type, ctx, get_client, multi: bool
+    input: fuzzy_params_type, ctx: click.Context, get_client, multi: bool
 ) -> fuzzy_info_params:
     if input == fuzzy_params_type.user_info:
         return fuzzy_info_params(
@@ -866,7 +866,7 @@ def fuzzy_put_wrapper(params):
         GNS3Error.print_error(error)
 
 
-def execute_and_print(ctx, client, func):
+def execute_and_print(ctx: click.Context, client, func):
     error, data = func(client)
     if GNS3Error.has_error(error):
         GNS3Error.print_error(error)
@@ -874,7 +874,7 @@ def execute_and_print(ctx, client, func):
         rich.print_json(json.dumps(data, indent=2))
 
 
-def get_role_id(ctx, name: str) -> (str, GNS3Error):
+def get_role_id(ctx: click.Context, name: str) -> (str, GNS3Error):
     get_roles_error, roles = call_client_method(ctx, "get", "roles")
     if GNS3Error.has_error(get_roles_error):
         return "", get_roles_error
@@ -883,7 +883,7 @@ def get_role_id(ctx, name: str) -> (str, GNS3Error):
             return role["role_id"], get_roles_error
 
 
-def create_project(ctx, name: str) -> (str, GNS3Error):
+def create_project(ctx: click.Context, name: str) -> (str, GNS3Error):
     project_id = str(uuid.uuid4())
     input_data = {"name": name, "project_id": project_id}
     create_project_error, result = call_client_method(
@@ -897,7 +897,7 @@ def create_project(ctx, name: str) -> (str, GNS3Error):
     return project_id, create_project_error
 
 
-def close_project(ctx, project_id: str) -> GNS3Error:
+def close_project(ctx: click.Context, project_id: str) -> GNS3Error:
     close_project_error, _ = call_client_method(
         ctx, "post", "close_project", project_id
     )
@@ -906,7 +906,7 @@ def close_project(ctx, project_id: str) -> GNS3Error:
     return close_project_error
 
 
-def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
+def get_groups_in_class(ctx: click.Context, class_name: str) -> (list, GNS3Error):
     group_list = []
     get_groups_error, groups = call_client_method(ctx, "get", "groups")
     if GNS3Error.has_error(get_groups_error):
@@ -924,7 +924,7 @@ def get_groups_in_class(ctx, class_name: str) -> (list, GNS3Error):
     return group_list, get_groups_error
 
 
-def get_pools_for_exercise(ctx, exercise_name: str) -> (list, GNS3Error):
+def get_pools_for_exercise(ctx: click.Context, exercise_name: str) -> (list, GNS3Error):
     pool_list = []
     get_pools_error, pools = call_client_method(ctx, "get", "pools")
     if GNS3Error.has_error(get_pools_error):
@@ -945,7 +945,7 @@ def get_pools_for_exercise(ctx, exercise_name: str) -> (list, GNS3Error):
     return pool_list, get_pools_error
 
 
-def get_acls_for_exercise(ctx, pools: list) -> (list, GNS3Error):
+def get_acls_for_exercise(ctx: click.Context, pools: list) -> (list, GNS3Error):
     acls_list = []
     get_alcs_error, acls = call_client_method(ctx, "get", "acl")
     if GNS3Error.has_error(get_alcs_error):
@@ -962,7 +962,7 @@ def get_acls_for_exercise(ctx, pools: list) -> (list, GNS3Error):
     return acls_list, get_alcs_error
 
 
-def create_acl(ctx, params: create_acl_params) -> GNS3Error:
+def create_acl(ctx: click.Context, params: create_acl_params) -> GNS3Error:
     if params.isGroup:
         input_data = {
             "ace_type": params.ace_type,
@@ -987,7 +987,7 @@ def create_acl(ctx, params: create_acl_params) -> GNS3Error:
     return create_acl_error
 
 
-def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
+def create_pool(ctx: click.Context, pool_name: str) -> (str, GNS3Error):
     input_data = {"name": pool_name}
     create_pool_error, result = call_client_method(
         ctx, "create", "create_pool", input_data
@@ -997,14 +997,14 @@ def create_pool(ctx, pool_name: str) -> (str, GNS3Error):
     return result["resource_pool_id"], create_pool_error
 
 
-def add_resource_to_pool(ctx, pool_id: str, resource_id: str) -> GNS3Error:
+def add_resource_to_pool(ctx: click.Context, pool_id: str, resource_id: str) -> GNS3Error:
     add_to_pool_error, result = call_client_method(
         ctx, "add", "add_resource_to_pool", pool_id, resource_id
     )
     return add_to_pool_error
 
 
-def create_Exercise(ctx, class_name: str, exercise_name: str) -> bool:
+def create_Exercise(ctx: click.Context, class_name: str, exercise_name: str) -> bool:
     role_id, get_role_id_error = get_role_id(ctx, "User")
     if GNS3Error.has_error(get_role_id_error):
         GNS3Error.print_error(get_role_id_error)
@@ -1068,21 +1068,22 @@ def safe_json(resp):
     return resp.json()
 
 
-def print_usernames_and_ids(ctx):
+def print_usernames_and_ids(ctx: click.Context):
     error, users = call_client_method(ctx, "get", "users")
     if GNS3Error.has_error(error):
         GNS3Error.print_error(error)
-    else:
-        click.secho("List of all users and their id:", fg="green")
-        for user in users:
-            print_separator_with_secho()
-            username = user.get("username", "N/A")
-            user_id = user.get("user_id", "N/A")
-            click.secho("Username: ", fg="cyan", nl=False)
-            click.secho(f"{username}")
-            click.secho("ID: ", fg="cyan", nl=False)
-            click.secho(f"{user_id}")
-            print_separator_with_secho()
+        return
+    print(ctx.to_info_dict)
+    click.secho("List of all users and their id:", fg="green")
+    for user in users:
+        print_separator_with_secho()
+        username = user.get("username", "N/A")
+        user_id = user.get("user_id", "N/A")
+        click.secho("Username: ", fg="cyan", nl=False)
+        click.secho(f"{username}")
+        click.secho("ID: ", fg="cyan", nl=False)
+        click.secho(f"{user_id}")
+        print_separator_with_secho()
 
 
 def get_command_description(
@@ -1130,7 +1131,7 @@ def get_command_description(
     help="Automatically remove completion (POSIX only).",
 )
 @click.pass_context
-def install_completion(ctx, shell, install, uninstall):
+def install_completion(ctx: click.Context, shell, install, uninstall):
     """
     Install or uninstall shell completion for bash, zsh, or fish.
 
