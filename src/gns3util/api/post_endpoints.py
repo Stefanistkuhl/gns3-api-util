@@ -109,7 +109,7 @@ class GNS3PostAPI(GNS3APIClient):
     def suspend_node(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/suspend", method="POST", verify=self.verify)
 
-    def reload_nodes(self, project_id, node_id):
+    def reload_node(self, project_id, node_id):
         return self._api_call(f"projects/{project_id}/nodes/{node_id}/reload", method="POST", verify=self.verify)
 
     def duplicate_node(self, project_id, node_id, data):

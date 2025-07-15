@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, TypedDict
 from gns3util.schemas import (
     Version,
     IOULicense,
@@ -27,7 +27,40 @@ from gns3util.schemas import (
     Appliance,
     ResourcePool,
     Resource,
+    UserCreate,
+    UserUpdate,
+    UserGroupCreate,
+    UserGroupUpdate,
+    RoleCreate,
+    RoleUpdate,
+    ACECreate,
+    ACEUpdate,
+    QemuDiskImageCreate,
+    TemplateCreate,
+    TemplateUpdate,
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectDuplicate,
+    TemplateUsage,
+    NodeCreate,
+    NodeUpdate,
+    NodeDuplicate,
+    QemuDiskImageUpdate,
+    LinkCreate,
+    LinkUpdate,
+    Drawing,
+    SnapshotCreate,
+    ComputeCreate,
+    ComputeUpdate,
+    ApplianceVersion,
+    ResourcePoolCreate,
+    ResourcePoolUpdate,
 )
+
+
+class pathDict(TypedDict):
+    path: str
+
 
 RESPONSE_SCHEMA_MAP = {
     # get
@@ -39,7 +72,7 @@ RESPONSE_SCHEMA_MAP = {
 
     # users
     "user_authenticate": Token,
-    "curret_user_info": User,
+    "current_user_info": User,
     "me": User,
     "users": list[User],
     "create_user": User,
@@ -51,7 +84,7 @@ RESPONSE_SCHEMA_MAP = {
     "users_groups": list[UserGroup],
     "groups": list[UserGroup],
     "create_group": UserGroup,
-    "group_by_id": UserGroup,
+    "groups_by_id": UserGroup,
     "update_group": UserGroup,
     "delete_group": None,
     "group_members": list[User],
@@ -94,7 +127,7 @@ RESPONSE_SCHEMA_MAP = {
     "create_template": Template,
     "template_by_id": Template,
     "update_template": Template,
-    "delete_endpoint": None,
+    "delete_template": None,
     "duplicate_template": Template,
 
     # Projects
@@ -137,8 +170,8 @@ RESPONSE_SCHEMA_MAP = {
     "unisolate_node": None,
     "node_links_by_id": list[Link],
     # figure out what to do with this
-    "node_dynamips_audo_idlepc": Any,
-    "node_dynamips_audo_idlepc_proposals": list[str],
+    "node_dynamips_auto_idlepc": Any,
+    "node_dynamips_auto_idlepc_proposals": list[str],
     "create_disk_image": None,
     "update_disk_image": None,
     "delete_disk_image": None,
@@ -148,7 +181,7 @@ RESPONSE_SCHEMA_MAP = {
     "reset_node_console": None,
 
     # links
-    "links": Link,
+    "links": list[Link],
     "create_link": Link,
     "link_filters": list[dict],
     "link": Link,
@@ -206,4 +239,44 @@ RESPONSE_SCHEMA_MAP = {
     "delete_pool": None,
     "add_resource_to_pool": None,
     "delete_pool_resource": None,
+}
+
+REQUEST_BODY_SCHEMA_MAP = {
+    "check_version": Version,
+    "iou_license": IOULicense,
+    "user_authenticate": Credentials,
+    "me": LoggedInUserUpdate,
+    "create_user": UserCreate,
+    "update_user": UserUpdate,
+    "create_group": UserGroupCreate,
+    "update_group": UserGroupUpdate,
+    "create_role": RoleCreate,
+    "update_role": RoleUpdate,
+    "create_acl": ACECreate,
+    "update_acl": ACEUpdate,
+    "create_qemu_image": QemuDiskImageCreate,
+    "create_template": TemplateCreate,
+    "update_template": TemplateUpdate,
+    "create_project": ProjectCreate,
+    "update_project": ProjectUpdate,
+    "load_project": pathDict,
+    "duplicate_project": ProjectDuplicate,
+    "create_project_node_from_template": TemplateUsage,
+    "create_node": NodeCreate,
+    "update_node": NodeUpdate,
+    "duplicate_node": NodeDuplicate,
+    "create_disk_image": QemuDiskImageCreate,
+    "update_disk_image": QemuDiskImageUpdate,
+    "create_link": LinkCreate,
+    "update_link": LinkUpdate,
+    "start_link_capture": dict,
+    "create_drawing": Drawing,
+    "update_drawing": Drawing,
+    "create_snapshot": SnapshotCreate,
+    "create_compute": ComputeCreate,
+    "update_compute": ComputeUpdate,
+    "set_auto_idlepc": AutoIdlePC,
+    "create_appliance_version": ApplianceVersion,
+    "create_pool": ResourcePoolCreate,
+    "update_pool": ResourcePoolUpdate,
 }
