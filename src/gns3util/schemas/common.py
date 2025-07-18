@@ -15,8 +15,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, TypedDict
+from dataclasses import dataclass
 from enum import Enum
+
+
+@dataclass
+class AuthFileEntry:
+    server_url: str
+    user: str
+    access_token: str
+    token_type: str
 
 
 class ErrorMessage(BaseModel):
@@ -45,7 +54,8 @@ class CustomAdapter(BaseModel):
     adapter_number: int
     port_name: Optional[str] = None
     adapter_type: Optional[str] = None
-    mac_address: Optional[str] = Field(None, pattern="^([0-9a-fA-F]{2}[:]){5}([0-9a-fA-F]{2})$")
+    mac_address: Optional[str] = Field(
+        None, pattern="^([0-9a-fA-F]{2}[:]){5}([0-9a-fA-F]{2})$")
 
 
 class ConsoleType(str, Enum):
@@ -69,3 +79,7 @@ class AuxType(str, Enum):
 
     telnet = "telnet"
     none = "none"
+
+
+class pathDict(TypedDict):
+    path: str

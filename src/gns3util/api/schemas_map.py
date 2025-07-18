@@ -1,4 +1,5 @@
 from typing import Any, TypedDict
+from gns3util.schemas.common import pathDict
 from gns3util.schemas import (
     Version,
     IOULicense,
@@ -56,10 +57,6 @@ from gns3util.schemas import (
     ResourcePoolCreate,
     ResourcePoolUpdate,
 )
-
-
-class pathDict(TypedDict):
-    path: str
 
 
 RESPONSE_SCHEMA_MAP = {
@@ -131,7 +128,7 @@ RESPONSE_SCHEMA_MAP = {
     "duplicate_template": Template,
 
     # Projects
-    "projects": Project,
+    "projects": list[Project],
     "create_project": Project,
     "project": Project,
     "update_project": Project,
@@ -232,7 +229,7 @@ RESPONSE_SCHEMA_MAP = {
     "install_appliance_version": None,
 
     # ressource pools
-    "pools": ResourcePool,
+    "pools": list[ResourcePool],
     "create_pool": ResourcePool,
     "pool": ResourcePool,
     "update_pool": ResourcePool,

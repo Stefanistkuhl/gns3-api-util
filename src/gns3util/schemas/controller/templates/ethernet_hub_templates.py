@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import Category, TemplateBase
-from gns3server.schemas.compute.ethernet_hub_nodes import EthernetHubPort
+from gns3util.schemas.compute.ethernet_hub_nodes import EthernetHubPort
 
 from pydantic import Field
 from typing import Optional, List
@@ -38,7 +38,8 @@ class EthernetHubTemplate(TemplateBase):
     category: Optional[Category] = Category.switch
     default_name_format: Optional[str] = "Hub{0}"
     symbol: Optional[str] = "hub"
-    ports_mapping: Optional[List[EthernetHubPort]] = Field(DEFAULT_PORTS, description="Ports")
+    ports_mapping: Optional[List[EthernetHubPort]] = Field(
+        DEFAULT_PORTS, description="Ports")
 
 
 class EthernetHubTemplateUpdate(EthernetHubTemplate):

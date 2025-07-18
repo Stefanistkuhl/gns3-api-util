@@ -1,5 +1,4 @@
 import click
-import os
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
@@ -92,10 +91,10 @@ def get_client(ctx: click.Context):
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
-    if success:
-        return GNS3GetAPI(server_url, key['access_token'], verify=verify)
+    if success and key:
+        return GNS3GetAPI(server_url, key.access_token, verify=verify)
     else:
-        os._exit(1)
+        ctx.exit(1)
 
 
 with importlib.resources.files("gns3util.help_texts").joinpath("help_get.json").open("r", encoding="utf-8") as f:

@@ -16,6 +16,8 @@
 
 # General schemas
 from .config import ServerConfig
+from .common import pathDict
+from .common import AuthFileEntry
 from .common import ErrorMessage
 from .version import Version
 
@@ -49,17 +51,6 @@ from .controller.templates.vmware_templates import VMwareTemplate, VMwareTemplat
 from .controller.templates.qemu_templates import QemuTemplate, QemuTemplateUpdate
 from .controller.templates.dynamips_templates import (
     DynamipsTemplate,
-    C1699DynamipsTemplate,
-    C1699DynamipsTemplateUpdate,
-    C2599DynamipsTemplate,
-    C2599DynamipsTemplateUpdate,
-    C2690DynamipsTemplate,
-    C2690DynamipsTemplateUpdate,
-    C3599DynamipsTemplate,
-    C3599DynamipsTemplateUpdate,
-    C3724DynamipsTemplate,
-    C3724DynamipsTemplateUpdate,
-    C3744DynamipsTemplate,
     C3745DynamipsTemplateUpdate,
     C7200DynamipsTemplate,
     C7200DynamipsTemplateUpdate

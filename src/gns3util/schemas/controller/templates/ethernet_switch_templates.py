@@ -16,21 +16,29 @@
 
 
 from . import Category, TemplateBase
-from gns3server.schemas.compute.ethernet_switch_nodes import EthernetSwitchPort
+from gns3util.schemas.compute.ethernet_switch_nodes import EthernetSwitchPort
 
 from pydantic import Field
 from typing import Optional, List
 from enum import Enum
 
 DEFAULT_PORTS = [
-    EthernetSwitchPort(port_number=0, name="Ethernet0", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=1, name="Ethernet1", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=2, name="Ethernet2", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=3, name="Ethernet3", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=4, name="Ethernet4", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=5, name="Ethernet5", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=6, name="Ethernet6", vlan=1, type="access", ethertype="0x8100"),
-    EthernetSwitchPort(port_number=7, name="Ethernet7", vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=0, name="Ethernet0",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=1, name="Ethernet1",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=2, name="Ethernet2",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=3, name="Ethernet3",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=4, name="Ethernet4",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=5, name="Ethernet5",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=6, name="Ethernet6",
+                       vlan=1, type="access", ethertype="0x8100"),
+    EthernetSwitchPort(port_number=7, name="Ethernet7",
+                       vlan=1, type="access", ethertype="0x8100"),
 ]
 
 
@@ -48,8 +56,10 @@ class EthernetSwitchTemplate(TemplateBase):
     category: Optional[Category] = Category.switch
     default_name_format: Optional[str] = "Switch{0}"
     symbol: Optional[str] = "ethernet_switch"
-    ports_mapping: Optional[List[EthernetSwitchPort]] = Field(DEFAULT_PORTS, description="Ports")
-    console_type: Optional[ConsoleType] = Field(ConsoleType.none, description="Console type")
+    ports_mapping: Optional[List[EthernetSwitchPort]] = Field(
+        DEFAULT_PORTS, description="Ports")
+    console_type: Optional[ConsoleType] = Field(
+        ConsoleType.none, description="Console type")
 
 
 class EthernetSwitchTemplateUpdate(EthernetSwitchTemplate):

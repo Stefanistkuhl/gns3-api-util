@@ -3,15 +3,13 @@ from .api.client import GNS3Error
 from click.exceptions import Abort
 from click import UsageError
 from typing import Any
+from gns3util.schemas import Token, AuthFileEntry
+from gns3util.utils import validate_response
+from dacite import from_dict
+from dataclasses import asdict
 import json
 import sys
 import os
-
-
-def insert_as_first_val(dict_obj, key, value):
-    """Insert a key-value pair as the first item in a dictionary."""
-    new_dict = {key: value, **dict_obj}
-    return new_dict
 
 
 def authenticate_user(ctx: click.Context, credentials: tuple[str, str]) -> tuple[GNS3Error, Any]:
@@ -26,7 +24,7 @@ def authenticate_user(ctx: click.Context, credentials: tuple[str, str]) -> tuple
     return auth_error, result
 
 
-def save_auth_data(auth_data, server_url, username, key_file) -> bool:
+def save_auth_data(auth_data: Token, server_url: str, username: str, key_file) -> bool:
     """Save authentication data to a file."""
     if not os.path.exists(os.path.abspath(key_file)):
         open(key_file, 'a').close()
@@ -35,10 +33,13 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
         key_entries = []
 
         with open(key_file, "a") as f:
-            resp_dic = insert_as_first_val(auth_data, "user", username)
-            resp_dic = insert_as_first_val(
-                resp_dic, "server_url", server_url)
-            f.write(json.dumps(resp_dic) + "\n")
+            key_entry = AuthFileEntry(
+                server_url=server_url,
+                user=username,
+                access_token=auth_data.access_token,
+                token_type=auth_data.token_type,
+            )
+            f.write(json.dumps(asdict(key_entry)) + "\n")
 
         with open(key_file, "r") as f:
             for line in f:
@@ -48,8 +49,9 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
         unique_list = []
         for key in key_entries:
             try:
-                entry = json.loads(key)
-                pair = (entry['server_url'], entry['user'])
+                entry_raw = json.loads(key)
+                entry = from_dict(data_class=AuthFileEntry, data=entry_raw)
+                pair = (entry.server_url, entry.user)
                 if pair not in seen:
                     seen.add(pair)
                     unique_list.append(entry)
@@ -62,7 +64,7 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
 
         with open(key_file, "w") as f:
             for key in unique_list:
-                f.write(json.dumps(key) + "\n")
+                f.write(json.dumps(asdict(key)) + "\n")
             return True
 
     except IOError as e:
@@ -76,7 +78,7 @@ def save_auth_data(auth_data, server_url, username, key_file) -> bool:
         return False
 
 
-def load_key(key_file) -> tuple[bool, list]:
+def load_key(key_file) -> tuple[bool, list[AuthFileEntry]]:
     try:
         data_arr = []
         with open(key_file) as f:
@@ -85,7 +87,8 @@ def load_key(key_file) -> tuple[bool, list]:
             return False, data_arr
         with open(key_file) as f:
             for line in f:
-                data_arr.append(json.loads(line))
+                data_arr.append(
+                    from_dict(data_class=AuthFileEntry, data=json.loads(line)))
         return True, data_arr
     except ValueError:
         return False, data_arr
@@ -108,7 +111,7 @@ def auth():
     pass
 
 
-def load_and_try_key(ctx: click.Context) -> tuple[bool, dict]:
+def load_and_try_key(ctx: click.Context) -> tuple[bool, AuthFileEntry | None]:
     key_file = ctx.parent.obj['key_file'] or os.path.expanduser("~/.gns3key")
     load_success, keyData = load_key(key_file)
     if not load_success:
@@ -122,21 +125,21 @@ def load_and_try_key(ctx: click.Context) -> tuple[bool, dict]:
             sys.exit(1)
     if load_success:
         for key in keyData:
-            if key["server_url"] == ctx.parent.obj['server']:
-                token = key['access_token']
+            if key.server_url == ctx.parent.obj['server']:
+                token = key.access_token
                 try_key_error, result = try_key(ctx, token)
                 if GNS3Error.has_error(try_key_error):
                     if try_key_error.connection:
                         GNS3Error.print_error(try_key_error)
                         if "https://" in ctx.parent.obj['server']:
                             click.secho(
-                                "You are probably using a selfsinged SSL-Cert so try again with the ", nl=False)
+                                "You are probably using a self-signed SSL-Cert so try again with the ", nl=False)
                             click.secho("-i", bold=True, nl=False)
                             click.secho(" flag")
-                        sys.exit(1)
+                        ctx.exit(1)
                     if not try_key_error.unauthorized:
                         GNS3Error.print_error(try_key_error)
-                        return False, {}
+                        return False, None
                 else:
                     return True, key
 
@@ -177,10 +180,10 @@ def login(ctx: click.Context, user, password, no_keyfile_confirm):
 
     try:
         ok, key = load_and_try_key(ctx)
-        if ok:
+        if ok and key:
             click.secho("Success: ", fg="green", nl=False)
             click.secho("API key works, logged in as ", nl=False)
-            click.secho(f"{key['user']}", bold=True)
+            click.secho(f"{key.user}", bold=True)
             return
 
         if not user and password == "-":
@@ -204,7 +207,7 @@ def login(ctx: click.Context, user, password, no_keyfile_confirm):
                 click.secho("Authentication cancelled.", err=True)
                 return
 
-        auth_error, auth_data = authenticate_user(ctx, (user, password))
+        auth_error, auth_data_raw = authenticate_user(ctx, (user, password))
         if GNS3Error.has_error(auth_error):
             if auth_error.unauthorized:
                 click.secho(
@@ -214,8 +217,9 @@ def login(ctx: click.Context, user, password, no_keyfile_confirm):
             else:
                 GNS3Error.print_error(auth_error)
             return
-
-        key_file = ctx.parent.obj['key_file'] or os.path.expanduser(
+        auth_data: Token = validate_response(
+            "user_authenticate", auth_data_raw)
+        key_file = ctx.parent.obj["key_file"] or os.path.expanduser(
             "~/.gns3key")
         server_url = ctx.parent.obj["server"]
         saved = save_auth_data(auth_data, server_url, user, key_file)
@@ -254,8 +258,8 @@ def login(ctx: click.Context, user, password, no_keyfile_confirm):
 def status(ctx: click.Context):
     """Display authentication status."""
     load_and_try_key_success,  result = load_and_try_key(ctx)
-    if load_and_try_key_success:
+    if load_and_try_key_success and result:
         click.secho("Success: ", nl=False, fg="green")
         click.secho("API key works, logged in as ", nl=False)
-        click.secho(f"{result['user']}", bold=True)
+        click.secho(f"{result.user}", bold=True)
         return

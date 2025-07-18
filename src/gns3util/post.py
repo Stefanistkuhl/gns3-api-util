@@ -1,6 +1,5 @@
 import click
 import json
-import os
 import importlib.resources
 
 from . import auth
@@ -71,15 +70,18 @@ def post():
 
 
 def get_client(ctx: click.Context):
-    server_url = ctx.parent.obj["server"]
+    """Helper function to create GNS3PostAPI instance."""
+    server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
-    if not success:
-        os._exit(1)
-    return GNS3PostAPI(server_url, key["access_token"], verify=verify)
-
+    if success and key:
+        return GNS3PostAPI(server_url, key.access_token, verify=verify)
+    else:
+        ctx.exit(1)
 
 # define sub‐command groups
+
+
 @post.group()
 def controller():
     """Controller operations."""

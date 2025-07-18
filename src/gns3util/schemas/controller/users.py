@@ -16,7 +16,7 @@
 
 from datetime import datetime
 from typing import Optional
-from pydantic import ConfigDict, EmailStr, BaseModel, Field, SecretStr
+from pydantic import ConfigDict, EmailStr, BaseModel, Field, SecretStr, field_serializer
 from uuid import UUID
 
 from .base import DateTimeModelMixin
@@ -27,7 +27,8 @@ class UserBase(BaseModel):
     Common user properties.
     """
 
-    username: Optional[str] = Field(None, min_length=3, pattern="[a-zA-Z0-9_-]+$")
+    username: Optional[str] = Field(
+        None, min_length=3, pattern="[a-zA-Z0-9_-]+$")
     is_active: bool = True
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
@@ -41,6 +42,10 @@ class UserCreate(UserBase):
     username: str = Field(..., min_length=3, pattern="[a-zA-Z0-9_-]+$")
     password: SecretStr = Field(..., min_length=8, max_length=100)
 
+    @field_serializer('password', when_used='json')
+    def dump_secret(self, v):
+        return v.get_secret_value()
+
 
 class UserUpdate(UserBase):
     """
@@ -48,6 +53,10 @@ class UserUpdate(UserBase):
     """
 
     password: Optional[SecretStr] = Field(None, min_length=8, max_length=100)
+
+    @field_serializer('password', when_used='json')
+    def dump_secret(self, v):
+        return v.get_secret_value()
 
 
 class LoggedInUserUpdate(BaseModel):

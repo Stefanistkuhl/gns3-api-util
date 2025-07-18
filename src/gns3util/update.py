@@ -1,5 +1,4 @@
 import click
-import os
 import json
 import importlib.resources
 from . import auth
@@ -63,10 +62,10 @@ def get_client(ctx: click.Context):
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
-    if success:
-        return GNS3PutAPI(server_url, key['access_token'], verify)
+    if success and key:
+        return GNS3PutAPI(server_url, key.access_token, verify)
     else:
-        os._exit(1)
+        ctx.exit(1)
 
 
 with importlib.resources.files("gns3util.help_texts").joinpath("help_put.json").open("r", encoding="utf-8") as f:

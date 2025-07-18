@@ -1,36 +1,39 @@
 {
-  "className": {
-    "className-groupName-groupNumber": {
+  "name": "className",
+  "groups": [
+    {
+      "name": "className-groupName-groupNumber",
       "students": [
         {
           "fullName": "Alice",
           "userName": "alice",
-	  "password" : "aifjaijfiasjfi",
+          "password": "aifjaijfiasjfi",
           "email": "alice@example.com"
         },
         {
           "fullName": "Bob",
           "userName": "bob",
-	  "password" : "aifjaijfiasjfi",
+          "password": "aifjaijfiasjfi",
           "email": "bob@example.com"
         }
       ]
     },
-    "className-anotherGroup-groupNumber1": {
+    {
+      "name": "className-anotherGroup-groupNumber1",
       "students": [
         {
           "fullName": "",
           "userName": "aijfasifjacjb",
-	  "password" : "aifjaijfiasjfi",
+          "password": "aifjaijfiasjfi",
           "email": "aijaisjf@example.com"
         },
         {
           "fullName": "iasjfiajf",
           "userName": "ijasijaisfj",
-	  "password" : "aifjaijfiasjfi",
+          "password": "aifjaijfiasjfi",
           "email": "afijaifjas@example.com"
         }
       ]
     }
-  }
+  ]
 }

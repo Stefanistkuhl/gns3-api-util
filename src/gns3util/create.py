@@ -1,7 +1,6 @@
 import click
 import json
 from . import auth
-import os
 from .api.post_endpoints import GNS3PostAPI
 from .utils import execute_and_print, create_class, create_Exercise, get_command_description
 from .server import start_and_get_data
@@ -56,10 +55,10 @@ def get_client(ctx: click.Context):
     server_url = ctx.parent.obj['server']
     verify = ctx.parent.obj['verify']
     success, key = auth.load_and_try_key(ctx)
-    if success:
-        return GNS3PostAPI(server_url, key['access_token'], verify=verify)
+    if success and key:
+        return GNS3PostAPI(server_url, key.access_token, verify=verify)
     else:
-        os._exit(1)
+        ctx.exit(1)
 
 
 # Replace help_path and open with importlib.resources
@@ -237,10 +236,11 @@ def make_class(ctx: click.Context, filename, create):
                 "failed to create class", bold=True, err=True)
 
 
-@create.command(name="exercise", help="create everything need to setup a class and it's students")
-@click.argument('class_name', type=str)
-@click.argument('exercise_name', type=str)
+@create.command(name="exercise", help="Create a Project for every group in a class with ACL's to lock down access.")
+@click.option('-c', '--class_name', type=str)
+@click.option('-e', '--exercise_name', type=str)
 @click.pass_context
+# TODO add tabcomplete for classes to use
 def make_exercise(ctx: click.Context, class_name, exercise_name):
     success = create_Exercise(ctx, class_name, exercise_name)
     if success:

@@ -16,7 +16,7 @@
 
 
 from . import Category, TemplateBase
-from gns3server.schemas.compute.vpcs_nodes import ConsoleType
+from gns3util.schemas.compute.vpcs_nodes import ConsoleType
 
 from pydantic import Field
 from typing import Optional
@@ -27,8 +27,10 @@ class VPCSTemplate(TemplateBase):
     category: Optional[Category] = Category.guest
     default_name_format: Optional[str] = "PC{0}"
     symbol: Optional[str] = "vpcs_guest"
-    base_script_file: Optional[str] = Field("vpcs_base_config.txt", description="Script file")
-    console_type: Optional[ConsoleType] = Field(ConsoleType.telnet, description="Console type")
+    base_script_file: Optional[str] = Field(
+        "vpcs_base_config.txt", description="Script file")
+    console_type: Optional[ConsoleType] = Field(
+        ConsoleType.telnet, description="Console type")
     console_auto_start: Optional[bool] = Field(
         False, description="Automatically start the console when the node has started"
     )

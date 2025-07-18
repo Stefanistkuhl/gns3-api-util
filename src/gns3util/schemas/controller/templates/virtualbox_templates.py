@@ -15,7 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import Category, TemplateBase
-from gns3server.schemas.compute.virtualbox_nodes import (
+from gns3util.schemas.compute.virtualbox_nodes import (
     VirtualBoxConsoleType,
     VirtualBoxAdapterType,
     VirtualBoxOnCloseAction,
@@ -31,16 +31,20 @@ class VirtualBoxTemplate(TemplateBase):
     category: Optional[Category] = Category.guest
     default_name_format: Optional[str] = "{name}-{0}"
     symbol: Optional[str] = "vbox_guest"
-    vmname: str = Field(..., description="VirtualBox VM name (in VirtualBox itself)")
+    vmname: str = Field(...,
+                        description="VirtualBox VM name (in VirtualBox itself)")
     ram: Optional[int] = Field(256, gt=0, description="Amount of RAM in MB")
-    linked_clone: Optional[bool] = Field(False, description="Whether the VM is a linked clone or not")
+    linked_clone: Optional[bool] = Field(
+        False, description="Whether the VM is a linked clone or not")
     adapters: Optional[int] = Field(
         1, ge=0, le=36, description="Number of adapters"
     )  # 36 is the maximum given by the ICH9 chipset in VirtualBox
-    use_any_adapter: Optional[bool] = Field(False, description="Allow GNS3 to use any VirtualBox adapter")
+    use_any_adapter: Optional[bool] = Field(
+        False, description="Allow GNS3 to use any VirtualBox adapter")
     adapter_type: Optional[VirtualBoxAdapterType] = Field(VirtualBoxAdapterType.intel_pro_1000_mt_desktop, description="VirtualBox adapter type"
-    )
-    first_port_name: Optional[str] = Field("", description="Optional name of the first networking port example: eth0")
+                                                          )
+    first_port_name: Optional[str] = Field(
+        "", description="Optional name of the first networking port example: eth0")
     port_name_format: Optional[str] = Field(
         "Ethernet{0}", description="Optional formatting of the networking port example: eth{0}"
     )
@@ -52,13 +56,16 @@ class VirtualBoxTemplate(TemplateBase):
     on_close: Optional[VirtualBoxOnCloseAction] = Field(
         VirtualBoxOnCloseAction.power_off, description="Action to execute on the VM is closed"
     )
-    console_type: Optional[VirtualBoxConsoleType] = Field(VirtualBoxConsoleType.none, description="Console type")
+    console_type: Optional[VirtualBoxConsoleType] = Field(
+        VirtualBoxConsoleType.none, description="Console type")
     console_auto_start: Optional[bool] = Field(
         False, description="Automatically start the console when the node has started"
     )
-    custom_adapters: Optional[List[CustomAdapter]] = Field(default_factory=list, description="Custom adapters")
+    custom_adapters: Optional[List[CustomAdapter]] = Field(
+        default_factory=list, description="Custom adapters")
 
 
 class VirtualBoxTemplateUpdate(VirtualBoxTemplate):
 
-    vmname: Optional[str] = Field(None, description="VirtualBox VM name (in VirtualBox itself)")
+    vmname: Optional[str] = Field(
+        None, description="VirtualBox VM name (in VirtualBox itself)")
