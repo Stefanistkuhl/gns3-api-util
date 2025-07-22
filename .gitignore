@@ -38,6 +38,7 @@ ENV/
 .project
 .pydevproject
 .settings
+ruff_cache/
 
 # Operating System
 .DS_Store

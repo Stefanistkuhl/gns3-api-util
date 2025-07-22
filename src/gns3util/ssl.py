@@ -31,34 +31,39 @@ def edit_script_with_flags(input: str, params: install_ssl_args) -> str:
             if params.firewall_block:
                 modified_lines.append(line.replace('UFW=""', 'UFW="ufw"'))
         elif 'RP_PORT=""' in line:
-            modified_lines.append(line.replace(
-                'RP_PORT=""', f'RP_PORT="{params.reverse_proxy_port}"'))
+            modified_lines.append(
+                line.replace('RP_PORT=""', f'RP_PORT="{params.reverse_proxy_port}"')
+            )
         elif 'GNS3_PORT=""' in line:
-            modified_lines.append(line.replace(
-                'GNS3_PORT=""', f'GNS3_PORT="{params.gns3_port}"'))
+            modified_lines.append(
+                line.replace('GNS3_PORT=""', f'GNS3_PORT="{params.gns3_port}"')
+            )
         elif 'DOMAIN=""' in line:
             if params.domain != '""':
-                modified_lines.append(line.replace(
-                    'DOMAIN=""', f'DOMAIN="{params.domain}"'))
+                modified_lines.append(
+                    line.replace('DOMAIN=""', f'DOMAIN="{params.domain}"')
+                )
             else:
-                modified_lines.append(line.replace(
-                    'DOMAIN=""', 'DOMAIN=""'))
+                modified_lines.append(line.replace('DOMAIN=""', 'DOMAIN=""'))
         elif 'SUBJ=""' in line:
-            modified_lines.append(line.replace(
-                'SUBJ=""', f'SUBJ="{params.subject}"'))
-        elif 'UFW_ENABLE' in line:
+            modified_lines.append(line.replace('SUBJ=""', f'SUBJ="{params.subject}"'))
+        elif "UFW_ENABLE" in line:
             if params.firewall_block:
                 if params.firewall_allow and params.firewall_allow != '""':
                     modified_lines.append("echo 'y' | $SUDO ufw enable")
-                    modified_lines.append(line.replace(
-                        'UFW_ENABLE', f'$SUDO ufw allow proto tcp from {params.firewall_allow} to any port {params.gns3_port}'))
+                    modified_lines.append(
+                        line.replace(
+                            "UFW_ENABLE",
+                            f"$SUDO ufw allow proto tcp from {params.firewall_allow} to any port {params.gns3_port}",
+                        )
+                    )
                 else:
                     modified_lines.append("echo 'y' | $SUDO ufw enable")
-                    modified_lines.append(line.replace(
-                        'UFW_ENABLE', f'$SUDO ufw deny {params.gns3_port}'))
+                    modified_lines.append(
+                        line.replace("UFW_ENABLE", f"$SUDO ufw deny {params.gns3_port}")
+                    )
             else:
-                modified_lines.append(line.replace(
-                    'UFW_ENABLE', ''))
+                modified_lines.append(line.replace("UFW_ENABLE", ""))
 
         else:
             modified_lines.append(line)
@@ -82,14 +87,16 @@ def file_opts_to_params(input: str) -> install_ssl_args:
                 reverse_proxy_port = int(split[-1])
             except ValueError:
                 raise click.UsageError(
-                    "Please enter an integer as the port number for the reverse proxy.")
+                    "Please enter an integer as the port number for the reverse proxy."
+                )
         elif "GNS3_PORT" in line:
             split = line.split("=")
             try:
                 gns3_port = int(split[-1])
             except ValueError:
                 raise click.UsageError(
-                    "Please enter an integer as the port number for the GNS3 server")
+                    "Please enter an integer as the port number for the GNS3 server"
+                )
         elif "DOMAIN" in line:
             split = line.split("=")
             if "" in line:
@@ -99,7 +106,7 @@ def file_opts_to_params(input: str) -> install_ssl_args:
         elif "SUBJECT" in line:
             index_of_first_equals = line.find("=")
             if index_of_first_equals != -1:
-                subj = line[index_of_first_equals+1:]
+                subj = line[index_of_first_equals + 1 :]
         elif "FIREWALL_ALLOW" in line:
             split = line.split("=")
             if split[-1] == "":
@@ -126,7 +133,7 @@ def file_opts_to_params(input: str) -> install_ssl_args:
         subject=subj,
         reverse_proxy_port=reverse_proxy_port,
         gns3_port=gns3_port,
-        verbose=verbose
+        verbose=verbose,
     )
 
 
@@ -174,28 +181,33 @@ def validate_install_ssl_input(
     domain: str = "",
     gns3_port: int = 3080,
     subject: str = "/CN=localhost",
-    verbose=False
+    verbose=False,
 ) -> install_ssl_args:
     if firewall_allow and not firewall_allow:
         raise click.UsageError(
-            "If a firewall allow ip range is set the --firewall-block flag must be set aswell.")
+            "If a firewall allow ip range is set the --firewall-block flag must be set aswell."
+        )
     if firewall_allow and firewall_block:
         if firewall_allow != '""':
             if not is_valid_ip(firewall_allow):
                 raise click.UsageError(
-                    "Please enter a Network in the following format: \n xxx.xxx.xxx.xxx/xx")
+                    "Please enter a Network in the following format: \n xxx.xxx.xxx.xxx/xx"
+                )
 
     if reverse_proxy_port > 65535 or gns3_port > 65535:
         raise click.UsageError(
-            "Please use a valid port number that is smaller than 65535")
+            "Please use a valid port number that is smaller than 65535"
+        )
     if subject != "/CN=localhost":
         if not is_valid_subj(subject):
             raise click.UsageError(
-                "Invalid subj please follow this formatting:\n /C=COUNTRY-CODE/ST=STATE/L=CITY/O=Organization/OU=Organizational-Unit/CN=common-name/emailAddress=email\n You only need this at minumum which get's used if the option isn't set: \n /CN=localhost \n")
+                "Invalid subj please follow this formatting:\n /C=COUNTRY-CODE/ST=STATE/L=CITY/O=Organization/OU=Organizational-Unit/CN=common-name/emailAddress=email\n You only need this at minumum which get's used if the option isn't set: \n /CN=localhost \n"
+            )
     if domain != '""':
         if not is_valid_domain(domain):
             raise click.UsageError(
-                f"{domain} is not a valid domain name if please enter a valid one, or not use this option if you don't want to use one.")
+                f"{domain} is not a valid domain name if please enter a valid one, or not use this option if you don't want to use one."
+            )
     return install_ssl_args(
         firewall_allow=firewall_allow,
         firewall_block=firewall_block,
@@ -203,7 +215,7 @@ def validate_install_ssl_input(
         domain=domain,
         gns3_port=gns3_port,
         subject=subject,
-        verbose=verbose
+        verbose=verbose,
     )
 
 
@@ -220,9 +232,11 @@ def push_and_run_script_via_heredoc(
     3) chmod +x, executes it, then removes it.
     Returns True if script ran successfully, False otherwise.
     """
-    script_text = importlib.resources.files(package) \
-        .joinpath(resource_name) \
+    script_text = (
+        importlib.resources.files(package)
+        .joinpath(resource_name)
         .read_text(encoding="utf-8")
+    )
 
     script_text = edit_script_with_flags(script_text, params)
 
@@ -267,8 +281,8 @@ def parse_server_url_for_ssh(server_url, port_option):
     Prioritizes the 'port_option' value if provided.
     Defaults to port 22 if no explicit port is given.
     """
-    hostname_part = re.sub(r'https?://', '', server_url)
-    parts = hostname_part.split(':')
+    hostname_part = re.sub(r"https?://", "", server_url)
+    parts = hostname_part.split(":")
     hostname = parts[0]
     default_ssh_port = 22
 
@@ -282,8 +296,9 @@ def parse_server_url_for_ssh(server_url, port_option):
     return hostname, port
 
 
-def ssh_connect_with_key_or_password(hostname, username, port,
-                                     custom_private_key_path=None, verbose: bool = False):
+def ssh_connect_with_key_or_password(
+    hostname, username, port, custom_private_key_path=None, verbose: bool = False
+):
     """
     Connects to an SSH server trying common private key locations first,
     then a custom path if provided, and finally falls back to password.
@@ -314,8 +329,7 @@ def ssh_connect_with_key_or_password(hostname, username, port,
     for private_key_path in potential_key_paths:
         if not os.path.exists(private_key_path):
             if verbose:
-                click.secho(f"Info: Private key file not found: {
-                            private_key_path}")
+                click.secho(f"Info: Private key file not found: {private_key_path}")
             continue
 
         for key_cls in key_classes:
@@ -323,9 +337,7 @@ def ssh_connect_with_key_or_password(hostname, username, port,
                 pkey = key_cls.from_private_key_file(private_key_path)
             except paramiko.PasswordRequiredException:
                 if verbose:
-                    click.secho(
-                        f"Info: Key {private_key_path} is encrypted; skipping."
-                    )
+                    click.secho(f"Info: Key {private_key_path} is encrypted; skipping.")
                 break
             except paramiko.SSHException:
                 continue
@@ -370,9 +382,7 @@ def ssh_connect_with_key_or_password(hostname, username, port,
     try:
         password = click.prompt("Enter SSH password", hide_input=True)
         if verbose:
-            click.secho(
-                f"Attempting connection to {hostname}:{port} with password..."
-            )
+            click.secho(f"Attempting connection to {hostname}:{port} with password...")
         client.connect(
             hostname,
             port=port,
@@ -401,11 +411,12 @@ VERBOSE=False
 """
 
 
-@install.command(name="ssl", help="Install caddy on the remote host over ssh as a reverse proxy for GNS3 to have HTTPS only works linux servers")
-@click.argument("user", required=True, type=str)
-@click.option(
-    "-p", "--port", required=False, type=int, default=22, help="SSH port."
+@install.command(
+    name="ssl",
+    help="Install caddy on the remote host over ssh as a reverse proxy for GNS3 to have HTTPS only works linux servers",
 )
+@click.argument("user", required=True, type=str)
+@click.option("-p", "--port", required=False, type=int, default=22, help="SSH port.")
 @click.option(
     "-k",
     "--key",
@@ -430,9 +441,7 @@ VERBOSE=False
     default=3080,
     help="Port of the GNS3 Server.",
 )
-@click.option(
-    "-d", "--domain", default="",  help="Domain to use for the reverse proxy."
-)
+@click.option("-d", "--domain", default="", help="Domain to use for the reverse proxy.")
 @click.option(
     "-s",
     "--subject",
@@ -466,7 +475,11 @@ VERBOSE=False
     help="Set the options for this command interactively.",
 )
 @click.option(
-    "-v", "--verbose", "verbose", is_flag=True, help="Run this command with extra logging."
+    "-v",
+    "--verbose",
+    "verbose",
+    is_flag=True,
+    help="Run this command with extra logging.",
 )
 @click.pass_context
 def install_ssl(
@@ -492,10 +505,24 @@ def install_ssl(
         opts = click.edit(text=interactive_options_text)
         interavtive_params = file_opts_to_params(opts)
         params = validate_install_ssl_input(
-            interavtive_params.firewall_allow, interavtive_params.firewall_block, interavtive_params.reverse_proxy_port, interavtive_params.domain, interavtive_params.gns3_port, interavtive_params.subject, verbose=interavtive_params.verbose)
+            interavtive_params.firewall_allow,
+            interavtive_params.firewall_block,
+            interavtive_params.reverse_proxy_port,
+            interavtive_params.domain,
+            interavtive_params.gns3_port,
+            interavtive_params.subject,
+            verbose=interavtive_params.verbose,
+        )
     else:
         params = validate_install_ssl_input(
-            firewall_allow, firewall_block, reverse_proxy_port, domain, gns3_port, subject, verbose=verbose)
+            firewall_allow,
+            firewall_block,
+            reverse_proxy_port,
+            domain,
+            gns3_port,
+            subject,
+            verbose=verbose,
+        )
     server_url = ctx.parent.obj.get("server")
     hostname, ssh_port = parse_server_url_for_ssh(server_url, port)
     if params.verbose:
@@ -508,7 +535,9 @@ def install_ssl(
     if not ssh_client:
         click.secho("Error: ", fg="red", nl=False, err=True)
         click.secho(
-            "Failed to establish SSH connection for SSL installation.", err=True, bold=True
+            "Failed to establish SSH connection for SSL installation.",
+            err=True,
+            bold=True,
         )
         return
 
@@ -516,29 +545,25 @@ def install_ssl(
         stdin, stdout, stderr = ssh_client.exec_command("id -u")
         uid = int(stdout.read().decode().strip() or "-1")
         if uid != 0:
-            stdin, stdout, stderr = ssh_client.exec_command(
-                "sudo -n true"
-            )
+            stdin, stdout, stderr = ssh_client.exec_command("sudo -n true")
             exit_status = stdout.channel.recv_exit_status()
             if exit_status != 0:
+                click.secho("Error: ", fg="red", nl=False)
                 click.secho(
-                    "Error: ",
-                    fg="red", nl=False
-                )
-                click.secho(
-                    "remote user is not root "
-                    "and lacks passwordless sudo privileges.", err=True, bold=True
+                    "remote user is not root and lacks passwordless sudo privileges.",
+                    err=True,
+                    bold=True,
                 )
                 ssh_client.close()
                 return
         if params.verbose:
             click.secho(
                 "Privilege check passed (root or passwordless sudo).",
-                fg="green", bold=True
+                fg="green",
+                bold=True,
             )
     except Exception as e:
-        click.secho(
-            "Error checking remote privileges: ", fg="red", nl=False, err=True)
+        click.secho("Error checking remote privileges: ", fg="red", nl=False, err=True)
         click.secho(f"{e}", bold=True, err=True)
         ssh_client.close()
         return
@@ -557,10 +582,11 @@ def install_ssl(
         ssh_client.close()
         if params.verbose:
             click.secho("SSH connection closed.", fg="white", bold=True)
-        if 'success' in locals() and success:
+        if "success" in locals() and success:
             click.secho("Success: ", fg="green", nl=False)
             click.secho(
                 f"Setup caddy as reverse proxy on the remote server and listening on port {
-                    params.reverse_proxy_port}.",
-                bold=True
+                    params.reverse_proxy_port
+                }.",
+                bold=True,
             )

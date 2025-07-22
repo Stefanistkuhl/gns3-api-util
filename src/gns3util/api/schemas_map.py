@@ -66,7 +66,6 @@ RESPONSE_SCHEMA_MAP = {
     "iou_license": IOULicense,
     "statistics": list[dict],
     "notifications": Any,
-
     # users
     "user_authenticate": Token,
     "current_user_info": User,
@@ -76,7 +75,6 @@ RESPONSE_SCHEMA_MAP = {
     "user": User,
     "update_user": User,
     "delete_user": None,
-
     # groups
     "users_groups": list[UserGroup],
     "groups": list[UserGroup],
@@ -87,7 +85,6 @@ RESPONSE_SCHEMA_MAP = {
     "group_members": list[User],
     "add_group_member": None,
     "delete_user_from_group": None,
-
     # roles
     "roles": list[Role],
     "create_role": Role,
@@ -97,10 +94,8 @@ RESPONSE_SCHEMA_MAP = {
     "role_privileges": list[Privilege],
     "update_role_privs": None,
     "delete_role_priv": None,
-
     # privs
     "privileges": list[Privilege],
-
     # acl
     # this endpoint should have a custom class with the schema and for code that creates acls it should call this first to see if the endpoint is availiable
     "acl_endpoints": list[dict],
@@ -109,7 +104,6 @@ RESPONSE_SCHEMA_MAP = {
     "acl_by_id": ACE,
     "update_ace": ACE,
     "delete_ace": None,
-
     # images
     "create_qemu_image": Image,
     "images": list[Image],
@@ -118,7 +112,6 @@ RESPONSE_SCHEMA_MAP = {
     "install_image": None,
     "image_by_path": Image,
     "delete_image": None,
-
     # Templates
     "templates": list[Template],
     "create_template": Template,
@@ -126,7 +119,6 @@ RESPONSE_SCHEMA_MAP = {
     "update_template": Template,
     "delete_template": None,
     "duplicate_template": Template,
-
     # Projects
     "projects": list[Project],
     "create_project": Project,
@@ -147,7 +139,6 @@ RESPONSE_SCHEMA_MAP = {
     "download_project_file": Any,
     "write_project_file": None,
     "create_project_node_from_template": Node,
-
     # nodes
     "create_node": Node,
     "nodes": list[Node],
@@ -176,7 +167,6 @@ RESPONSE_SCHEMA_MAP = {
     "create_node_file": Any,
     "reset_nodes_console": None,
     "reset_node_console": None,
-
     # links
     "links": list[Link],
     "create_link": Link,
@@ -189,27 +179,23 @@ RESPONSE_SCHEMA_MAP = {
     "stop_link_capture": None,
     "link_capture_stream": Any,
     "link_interface": UDPPortInfo | EthernetPortInfo,
-
     # drawings
     "drawings": list[Drawing],
     "create_drawing": Drawing,
     "drawing": Drawing,
     "update_drawing": Drawing,
     "delete_drawing": None,
-
     # symbols
     "symbols": list[dict],
     "symbol": Any,
     "create_symbol": None,
     "symbol_dimensions": dict,
     "default_symbols": dict,
-
     # snapshots
     "create_snapshot": Snapshot,
     "snapshots": list[Snapshot],
     "delete_snapshot": None,
     "restore_snapshot": Project,
-
     # compute
     "create_compute": Compute,
     "computes": list[Compute],
@@ -221,13 +207,11 @@ RESPONSE_SCHEMA_MAP = {
     "compute_by_id_virtualbox_vms": list[ComputeVirtualBoxVM],
     "compute_by_id_vmware_vms": list[ComputeVirtualBoxVM],
     "set_auto_idlepc": AutoIdlePC,
-
     # appliances
     "appliances": list[Appliance],
     "appliance": Appliance,
     "create_appliance_version": dict,
     "install_appliance_version": None,
-
     # ressource pools
     "pools": list[ResourcePool],
     "create_pool": ResourcePool,
