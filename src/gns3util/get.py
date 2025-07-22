@@ -2,7 +2,8 @@ import click
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description
+from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description, is_valid_uuid
+from gns3util.scripts import resolve_ids
 import json
 import importlib.resources
 
@@ -31,7 +32,6 @@ _zero_arg = {
 
 # Commands with one argument
 _one_arg = {
-    "user": "user",
     "user-groups": "users_groups",
     "project": "project",
     "project-stats": "project_stats",
@@ -241,3 +241,21 @@ def usernames_and_ids(ctx: click.Context):
 @click.pass_context
 def usernames_and_ids_short(ctx: click.Context):
     print_usernames_and_ids(ctx)
+
+
+@get.command(
+    help="Get a user with the given username or id.",
+    epilog='Example: gns3util -s [server] get user [user-id]',
+)
+@click.argument("user-id", required=True, type=str)
+@click.pass_context
+def user(ctx: click.Context, user_id):
+    if not is_valid_uuid(user_id):
+        user_id, ok = resolve_ids(ctx, "user", user_id)
+        if not ok:
+            click.secho(f"{user_id}", err=True)
+            ctx.exit(1)
+
+    client = get_client(ctx)
+    execute_and_print(
+        ctx, client, lambda c: c.user(user_id))

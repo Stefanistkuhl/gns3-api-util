@@ -1,7 +1,7 @@
 import click
 import os
 import shutil
-from .utils import call_client_method, parse_yml, GNS3Error, replace_vars
+from .utils import call_client_method, parse_yml, GNS3Error, replace_vars, call_client_data
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 import dacite
@@ -303,7 +303,7 @@ run.shell_completion = _run_shell_completion
 id_element_name = {
     "user": ["user_id", "username"],
     "group": ["user_group_id", "name"],
-    "roles": ["role_id", "name"],
+    "role": ["role_id", "name"],
     "privilege": ["privilege_id", "name"],
     "acl-rule": ["ace_id", "path"],
     "template": ["template_id", "name"],
@@ -336,9 +336,10 @@ def resolve_ids(ctx: click.Context, subcommand: str, name: str) -> tuple[str, bo
             key = map_entry[1]
             break
     if not key:
-        return "Could not find the method used to reoslve this id", False
+        return "Could not find the method used to resolve this id", False
 
-    get_opts_err, data = call_client_method(ctx, "get", key)
+    cd = call_client_data(ctx=ctx, package="get", method=key)
+    get_opts_err, data = call_client_method(cd)
     if GNS3Error.has_error(get_opts_err):
         GNS3Error.print_error(get_opts_err)
         return "", False

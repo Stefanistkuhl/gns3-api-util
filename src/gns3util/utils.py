@@ -30,6 +30,7 @@ from gns3util.schemas import (
     ACE,
     ACECreate,
     UserUpdate,
+    Version,
 )
 
 
@@ -1380,10 +1381,57 @@ def validate_response[T](method: str, data: Any) -> T:
         raise e
 
 
-def get_password(min_len=8, max_len=100):
-    while True:
-        password = getpass.getpass("Enter your password: \n")
-        if not (min_len <= len(password) <= max_len):
-            click.secho(f"Password must be between {min_len} and {max_len} characters long.")
-        else:
-            return password
+def validate_mutually_exclusive_with_json(ctx: click.Context, param :click.Parameter, value):
+    if param.name in ["allow", "propagate"]:
+        return value
+    if value is not None and ctx.params.get('use_json') is not None:
+        raise click.UsageError(
+            f"Cannot use --{param.name.replace('_', '-')} with --use-json. "
+            f"Only one of them can be specified."
+        )
+    return value
+
+
+def validate_use_json_mutually_exclusive(ctx: click.Context, param: click.Parameter, value):
+    if value is not False:
+        if value is not None:
+            conflicting_options = []
+            for p in ctx.command.params:
+                if isinstance(p, click.Option) and p.name != 'use_json':
+                    opt_value = ctx.params.get(p.name)
+                    if p.is_flag:
+                        if opt_value is True:
+                            conflicting_options.append(p.opts[0])
+                    elif opt_value is not None:
+                        conflicting_options.append(p.opts[0])
+
+            if conflicting_options:
+                raise click.UsageError(
+                    f"Cannot use --use-json with "
+                    f"{', '.join(conflicting_options)}. "
+                    f"Only one of them can be specified."
+                )
+        return value
+
+def is_valid_uuid(uuid_to_test: str, version: int=4) -> bool:
+    """
+    Check if uuid_to_test is a valid UUID.
+    
+     Parameters
+    ----------
+    uuid_to_test : str
+    version : {1, 2, 3, 4}
+    
+     Returns
+    -------
+    `True` if uuid_to_test is a valid UUID, otherwise `False`.
+    """
+    
+    print(uuid_to_test)
+    try:
+        uuid_obj = uuid.UUID(uuid_to_test, version=version)
+    except ValueError:
+        return False
+    except TypeError:
+        return False
+    return str(uuid_obj) == uuid_to_test

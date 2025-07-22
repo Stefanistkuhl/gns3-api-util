@@ -2,15 +2,22 @@ import click
 import json
 from . import auth
 from .api.post_endpoints import GNS3PostAPI
-from .utils import execute_and_print, create_class, create_Exercise, get_command_description
+from .utils import execute_and_print, create_class, create_Exercise, get_command_description, validate_mutually_exclusive_with_json, validate_use_json_mutually_exclusive, is_valid_uuid
+from .scripts import resolve_ids
 from .server import start_and_get_data
 import importlib.resources
+import json
+from pydantic import ValidationError
+from gns3util.schemas import (
+    UserCreate,
+    UserGroupCreate,
+    RoleCreate,
+    ACECreate,
+)
 
 _zero_arg = {
-    "user": "create_user",
     "group": "create_group",
     "role": "create_role",
-    "acl": "create_acl",
     "template": "create_template",
     "project": "create_project",
     "project_load": "load_project",
@@ -252,3 +259,271 @@ def make_exercise(ctx: click.Context, class_name, exercise_name):
         click.secho("Error: ", nl=False, fg="red", err=True)
         click.secho("failed to create exercise ", nl=False, err=True)
         click.secho(f"{exercise_name}", bold=True, err=True)
+
+
+@create.command(
+    help="Create a User",
+    epilog='Example: gns3util -s [server] create user -u alice -p password',
+)
+@click.option("-u", "--username",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired username for the User"
+              )
+@click.option("-i", "--is-active",
+              is_flag=True,
+              default=False,
+              callback=validate_mutually_exclusive_with_json,
+              help="Marking the user as currently active")
+@click.option("-e", "--email",
+              type=str,
+              callback=validate_mutually_exclusive_with_json,
+              default=None,
+              help="Desired email for the user")
+@click.option("-f", "--full-name",
+              type=str,
+              callback=validate_mutually_exclusive_with_json,
+              default=None,
+              help="Full name to set for the current User")
+@click.option("-p", "--password",
+              type=str,
+              callback=validate_mutually_exclusive_with_json,
+              default=None,
+              help="Full name to set for the current User")
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
+@click.pass_context
+def user(ctx: click.Context, username, is_active, email, full_name, password, use_json):
+    if not username and not password and not use_json:
+        raise click.UsageError(
+            "For this command -u and -p options are required or the -j option on it's own.")
+    if (is_active or email or full_name) and not (username and password):
+        raise click.UsageError(
+            "For this command -u and -p options are required or the -j option on it's own.")
+    if not use_json:
+        try:
+            data = UserCreate(
+                username=username,
+                password=password,
+                email=email,
+                is_active=is_active,
+                full_name=full_name,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
+    client = get_client(ctx)
+    execute_and_print(
+        ctx, client, lambda c: c.create_user(data))
+
+
+@create.command(
+    help="Create a group",
+    epilog='Example: gns3util -s [server] create group -n some-name',
+)
+@click.option("-n", "--name",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired name for the group"
+              )
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
+@click.pass_context
+def group(ctx: click.Context, name, use_json):
+    if not name and not use_json:
+        raise click.UsageError(
+            "For this command either the -n option is required or the -j option on it's own.")
+    if not use_json:
+        try:
+            data = UserGroupCreate(
+                name=name,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
+    client = get_client(ctx)
+    execute_and_print(
+        ctx, client, lambda c: c.create_group(data))
+
+
+@create.command(
+    help="Creaste a role",
+    epilog='Example: gns3util -s [server] create role -n some-name',
+)
+@click.option("-n", "--name",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired name for the role."
+              )
+@click.option("-d", "--description",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired description for the role."
+              )
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
+@click.pass_context
+def role(ctx: click.Context, name, description, use_json):
+    if not name and not description and not use_json:
+        raise click.UsageError(
+            "For this command either the -n option is required or the -j option on it's own.")
+    if description and not name:
+        raise click.UsageError("For this command the -n option is required.")
+
+    if not use_json:
+        try:
+            data = RoleCreate(
+                name=name,
+                description=description,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
+    client = get_client(ctx)
+    execute_and_print(
+        ctx, client, lambda c: c.create_role(data))
+
+
+@create.command(
+    help="Create an ACE. user, group and role id will try to resolve the input to a valid id on the server if no valid UUIDv4 is given so names can be used instead of ids.",
+    epilog='Example: gns3util -s [server] create ace -at user -p /pools/[id] -r',
+)
+@click.option("-at", "--ace-type",
+              type=click.Choice(["user", "group"]),
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired type for the ACE."
+              )
+@click.option("-p", "--path",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired path for the ace to affect."
+              )
+@click.option("-pr", "--propagate",
+              is_flag=True,
+              default=True,
+              callback=validate_mutually_exclusive_with_json,
+              help="Apply ACE rules to all nested endpoints in the path. Default: True"
+              )
+@click.option("-a", "--allow",
+              is_flag=True,
+              default=True,
+              callback=validate_mutually_exclusive_with_json,
+              help="Wheater to allow or deny acces to the set path. Default: True"
+              )
+@click.option("-u", "--user-id",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired user id to use for this ACE."
+              )
+@click.option("-g", "--group-id",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired group id to use for this ACE."
+              )
+@click.option("-r", "--role-id",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Desired role id to use for this ACE."
+              )
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
+@click.pass_context
+def ace(ctx: click.Context, ace_type, path, propagate, allow, user_id, group_id, role_id, use_json):
+    if not ace_type and not path and not user_id and not group_id and not role_id and not use_json:
+        raise click.UsageError(
+            "For this command either the -at, -p, -r options, are required or the -j option on it's own.")
+    if ace_type or path or role_id and use_json is None:
+        raise click.UsageError(
+            "For this command either the -at, -p, -r options, are required or the -j option on it's own.")
+    if ace_type == "user" and group_id is not None or ace_type == "group" and user_id is not None:
+        raise click.UsageError(
+            "If you select user as ACE type you must specify a group id to use and vice versa.")
+
+    if not is_valid_uuid(group_id):
+        group_id, ok = resolve_ids(ctx, "group", group_id)
+        if not ok:
+            click.secho(f"{group_id}", err=True)
+            ctx.exit(1)
+
+    if not is_valid_uuid(user_id):
+        user_id, ok = resolve_ids(ctx, "user", user_id)
+        if not ok:
+            click.secho(f"{user_id}", err=True)
+            ctx.exit(1)
+
+    if not is_valid_uuid(role_id):
+        role_id, ok = resolve_ids(ctx, "role", role_id)
+        if not ok:
+            click.secho(f"{role_id}", err=True)
+            ctx.exit(1)
+
+    if not use_json:
+        try:
+            data = ACECreate(
+                ace_type=ace_type,
+                path=path,
+                propagate=propagate,
+                allowed=allow,
+                user_id=user_id,
+                group_id=group_id,
+                role_id=role_id,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
+    client = get_client(ctx)
+    execute_and_print(
+        ctx, client, lambda c: c.create_acl(data))

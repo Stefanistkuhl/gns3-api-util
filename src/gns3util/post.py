@@ -9,8 +9,15 @@ from .utils import (
     create_class,
     create_Exercise,
     get_command_description,
+    validate_mutually_exclusive_with_json,
+    validate_use_json_mutually_exclusive,
 )
 from .server import start_and_get_data
+from gns3util.schemas import (
+    Version,
+    Credentials,
+)
+from pydantic import ValidationError
 
 # endpoint definitions
 
@@ -264,32 +271,100 @@ def make_exercise(ctx: click.Context, class_name, exercise_name):
 
 
 @post.command(
-    help="Check server version against provided JSON data",
-    epilog="Example: gns3util -s [server] post check_version '{...}'",
+    help="Check server version against provided data",
+    epilog="Example: gns3util -s [server] post check_version --version 3.0.5",
 )
-@click.argument("json_data")
+@click.option("-ch", "--controller-host",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Host to use to check, leave empty to use the server that you set with `-s/--server`"
+              )
+@click.option("-v", "--version",
+              type=str,
+              callback=validate_mutually_exclusive_with_json,
+              help="Version to check against.")
+@click.option("-l", "--local",
+              is_flag=True,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="Wheater to use the local controller or not.")
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
 @click.pass_context
-def check_version(ctx: click.Context, json_data):
+def check_version(ctx: click.Context, controller_host, version, local, use_json):
+    if not version and not use_json:
+        raise click.UsageError(
+            "For this command at least the -v or -j option is required.")
+
+    if not use_json:
+        try:
+            version_data = Version(
+                controller_host=controller_host,
+                version=version,
+                local=local,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(version_data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
     client = get_client(ctx)
-    try:
-        data = json.loads(json_data)
-    except json.JSONDecodeError:
-        click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
-        return
-    execute_and_print(ctx, client, lambda c: c.check_version(data))
+    execute_and_print(
+        ctx, client, lambda c: c.check_version(data))
 
 
 @post.command(
-    help="Create or authenticate a user with JSON data",
-    epilog="Example: gns3util -s [server] post user_authenticate '{...}'",
+    help="Authenticate as a user",
+    epilog="Example: gns3util -s [server] post user_authenticate --user alice --password 1234",
 )
-@click.argument("json_data")
+@click.option("-u", "--user",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="desired user to authenticate as")
+@click.option("-p", "--password",
+              type=str,
+              default=None,
+              callback=validate_mutually_exclusive_with_json,
+              help="password for that user")
+@click.option("-j", "--use-json",
+              type=str,
+              default=None,
+              callback=validate_use_json_mutually_exclusive,
+              help="Provide a string of JSON directly to send.")
 @click.pass_context
-def user_authenticate(ctx: click.Context, json_data):
+def user_authenticate(ctx: click.Context, user, password, use_json):
+    if not user and not password and not use_json:
+        raise click.UsageError(
+            "For this command the -u and -p options the or -j option is required.")
+
+    if not use_json:
+        try:
+            data = Credentials(
+                username=user,
+                password=password,
+            )
+        except ValidationError as e:
+            click.secho("Invalid input data", err=True)
+            ctx.exit(1)
+        data = json.loads(data.model_dump_json())
+    else:
+        try:
+            data = json.loads(use_json)
+        except json.JSONDecodeError:
+            click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
+            ctx.exit(1)
+
     client = get_client(ctx)
-    try:
-        data = json.loads(json_data)
-    except json.JSONDecodeError:
-        click.secho("Error: Invalid JSON", fg="red", bold=True, err=True)
-        return
-    execute_and_print(ctx, client, lambda c: c.user_authenticate(data))
+    execute_and_print(
+        ctx, client, lambda c: c.user_authenticate(data))
