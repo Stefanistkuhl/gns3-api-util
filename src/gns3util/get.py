@@ -2,8 +2,20 @@ import click
 from . import auth
 from .api.get_endpoints import GNS3GetAPI
 from .api import GNS3Error
-from .utils import fzf_select, fuzzy_info, fuzzy_info_params, fuzzy_info_wrapper, execute_and_print, print_separator_with_secho, print_usernames_and_ids, get_fuzzy_info_params, fuzzy_params_type, get_command_description, is_valid_uuid
-from gns3util.scripts import resolve_ids
+from .utils import (
+    fzf_select,
+    fuzzy_info,
+    fuzzy_info_params,
+    fuzzy_info_wrapper,
+    execute_and_print,
+    print_separator_with_secho,
+    print_usernames_and_ids,
+    get_fuzzy_info_params,
+    fuzzy_params_type,
+    get_command_description,
+    is_valid_uuid,
+    resolve_ids,
+)
 import json
 import importlib.resources
 
@@ -27,7 +39,7 @@ _zero_arg = {
     "default-symbols": "default_symbols",
     "computes": "computes",
     "appliances": "appliances",
-    "pools": "pools"
+    "pools": "pools",
 }
 
 # Commands with one argument
@@ -54,7 +66,7 @@ _one_arg = {
     "symbol": "symbol",
     "acl-rule": "acl_by_id",
     "links": "links",
-    "nodes": "nodes"
+    "nodes": "nodes",
 }
 
 # Commands with two arguments (assumed: project_id and id)
@@ -64,7 +76,7 @@ _two_arg = {
     "link": "link",
     "link-filters": "link_filters",
     "drawing": "drawing",
-    "link-interface": "link_interface"
+    "link-interface": "link_interface",
 }
 
 
@@ -88,8 +100,8 @@ def stream():
 
 def get_client(ctx: click.Context):
     """Helper function to create GNS3GetAPI instance."""
-    server_url = ctx.parent.obj['server']
-    verify = ctx.parent.obj['verify']
+    server_url = ctx.parent.obj["server"]
+    verify = ctx.parent.obj["verify"]
     success, key = auth.load_and_try_key(ctx)
     if success and key:
         return GNS3GetAPI(server_url, key.access_token, verify=verify)
@@ -97,52 +109,64 @@ def get_client(ctx: click.Context):
         ctx.exit(1)
 
 
-with importlib.resources.files("gns3util.help_texts").joinpath("help_get.json").open("r", encoding="utf-8") as f:
+with (
+    importlib.resources.files("gns3util.help_texts")
+    .joinpath("help_get.json")
+    .open("r", encoding="utf-8") as f
+):
     help_dict = json.load(f)
 
 # Create click commands with zero arguments
 for cmd, func in _zero_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "zero_arg")
+    current_help_option, epiloge = get_command_description(cmd, help_dict, "zero_arg")
 
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
         @click.pass_context
         def cmd_func(ctx: click.Context):
             api_get_client = get_client(ctx)
             execute_and_print(
-                ctx, api_get_client, lambda client: getattr(api_get_client, func)())
+                ctx, api_get_client, lambda client: getattr(api_get_client, func)()
+            )
+
         return cmd_func
+
     get.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
 
 # Create click commands with one argument
 for cmd, func in _one_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "one_arg")
+    current_help_option, epiloge = get_command_description(cmd, help_dict, "one_arg")
 
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('arg')
+        @click.argument("arg")
         @click.pass_context
         def cmd_func(ctx: click.Context, arg):
             api_get_client = get_client(ctx)
             execute_and_print(
-                ctx, api_get_client, lambda client: getattr(api_get_client, func)(arg))
+                ctx, api_get_client, lambda client: getattr(api_get_client, func)(arg)
+            )
+
         return cmd_func
+
     get.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
 
 # Create click commands with two arguments
 for cmd, func in _two_arg.items():
-    current_help_option, epiloge = get_command_description(
-        cmd, help_dict, "two_arg")
+    current_help_option, epiloge = get_command_description(cmd, help_dict, "two_arg")
 
     def make_cmd(func=func, help_option=current_help_option, epilog=epiloge):
-        @click.argument('project_id')
-        @click.argument('id')
+        @click.argument("project_id")
+        @click.argument("id")
         @click.pass_context
         def cmd_func(ctx: click.Context, project_id, id):
             api_get_client = get_client(ctx)
-            execute_and_print(ctx, api_get_client, lambda client: getattr(
-                api_get_client, func)(project_id, id))
+            execute_and_print(
+                ctx,
+                api_get_client,
+                lambda client: getattr(api_get_client, func)(project_id, id),
+            )
+
         return cmd_func
+
     get.command(name=cmd, help=current_help_option, epilog=epiloge)(make_cmd())
 
 # Special commands with timeout options
@@ -213,19 +237,32 @@ def project_export_command(
         "compression_level": compression_level,
     }
     get_client(ctx).download_exported_project(
-        project_id=project_id, export_params=export_params)
+        project_id=project_id, export_params=export_params
+    )
 
 
 @stream.command()
-@click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
+@click.option(
+    "--timeout",
+    "-t",
+    "timeout_seconds",
+    default=60,
+    help="Notification stream timeout in seconds",
+)
 @click.pass_context
 def notifications(ctx: click.Context, timeout_seconds):
     get_client(ctx).notifications(timeout_seconds)
 
 
 @stream.command(name="project-id")
-@click.argument('project_id')
-@click.option('--timeout', '-t', 'timeout_seconds', default=60, help='Notification stream timeout in seconds')
+@click.argument("project_id")
+@click.option(
+    "--timeout",
+    "-t",
+    "timeout_seconds",
+    default=60,
+    help="Notification stream timeout in seconds",
+)
 @click.pass_context
 def project_notifications(ctx: click.Context, project_id, timeout_seconds):
     get_client(ctx).project_notifications(project_id, timeout_seconds)
@@ -245,7 +282,7 @@ def usernames_and_ids_short(ctx: click.Context):
 
 @get.command(
     help="Get a user with the given username or id.",
-    epilog='Example: gns3util -s [server] get user [user-id]',
+    epilog="Example: gns3util -s [server] get user USER_ID/Name",
 )
 @click.argument("user-id", required=True, type=str)
 @click.pass_context
@@ -257,5 +294,4 @@ def user(ctx: click.Context, user_id):
             ctx.exit(1)
 
     client = get_client(ctx)
-    execute_and_print(
-        ctx, client, lambda c: c.user(user_id))
+    execute_and_print(ctx, client, lambda c: c.user(user_id))

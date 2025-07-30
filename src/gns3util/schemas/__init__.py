@@ -22,18 +22,69 @@ from .common import ErrorMessage
 from .version import Version
 
 # Controller schemas
-from .controller.links import LinkCreate, LinkUpdate, Link, UDPPortInfo, EthernetPortInfo
-from .controller.computes import ComputeCreate, ComputeUpdate, ComputeVirtualBoxVM, ComputeVMwareVM, ComputeDockerImage, AutoIdlePC, Compute
-from .controller.templates import TemplateCreate, TemplateUpdate, TemplateUsage, Template
+from .controller.links import (
+    LinkCreate,
+    LinkUpdate,
+    Link,
+    UDPPortInfo,
+    EthernetPortInfo,
+)
+from .controller.computes import (
+    ComputeCreate,
+    ComputeUpdate,
+    ComputeVirtualBoxVM,
+    ComputeVMwareVM,
+    ComputeDockerImage,
+    AutoIdlePC,
+    Compute,
+)
+from .controller.templates import (
+    TemplateCreate,
+    TemplateUpdate,
+    TemplateUsage,
+    Template,
+)
+from .controller.labels import Label
 from .controller.images import Image, ImageType
-from .controller.appliances import ApplianceVersion, Appliance
+from .controller.appliances import ApplianceVersion, Appliance, ApplianceVersionImages
 from .controller.drawings import Drawing
 from .controller.gns3vm import GNS3VM
 from .controller.nodes import NodeCreate, NodeUpdate, NodeDuplicate, NodeCapture, Node
-from .controller.projects import ProjectCreate, ProjectUpdate, ProjectDuplicate, Project, ProjectFile, ProjectCompression
-from .controller.users import UserCreate, UserUpdate, LoggedInUserUpdate, User, Credentials, UserGroupCreate, UserGroupUpdate, UserGroup
-from .controller.rbac import RoleCreate, RoleUpdate, Role, Privilege, ACECreate, ACEUpdate, ACE
-from .controller.pools import Resource, ResourceCreate, ResourcePoolCreate, ResourcePoolUpdate, ResourcePool
+from .controller.projects import (
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectDuplicate,
+    Project,
+    ProjectFile,
+    ProjectCompression,
+    Supplier,
+)
+from .controller.users import (
+    UserCreate,
+    UserUpdate,
+    LoggedInUserUpdate,
+    User,
+    Credentials,
+    UserGroupCreate,
+    UserGroupUpdate,
+    UserGroup,
+)
+from .controller.rbac import (
+    RoleCreate,
+    RoleUpdate,
+    Role,
+    Privilege,
+    ACECreate,
+    ACEUpdate,
+    ACE,
+)
+from .controller.pools import (
+    Resource,
+    ResourceCreate,
+    ResourcePoolCreate,
+    ResourcePoolUpdate,
+    ResourcePool,
+)
 from .controller.tokens import Token
 from .controller.snapshots import SnapshotCreate, Snapshot
 from .controller.iou_license import IOULicense
@@ -44,16 +95,25 @@ from .controller.templates.vpcs_templates import VPCSTemplate, VPCSTemplateUpdat
 from .controller.templates.cloud_templates import CloudTemplate, CloudTemplateUpdate
 from .controller.templates.iou_templates import IOUTemplate, IOUTemplateUpdate
 from .controller.templates.docker_templates import DockerTemplate, DockerTemplateUpdate
-from .controller.templates.ethernet_hub_templates import EthernetHubTemplate, EthernetHubTemplateUpdate
-from .controller.templates.ethernet_switch_templates import EthernetSwitchTemplate, EthernetSwitchTemplateUpdate
-from .controller.templates.virtualbox_templates import VirtualBoxTemplate, VirtualBoxTemplateUpdate
+from .controller.templates.ethernet_hub_templates import (
+    EthernetHubTemplate,
+    EthernetHubTemplateUpdate,
+)
+from .controller.templates.ethernet_switch_templates import (
+    EthernetSwitchTemplate,
+    EthernetSwitchTemplateUpdate,
+)
+from .controller.templates.virtualbox_templates import (
+    VirtualBoxTemplate,
+    VirtualBoxTemplateUpdate,
+)
 from .controller.templates.vmware_templates import VMwareTemplate, VMwareTemplateUpdate
 from .controller.templates.qemu_templates import QemuTemplate, QemuTemplateUpdate
 from .controller.templates.dynamips_templates import (
     DynamipsTemplate,
     C3745DynamipsTemplateUpdate,
     C7200DynamipsTemplate,
-    C7200DynamipsTemplateUpdate
+    C7200DynamipsTemplateUpdate,
 )
 
 # Compute schemas
@@ -62,9 +122,21 @@ from .compute.atm_switch_nodes import ATMSwitchCreate, ATMSwitchUpdate, ATMSwitc
 from .compute.cloud_nodes import CloudCreate, CloudUpdate, Cloud
 from .compute.docker_nodes import DockerCreate, DockerUpdate, Docker
 from .compute.dynamips_nodes import DynamipsCreate, DynamipsUpdate, Dynamips
-from .compute.ethernet_hub_nodes import EthernetHubCreate, EthernetHubUpdate, EthernetHub
-from .compute.ethernet_switch_nodes import EthernetSwitchCreate, EthernetSwitchUpdate, EthernetSwitch
-from .compute.frame_relay_switch_nodes import FrameRelaySwitchCreate, FrameRelaySwitchUpdate, FrameRelaySwitch
+from .compute.ethernet_hub_nodes import (
+    EthernetHubCreate,
+    EthernetHubUpdate,
+    EthernetHub,
+)
+from .compute.ethernet_switch_nodes import (
+    EthernetSwitchCreate,
+    EthernetSwitchUpdate,
+    EthernetSwitch,
+)
+from .compute.frame_relay_switch_nodes import (
+    FrameRelaySwitchCreate,
+    FrameRelaySwitchUpdate,
+    FrameRelaySwitch,
+)
 from .compute.qemu_nodes import QemuCreate, QemuUpdate, Qemu
 from .compute.iou_nodes import IOUCreate, IOUUpdate, IOUStart, IOU
 from .compute.nat_nodes import NATCreate, NATUpdate, NAT
@@ -73,4 +145,8 @@ from .compute.vmware_nodes import VMwareCreate, VMwareUpdate, VMware
 from .compute.virtualbox_nodes import VirtualBoxCreate, VirtualBoxUpdate, VirtualBox
 
 # Schemas for both controller and compute
-from .qemu_disk_image import QemuDiskImageFormat, QemuDiskImageCreate, QemuDiskImageUpdate
+from .qemu_disk_image import (
+    QemuDiskImageFormat,
+    QemuDiskImageCreate,
+    QemuDiskImageUpdate,
+)

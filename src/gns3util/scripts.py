@@ -1,7 +1,14 @@
 import click
 import os
 import shutil
-from .utils import call_client_method, parse_yml, GNS3Error, replace_vars, call_client_data
+from .utils import (
+    call_client_method,
+    parse_yml,
+    GNS3Error,
+    replace_vars,
+    call_client_data,
+    resolve_ids,
+)
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any
 import dacite
@@ -54,8 +61,7 @@ def get_yml_files(script_dir):
     for root, dirs, files in os.walk(script_dir):
         for file in files:
             if file.endswith(".yml"):
-                relative_path = os.path.relpath(
-                    os.path.join(root, file), script_dir)
+                relative_path = os.path.relpath(os.path.join(root, file), script_dir)
                 yml_files.append(relative_path)
     return yml_files
 
@@ -200,8 +206,7 @@ def run(ctx: click.Context, filename):
 
     if not os.path.exists(full_path):
         click.secho(
-            f"Error: Script file '{filename}' not found in '{
-                GNS3UTIL_SCRIPTS_DIR}'.",
+            f"Error: Script file '{filename}' not found in '{GNS3UTIL_SCRIPTS_DIR}'.",
             err=True,
         )
         ctx.exit(1)
@@ -300,58 +305,6 @@ def _run_shell_completion(ctx: click.Context, args, incomplete):
 
 run.shell_completion = _run_shell_completion
 
-id_element_name = {
-    "user": ["user_id", "username"],
-    "group": ["user_group_id", "name"],
-    "role": ["role_id", "name"],
-    "privilege": ["privilege_id", "name"],
-    "acl-rule": ["ace_id", "path"],
-    "template": ["template_id", "name"],
-    "project": ["project_id", "name"],
-    "compute": ["compute_id", "name"],
-    "appliance": ["appliance_id", "name"],
-    "pool": ["resource_pool_id", "name"],
-}
-
-subcommand_key_map = {
-    "user": "users",
-    "group": "groups",
-    "role": "roles",
-    "privilege": "privileges",
-    "acl-rule": "acl",
-    "template": "templates",
-    "project": "projects",
-    "compute": "computes",
-    "appliance": "appliances",
-    "pool": "pools",
-}
-
-
-def resolve_ids(ctx: click.Context, subcommand: str, name: str) -> tuple[str, bool]:
-    id = ""
-    key = None
-    # get method name to get all of the thing like users
-    for map_entry in subcommand_key_map.items():
-        if map_entry[0] == subcommand:
-            key = map_entry[1]
-            break
-    if not key:
-        return "Could not find the method used to resolve this id", False
-
-    cd = call_client_data(ctx=ctx, package="get", method=key)
-    get_opts_err, data = call_client_method(cd)
-    if GNS3Error.has_error(get_opts_err):
-        GNS3Error.print_error(get_opts_err)
-        return "", False
-    for entry in data:
-        for element in id_element_name.items():
-            if element[0] == subcommand:
-                if entry[element[1][1]] == name:
-                    id = entry[element[1][0]]
-    if len(id) == 0:
-        return f"Failed to resolve the name {name} to a valid id", False
-    return id, True
-
 
 def run_command(ctx: click.Context, input: list) -> tuple[Any, GNS3Error]:
     err = GNS3Error()
@@ -423,33 +376,38 @@ def get_commands(ctx: click.Context, script: Script) -> list:
     command_list = []
     for job in script.jobs.items():
         job_content = job[1]
-        job_command_list, ok = get_commands_from_job(
-            ctx, job_content, script.options)
+        job_command_list, ok = get_commands_from_job(ctx, job_content, script.options)
         command_list.append(job_command_list)
     return command_list
 
 
-def get_commands_from_job(ctx: click.Context, job: JobContent, opts: script_opts) -> tuple[list, bool]:
+def get_commands_from_job(
+    ctx: click.Context, job: JobContent, opts: script_opts
+) -> tuple[list, bool]:
     command_list_final = []
     for command in job.commands:
         command_list = []
         for subcommand in command.subcommands:
             if command.repeat is not None and command.repeat > 0:
-
                 # make add thing to list for as often as counter and replaces the {{itoration}} var
                 pass
 
             if subcommand.parameters:
                 params = subcommand.parameters
-                if (params.id == "" or params.id is None) and params.friendly_name is not None:
+                if (
+                    params.id == "" or params.id is None
+                ) and params.friendly_name is not None:
                     if command.repeat is not None and command.repeat > 0:
                         for i in range(command.repeat):
                             iterator_var_name_list = []
                             iterator_var_name_list.append(i)
                             name = replace_vars(
-                                params.friendly_name, iterator_var_name_list, replace_iterations=True, iteration_var_name=opts.iterations_var_name)
-                            id, ok = resolve_ids(
-                                ctx, subcommand.name, name)
+                                params.friendly_name,
+                                iterator_var_name_list,
+                                replace_iterations=True,
+                                iteration_var_name=opts.iterations_var_name,
+                            )
+                            id, ok = resolve_ids(ctx, subcommand.name, name)
                             if not ok:
                                 if id != "":
                                     click.secho(id, err=True)
@@ -459,8 +417,7 @@ def get_commands_from_job(ctx: click.Context, job: JobContent, opts: script_opts
                             command_list.append(id)
 
                     else:
-                        id, ok = resolve_ids(
-                            ctx, subcommand.name, params.friendly_name)
+                        id, ok = resolve_ids(ctx, subcommand.name, params.friendly_name)
                         if not ok:
                             if id != "":
                                 click.secho(id, err=True)
@@ -472,6 +429,7 @@ def get_commands_from_job(ctx: click.Context, job: JobContent, opts: script_opts
             command_list_final.append(command_list)
 
         return command_list_final, True
+
 
 # def replace_vars_in_script(script: Script) -> Script:
 #     current_script = script
@@ -542,20 +500,17 @@ def load_script(path: str) -> Optional[Script]:
                 continue
 
             if not isinstance(job_content_raw, dict):
-                raise ValueError(f"Content for job '{
-                                 job_name}' must be a dictionary.")
+                raise ValueError(f"Content for job '{job_name}' must be a dictionary.")
 
             commands_data = job_content_raw.get("commands")
 
             fixed_commands_list = None
             if commands_data is not None:
                 if not isinstance(commands_data, list):
-                    raise ValueError(f"Commands for job '{
-                                     job_name}' must be a list.")
+                    raise ValueError(f"Commands for job '{job_name}' must be a list.")
                 fixed_commands_list = fix_commands(commands_data)
 
-            parsed_jobs_dict[job_name] = JobContent(
-                commands=fixed_commands_list)
+            parsed_jobs_dict[job_name] = JobContent(commands=fixed_commands_list)
 
         opts = get_opts(data)
 
@@ -570,20 +525,17 @@ def load_script(path: str) -> Optional[Script]:
     except (yaml.YAMLError, KeyError, TypeError, dacite.DaciteError, ValueError) as e:
         print(f"Error parsing YAML script: {e}")
         return None
-        raise ValueError(f"Content for job '{
-            job_name}' must be a dictionary.")
+        raise ValueError(f"Content for job '{job_name}' must be a dictionary.")
 
         commands_data = job_content_raw.get("commands")
 
         fixed_commands_list = None
         if commands_data is not None:
             if not isinstance(commands_data, list):
-                raise ValueError(f"Commands for job '{
-                    job_name}' must be a list.")
+                raise ValueError(f"Commands for job '{job_name}' must be a list.")
                 fixed_commands_list = fix_commands(commands_data)
 
-            parsed_jobs_dict[job_name] = JobContent(
-                commands=fixed_commands_list)
+            parsed_jobs_dict[job_name] = JobContent(commands=fixed_commands_list)
 
         script_data_for_dacite = {
             "vars": data.get("vars", {}),
