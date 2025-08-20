@@ -1,0 +1,50 @@
+package create
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/spf13/cobra"
+	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
+	"github.com/stefanistkuhl/gns3util/pkg/config"
+	"github.com/stefanistkuhl/gns3util/pkg/utils"
+)
+
+func NewCreateGroupCmd() *cobra.Command {
+	var (
+		name    string
+		useJSON string
+	)
+
+	cmd := &cobra.Command{
+		Use:     "group",
+		Short:   "Create a group",
+		Long:    "Create a user group.",
+		Example: "gns3util -s https://controller:3080 create group -n some-name",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get global options: %w", err)
+			}
+
+			var payload map[string]any
+			if useJSON == "" {
+				if name == "" {
+					return fmt.Errorf("for this command either -n/--name is required or --use-json")
+				}
+				data := schemas.UserGroupCreate{Name: &name}
+				b, _ := json.Marshal(data)
+				_ = json.Unmarshal(b, &payload)
+			} else {
+				if err := json.Unmarshal([]byte(useJSON), &payload); err != nil {
+					return fmt.Errorf("invalid JSON for --use-json: %w", err)
+				}
+			}
+			utils.ExecuteAndPrintWithBody(cfg, "createGroup", nil, payload)
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Desired name for the group")
+	cmd.Flags().StringVarP(&useJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
+	return cmd
+}
