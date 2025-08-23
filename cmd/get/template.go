@@ -10,9 +10,10 @@ import (
 
 func NewGetTemplatesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "templates",
-		Short: "Get all templates of the Server",
-		Long:  `Get all templates of the Server`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get all templates of the Server",
+		Long:    `Get all templates of the Server`,
+		Example: "gns3util -s https://controller:3080 template ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetTemplatesCmd() *cobra.Command {
 
 func NewGetTemplateCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a template by id or name",
-		Long:  `Get a template by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [template-name/id]",
+		Short:   "Get a template by id or name",
+		Long:    `Get a template by id or name`,
+		Example: "gns3util -s https://controller:3080 template info my-template",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

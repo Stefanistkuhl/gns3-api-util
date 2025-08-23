@@ -10,12 +10,11 @@ import (
 
 func NewAddPrivilegeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "privilege [role-name/id] [privilege-name/id]",
-		Short: "Add a privilege to a role",
-		Long:  `Add a privilege to a role on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 add privilege my-role my-privilege
-gns3util -s https://controller:3080 add privilege 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "privilege [role-name/id] [privilege-name/id]",
+		Short:   "Add a privilege to a role",
+		Long:    `Add a privilege to a role on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 role privilege my-role my-privilege",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			roleID := args[0]
 			privilegeID := args[1]

@@ -10,9 +10,10 @@ import (
 
 func NewGetStatisticsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "statistics",
-		Short: "Get the statistics of the GNS3 Server",
-		Long:  `Get the statistics of the GNS3 Server`,
+		Use:     "statistics",
+		Short:   "Get the statistics of the GNS3 Server",
+		Long:    `Get the statistics of the GNS3 Server`,
+		Example: "gns3util -s https://controller:3080 get statistics",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

@@ -10,10 +10,11 @@ import (
 
 func NewGetSnapshotsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "snapshots",
-		Short: "Get the snapshots within a project by name or id",
-		Long:  `Get the snapshots within a project by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Short:   "Get the snapshots within a project by name or id",
+		Long:    `Get the snapshots within a project by name or id`,
+		Example: "gns3util -s https://controller:3080 snapshot ls my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

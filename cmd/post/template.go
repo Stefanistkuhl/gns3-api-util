@@ -24,12 +24,11 @@ func NewTemplateCmdGroup() *cobra.Command {
 
 func NewDuplicateTemplateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "duplicate [template-name/id]",
-		Short: "Duplicate a template",
-		Long:  `Duplicate a template on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post template duplicate my-template
-gns3util -s https://controller:3080 post template duplicate 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "duplicate [template-name/id]",
+		Short:   "Duplicate a template",
+		Long:    `Duplicate a template on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 template duplicate my-template",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			templateID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

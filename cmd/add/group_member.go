@@ -10,12 +10,11 @@ import (
 
 func NewAddGroupMemberCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "group-member [group-name/id] [user-name/id]",
-		Short: "Add a user to a group",
-		Long:  `Add a user to a group on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 add group-member my-group my-user
-gns3util -s https://controller:3080 add group-member 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "add-member [group-name/id] [user-name/id]",
+		Short:   "Add a user to a group",
+		Long:    `Add a user to a group on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 group add-member my-group my-user",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			groupID := args[0]
 			userID := args[1]

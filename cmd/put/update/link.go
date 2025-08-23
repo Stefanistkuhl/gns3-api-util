@@ -11,10 +11,10 @@ import (
 
 func NewUpdateLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "modify [project-name/id] [link-name/id] [json-data]",
+		Use:     utils.UpdateSingleElementCmdName + " [project-name/id] [link-name/id] [json-data]",
 		Short:   "Update a link",
 		Long:    "Update a link with JSON data.",
-		Example: "gns3util -s https://controller:3080 update link [project-id] [link-id] '{\"nodes\":[...]}'",
+		Example: "gns3util -s https://controller:3080 link update my-project my-link '{\"nodes\":[...]}'",
 		Args:    cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

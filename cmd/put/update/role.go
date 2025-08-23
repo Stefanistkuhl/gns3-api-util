@@ -18,10 +18,10 @@ func NewUpdateRoleCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "role [role-id]",
+		Use:     utils.UpdateSingleElementCmdName + " [role-name/id]",
 		Short:   "Update a role",
 		Long:    "Update an RBAC role.",
-		Example: "gns3util -s https://controller:3080 update role [role-name/id] --name new-name --description new-description",
+		Example: "gns3util -s https://controller:3080 role update my-role --name new-name --description new-description",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

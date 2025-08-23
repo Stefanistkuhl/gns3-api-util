@@ -18,10 +18,10 @@ func NewUpdateIOULicenseCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "iou-license",
+		Use:     "update-iou-license",
 		Short:   "Update the IOULicense",
 		Long:    "Update the IOULicense with new content and license check settings.",
-		Example: "gns3util -s https://controller:3080 update iou-license -iourc-content 'some license content' -license-check",
+		Example: "gns3util -s https://controller:3080 system update-iou-license -iourc-content 'some license content' -license-check",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

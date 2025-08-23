@@ -8,8 +8,9 @@ import (
 
 var (
 	server   string
-	insecure bool
 	keyFile  string
+	insecure bool
+	raw      bool
 )
 
 var Foo bool
@@ -23,6 +24,7 @@ var rootCmd = &cobra.Command{
 			Server:   server,
 			Insecure: insecure,
 			KeyFile:  keyFile,
+			Raw:      raw,
 		}
 		ctx := config.WithGlobalOptions(cmd.Context(), opts)
 		cmd.SetContext(ctx)
@@ -35,8 +37,9 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnFinalize()
 	rootCmd.PersistentFlags().StringVarP(&server, "server", "s", "", "GNS3v3 Server URL (required)")
-	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false, "Ignore unsigned SSL-Certificates")
 	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", "", "Set a location for a keyfile to use")
+	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false, "Ignore unsigned SSL-Certificates")
+	rootCmd.PersistentFlags().BoolVarP(&raw, "raw", "", false, "Output all data in raw json")
 	rootCmd.MarkPersistentFlagRequired("server")
 
 	// Core commands

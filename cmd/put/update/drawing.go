@@ -21,10 +21,10 @@ func NewUpdateDrawingCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [project-name/id] [drawing-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [project-name/id] [drawing-name/id]",
 		Short:   "Update a drawing",
 		Long:    "Update a drawing in a project.",
-		Example: "gns3util -s https://controller:3080 update drawing [project-id] [drawing-id] -s 'some svg'",
+		Example: "gns3util -s https://controller:3080 drawing update my-project my-drawing -s 'some svg'",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

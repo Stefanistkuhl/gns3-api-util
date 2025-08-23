@@ -23,8 +23,10 @@ func NewCreateComputeCmd() *cobra.Command {
 		useJSON   string
 	)
 	cmd := &cobra.Command{
-		Use:   "new",
-		Short: "Create a compute",
+		Use:     utils.CreateSingleElementCmdName,
+		Short:   "Create a compute",
+		Long:    "Create a compute resource for GNS3",
+		Example: "gns3util -s https://controller:3080 compute create --protocol https --host remote-host --port 3080 --name my-compute",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

@@ -10,9 +10,10 @@ import (
 
 func NewGetPoolsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "pools",
-		Short: "Get avaliable resource-pools",
-		Long:  `Get avaliable resource-pools`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get available resource-pools",
+		Long:    `Get available resource-pools`,
+		Example: "gns3util -s https://controller:3080 pool ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetPoolsCmd() *cobra.Command {
 
 func NewGetPoolCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a resource-pool by name or id",
-		Long:  `Get a resource-pool by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [pool-name/id]",
+		Short:   "Get a resource-pool by name or id",
+		Long:    `Get a resource-pool by name or id`,
+		Example: "gns3util -s https://controller:3080 pool info my-pool",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -51,10 +53,11 @@ func NewGetPoolCmd() *cobra.Command {
 
 func NewGetPoolResourcesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "pool-resources",
-		Short: "Get get resources of a pool by name or id",
-		Long:  `Get get resources of a pool by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "resources [pool-name/id]",
+		Short:   "Get resources of a pool by name or id",
+		Long:    `Get resources of a pool by name or id`,
+		Example: "gns3util -s https://controller:3080 pool resources my-pool",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

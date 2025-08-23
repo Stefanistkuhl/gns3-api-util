@@ -10,9 +10,10 @@ import (
 
 func NewGetSymbolsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "symbols",
-		Short: "Get the avaliable symbols",
-		Long:  `Get the avaliable symbols`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get the available symbols",
+		Long:    `Get the available symbols`,
+		Example: "gns3util -s https://controller:3080 symbol ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetSymbolsCmd() *cobra.Command {
 
 func NewGetSymbolCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "symbol",
-		Short: "Get a symbol by id",
-		Long:  `Get a symbol by id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [symbol-id]",
+		Short:   "Get a symbol by id",
+		Long:    `Get a symbol by id`,
+		Example: "gns3util -s https://controller:3080 symbol info symbol-id",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -44,10 +46,11 @@ func NewGetSymbolCmd() *cobra.Command {
 
 func NewGetSymbolDimensionsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "symbol-dimensions",
-		Short: "Get the dimensions of a symbol by id",
-		Long:  `Get the dimensions of a symbol by id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "dimensions [symbol-id]",
+		Short:   "Get the dimensions of a symbol by id",
+		Long:    `Get the dimensions of a symbol by id`,
+		Example: "gns3util -s https://controller:3080 symbol dimensions symbol-id",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -62,9 +65,10 @@ func NewGetSymbolDimensionsCmd() *cobra.Command {
 
 func NewGetDefaultSymbolsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "default-symbols",
-		Short: "Get the avaliable default-symbols",
-		Long:  `Get the avaliable symbols`,
+		Use:     "defaults",
+		Short:   "Get the available default-symbols",
+		Long:    `Get the available symbols`,
+		Example: "gns3util -s https://controller:3080 symbol defaults",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

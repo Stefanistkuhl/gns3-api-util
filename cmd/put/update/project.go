@@ -33,10 +33,10 @@ func NewUpdateProjectCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [project-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [project-name/id]",
 		Short:   "Update a Project",
 		Long:    "Update a Project with new settings and properties.",
-		Example: "gns3util -s https://controller:3080 project modify [project-name/id] --name new-name",
+		Example: "gns3util -s https://controller:3080 project update my-project --name new-name",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

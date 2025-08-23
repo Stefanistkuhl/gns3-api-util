@@ -10,10 +10,11 @@ import (
 
 func NewGetGroupCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "group",
-		Short: "Get a group by id or name",
-		Long:  `Get a group by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [group-name/id]",
+		Short:   "Get a group by id or name",
+		Long:    `Get a group by id or name`,
+		Example: "gns3util -s https://controller:3080 group info my-group",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -35,9 +36,10 @@ func NewGetGroupCmd() *cobra.Command {
 
 func NewGetGroupsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "groups",
-		Short: "Get all groups of the Server",
-		Long:  `Get all groups of the Server`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get all groups of the Server",
+		Long:    `Get all groups of the Server`,
+		Example: "gns3util -s https://controller:3080 group ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -51,10 +53,11 @@ func NewGetGroupsCmd() *cobra.Command {
 
 func NewGetGroupMembersCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "group-members",
-		Short: "Get the members of a group by id or name",
-		Long:  `Get the members of a group by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "members [group-name/id]",
+		Short:   "Get the members of a group by id or name",
+		Long:    `Get the members of a group by id or name`,
+		Example: "gns3util -s https://controller:3080 group members my-group",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

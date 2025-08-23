@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/stefanistkuhl/gns3util/pkg/api"
@@ -685,44 +686,44 @@ var commandMap = map[string]CommandConfig{
 	"deletePruneImages": {
 		Method: api.DELETE,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/images/prune"
+			return ep.Delete.PruneImages()
 		},
 	},
 	// Post commands
 	"userAuthenticate": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/users/authenticate"
+			return ep.Post.UserAuthenticate()
 		},
 	},
 	"checkVersion": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/version"
+			return ep.Post.Version()
 		},
 	},
 	"reloadController": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/reload"
+			return ep.Post.Reload()
 		},
 	},
 	"shutdownController": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/shutdown"
+			return ep.Post.Shutdown()
 		},
 	},
 	"openProject": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/open", args[0])
+			return ep.Post.OpenProject(args[0])
 		},
 	},
 	"loadProject": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/projects/load"
+			return ep.Post.LoadProject()
 		},
 	},
 	"duplicateProject": {
@@ -752,109 +753,109 @@ var commandMap = map[string]CommandConfig{
 	"startAllNodes": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/start", args[0])
+			return ep.Post.StartNodes(args[0])
 		},
 	},
 	"stopAllNodes": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/stop", args[0])
+			return ep.Post.StopNodes(args[0])
 		},
 	},
 	"suspendAllNodes": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/suspend", args[0])
+			return ep.Post.SuspendNodes(args[0])
 		},
 	},
 	"reloadAllNodes": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/reload", args[0])
+			return ep.Post.ReloadNodes(args[0])
 		},
 	},
 	"startNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/start", args[0], args[1])
+			return ep.Post.StartNode(args[0], args[1])
 		},
 	},
 	"stopNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/stop", args[0], args[1])
+			return ep.Post.StopNode(args[0], args[1])
 		},
 	},
 	"suspendNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/suspend", args[0], args[1])
+			return ep.Post.SuspendNode(args[0], args[1])
 		},
 	},
 	"reloadNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/reload", args[0], args[1])
+			return ep.Post.ReloadNode(args[0], args[1])
 		},
 	},
 	"isolateNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/isolate", args[0], args[1])
+			return ep.Post.IsolateNode(args[0], args[1])
 		},
 	},
 	"unisolateNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/unisolate", args[0], args[1])
+			return ep.Post.UnisolateNode(args[0], args[1])
 		},
 	},
 	"resetConsoleAllNodes": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/console/reset", args[0])
+			return ep.Post.NodesConsoleReset(args[0])
 		},
 	},
 	"resetConsoleNode": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/nodes/%s/console/reset", args[0], args[1])
+			return ep.Post.NodeConsoleReset(args[0], args[1])
 		},
 	},
 	"resetLink": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/links/%s/reset", args[0], args[1])
+			return ep.Post.ResetLink(args[0], args[1])
 		},
 	},
 	"startCapture": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/links/%s/capture/start", args[0], args[1])
+			return ep.Post.StartCapture(args[0], args[1])
 		},
 	},
 	"stopCapture": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/links/%s/capture/stop", args[0], args[1])
+			return ep.Post.StopCapture(args[0], args[1])
 		},
 	},
 	"uploadImage": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/images/upload/%s", args[0])
+			return ep.Post.UploadImage(args[0])
 		},
 	},
 	"installImages": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return "/images/install"
+			return ep.Post.InstallImage()
 		},
 	},
 	"unlockProject": {
 		Method: api.POST,
 		Endpoint: func(ep endpoints.Endpoints, args []string) string {
-			return fmt.Sprintf("/projects/%s/unlock", args[0])
+			return ep.Post.UnlockProject(args[0])
 		},
 	},
 }
@@ -938,9 +939,31 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 			colorUtils.Success("Success:"), cmdName)
 		return
 	}
-	result := pretty.Pretty(body)
-	result = pretty.Color(result, nil)
-	fmt.Print(string(result))
+	if cfg.Raw {
+		result := pretty.Pretty(body)
+		result = pretty.Color(result, nil)
+		fmt.Print(string(result))
+	} else {
+		var arr []any
+		if err := json.Unmarshal(body, &arr); err != nil {
+			panic(err)
+		}
+		for _, elem := range arr {
+			PrintSeperator()
+			if obj, ok := elem.(map[string]any); ok {
+				for k, v := range obj {
+					fmt.Printf("  %s: %v\n", colorUtils.Highlight(k), v)
+				}
+			} else {
+				fmt.Printf("  %v\n", elem)
+			}
+		}
+		PrintSeperator()
+	}
+}
+
+func PrintSeperator() {
+	fmt.Println(colorUtils.Seperator(strings.Repeat("-", 69)))
 }
 
 func ExecuteAndPrintWithBody(cfg config.GlobalOptions, cmdName string, args []string, body any) {

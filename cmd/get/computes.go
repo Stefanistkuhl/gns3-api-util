@@ -10,9 +10,10 @@ import (
 
 func NewGetComputesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "computes",
-		Short: "Get avaliable computes",
-		Long:  `Get avaliable computes`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get available computes",
+		Long:    `Get available computes`,
+		Example: "gns3util -s https://controller:3080 compute ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetComputesCmd() *cobra.Command {
 
 func NewGetComputeCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a compute by name or id",
-		Long:  `Get a compute by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [compute-name/id]",
+		Short:   "Get a compute by name or id",
+		Long:    `Get a compute by name or id`,
+		Example: "gns3util -s https://controller:3080 compute info my-compute",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -51,10 +53,11 @@ func NewGetComputeCmd() *cobra.Command {
 
 func NewGetComputeDockerImagesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "compute-docker-images",
-		Short: "Get the docker-images of a compute by name or id",
-		Long:  `Get the docker-images of a compute by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "docker-images [compute-name/id]",
+		Short:   "Get the docker-images of a compute by name or id",
+		Long:    `Get the docker-images of a compute by name or id`,
+		Example: "gns3util -s https://controller:3080 compute docker-images my-compute",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -76,10 +79,11 @@ func NewGetComputeDockerImagesCmd() *cobra.Command {
 
 func NewGetComputeVirtualboxVMSCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "compute-virtualbox-vms",
-		Short: "Get the virutalbox-vms of a compute by name or id",
-		Long:  `Get the virutalbox-vms of a compute by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "virtualbox-vms [compute-name/id]",
+		Short:   "Get the virtualbox-vms of a compute by name or id",
+		Long:    `Get the virtualbox-vms of a compute by name or id`,
+		Example: "gns3util -s https://controller:3080 compute virtualbox-vms my-compute",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -101,10 +105,11 @@ func NewGetComputeVirtualboxVMSCmd() *cobra.Command {
 
 func NewGetComputeVmWareVMSCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "compute-vmware-vms",
-		Short: "Get the vmware-vms of a compute by name or id",
-		Long:  `Get the vmware-vms of a compute by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "vmware-vms [compute-name/id]",
+		Short:   "Get the vmware-vms of a compute by name or id",
+		Long:    `Get the vmware-vms of a compute by name or id`,
+		Example: "gns3util -s https://controller:3080 compute vmware-vms my-compute",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

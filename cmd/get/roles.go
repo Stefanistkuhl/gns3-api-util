@@ -10,9 +10,10 @@ import (
 
 func NewGetRolesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "roles",
-		Short: "Get the roles of the Server",
-		Long:  `Get the roles of the Server`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get the roles of the Server",
+		Long:    `Get the roles of the Server`,
+		Example: "gns3util -s https://controller:3080 role ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetRolesCmd() *cobra.Command {
 
 func NewGetRoleCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "role",
-		Short: "Get a role by id or name",
-		Long:  `Get a role by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [role-name/id]",
+		Short:   "Get a role by id or name",
+		Long:    `Get a role by id or name`,
+		Example: "gns3util -s https://controller:3080 role info my-role",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -51,10 +53,11 @@ func NewGetRoleCmd() *cobra.Command {
 
 func NewGetRolePrivsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "role-privileges",
-		Short: "Get get the privileges of a role by id or name",
-		Long:  `Get get the privileges of a role by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "privileges [role-name/id]",
+		Short:   "Get the privileges of a role by id or name",
+		Long:    `Get the privileges of a role by id or name`,
+		Example: "gns3util -s https://controller:3080 role privileges my-role",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

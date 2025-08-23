@@ -19,9 +19,11 @@ func NewCreateNodeFromTemplateCmd() *cobra.Command {
 		useJSON   string
 	)
 	cmd := &cobra.Command{
-		Use:   "node-from-template [project-id] [template-id]",
-		Short: "Create a node from a template",
-		Args:  cobra.ExactArgs(2),
+		Use:     "from-template [project-name/id] [template-name/id]",
+		Short:   "Create a node from a template",
+		Long:    "Create a node from a template in a project",
+		Example: "gns3util -s https://controller:3080 node from-template my-project my-template --x 100 --y 200",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

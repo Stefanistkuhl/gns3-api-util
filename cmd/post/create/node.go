@@ -37,15 +37,16 @@ func NewCreateNodeCmd() *cobra.Command {
 		useJSON          string
 	)
 	cmd := &cobra.Command{
-		Use:   "new [project-id]",
-		Short: "Create a node in a project",
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Short:   "Create a node in a project",
+		Long:    "Create a node in a project. To use custom adapters the --use-json option has to be used.",
+		Example: "gns3util -s https://controller:3080 node create my-project --name my-node --node-type qemu",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("failed to get global options: %w", err)
 			}
-			// emulate click.Choice validation for selected flags where applicable
 			if err := validateChoice(consoleType, []string{"vnc", "telnet", "http", "https", "spice", "spice+agent", "none"}, "--console-type"); err != nil {
 				return err
 			}

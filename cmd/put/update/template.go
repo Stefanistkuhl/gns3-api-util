@@ -25,10 +25,10 @@ func NewUpdateTemplateCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [template-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [template-name/id]",
 		Short:   "Update a template",
 		Long:    "Update a template with new settings and properties.",
-		Example: "gns3util -s https://controller:3080 update template [template-name/id] --name new-name",
+		Example: "gns3util -s https://controller:3080 template update my-template --name new-name",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

@@ -12,9 +12,11 @@ import (
 func NewCreateLinkCmd() *cobra.Command {
 	var useJSON string
 	cmd := &cobra.Command{
-		Use:   "new [project-id] [json-data]",
-		Short: "Create a link between two nodes",
-		Args:  cobra.ExactArgs(2),
+		Use:     utils.CreateSingleElementCmdName + " [project-name/id] [json-data]",
+		Short:   "Create a link between two nodes in a project",
+		Long:    "Create a link between two nodes in a project using JSON data",
+		Example: "gns3util -s https://controller:3080 link create my-project '{\"nodes\": [{\"node_id\": \"node1\", \"port_number\": 0}, {\"node_id\": \"node2\", \"port_number\": 0}]}'",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

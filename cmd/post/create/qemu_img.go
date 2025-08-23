@@ -26,9 +26,11 @@ func NewCreateQemuImageCmd() *cobra.Command {
 		useJSON       string
 	)
 	cmd := &cobra.Command{
-		Use:   "qemu-img [image-path]",
-		Short: "Create a QEMU disk image",
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.CreateSingleElementCmdName + " [image-path]",
+		Short:   "Create a QEMU disk image",
+		Long:    "Create a QEMU disk image with specified format and size",
+		Example: "gns3util -s https://controller:3080 image create /path/to/image --format qcow2 --size 10240",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

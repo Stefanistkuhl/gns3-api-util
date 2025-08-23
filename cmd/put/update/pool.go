@@ -17,10 +17,10 @@ func NewUpdatePoolCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [pool-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [pool-name/id]",
 		Short:   "Update a resource pool",
 		Long:    "Update a resource pool with a new name.",
-		Example: "gns3util -s https://controller:3080 update pool [pool-id] -n new-name",
+		Example: "gns3util -s https://controller:3080 pool update my-pool -n new-name",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

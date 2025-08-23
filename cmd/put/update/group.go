@@ -17,10 +17,10 @@ func NewUpdateGroupCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "group [group-id]",
+		Use:     utils.UpdateSingleElementCmdName + " [group-name/id]",
 		Short:   "Update a group",
 		Long:    "Update a user group.",
-		Example: "gns3util -s https://controller:3080 update group [groupname/id] --name new-name",
+		Example: "gns3util -s https://controller:3080 group update my-group --name new-name",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

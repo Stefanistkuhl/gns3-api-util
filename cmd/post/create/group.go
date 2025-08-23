@@ -17,7 +17,7 @@ func NewCreateGroupCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "group",
+		Use:     utils.CreateSingleElementCmdName,
 		Short:   "Create a group",
 		Long:    "Create a user group.",
 		Example: "gns3util -s https://controller:3080 create group -n some-name",

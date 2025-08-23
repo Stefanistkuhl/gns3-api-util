@@ -10,12 +10,11 @@ import (
 
 func NewDeleteUserFromGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "user-from-group [group-name/id] [user-name/id]",
-		Short: "Remove a user from a group",
-		Long:  `Remove a user from a group on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete user-from-group my-group my-user
-gns3util -s https://controller:3080 delete user-from-group 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "remove-from-group [group-name/id] [user-name/id]",
+		Short:   "Remove a user from a group",
+		Long:    `Remove a user from a group on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 group remove-from-group my-group my-user",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			groupID := args[0]
 			userID := args[1]

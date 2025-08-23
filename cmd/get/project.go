@@ -16,9 +16,10 @@ import (
 
 func NewGetProjectsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "projects",
-		Short: "Get the projects of the GNS3 Server",
-		Long:  `Get the projects of the GNS3 Server`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get the projects of the GNS3 Server",
+		Long:    `Get the projects of the GNS3 Server`,
+		Example: "gns3util -s https://controller:3080 project ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -32,10 +33,11 @@ func NewGetProjectsCmd() *cobra.Command {
 
 func NewGetProjectCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a project by id or name",
-		Long:  `Get a project by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "info [project-name/id]",
+		Short:   "Get a project by id or name",
+		Long:    `Get a project by id or name`,
+		Example: "gns3util -s https://controller:3080 project info my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -57,10 +59,11 @@ func NewGetProjectCmd() *cobra.Command {
 
 func NewGetProjectStatsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "project-stats",
-		Short: "Get project-stats by id or name",
-		Long:  `Get project-stats by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "stats [project-name/id]",
+		Short:   "Get project-stats by id or name",
+		Long:    `Get project-stats by id or name`,
+		Example: "gns3util -s https://controller:3080 project stats my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -82,10 +85,11 @@ func NewGetProjectStatsCmd() *cobra.Command {
 
 func NewGetProjectLockedCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "project-locked",
-		Short: "Get if a project is locked by id or name",
-		Long:  `Get if a project is locked by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "locked [project-name/id]",
+		Short:   "Get if a project is locked by id or name",
+		Long:    `Get if a project is locked by id or name`,
+		Example: "gns3util -s https://controller:3080 project locked my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -117,10 +121,11 @@ func NewGetProjectExportCmd() *cobra.Command {
 	)
 
 	var cmd = &cobra.Command{
-		Use:   "project-export",
-		Short: "Export a project from GNS3",
-		Long:  `Export a project from GNS3 with specified options`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "export [project-name/id]",
+		Short:   "Export a project from GNS3",
+		Long:    `Export a project from GNS3 with specified options`,
+		Example: "gns3util -s https://controller:3080 project export my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -137,7 +142,6 @@ func NewGetProjectExportCmd() *cobra.Command {
 				}
 			}
 
-			// Get project name for default filename if not specified
 			projectName := args[0]
 			if utils.IsValidUUIDv4(args[0]) {
 				projectName, err = getProjectNameFromID(cfg, id)
@@ -244,10 +248,11 @@ func NewGetProjectFileCmd() *cobra.Command {
 	var outputFile string
 
 	var cmd = &cobra.Command{
-		Use:   "project-file",
-		Short: "Get a file from a project",
-		Long:  `Get a file from a project by project ID/name and file path`,
-		Args:  cobra.ExactArgs(2),
+		Use:     "file [project-name/id] [file-path]",
+		Short:   "Get a file from a project",
+		Long:    `Get a file from a project by project ID/name and file path`,
+		Example: "gns3util -s https://controller:3080 project file my-project /path/to/file",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			filePath := args[1]
@@ -317,10 +322,11 @@ func NewGetNodeFileCmd() *cobra.Command {
 	var outputFile string
 
 	var cmd = &cobra.Command{
-		Use:   "node-file",
-		Short: "Get a file from a node",
-		Long:  `Get a file from a node by project ID/name, node ID/name, and file path`,
-		Args:  cobra.ExactArgs(3),
+		Use:     "node-file [project-name/id] [node-name/id] [file-path]",
+		Short:   "Get a file from a node",
+		Long:    `Get a file from a node by project ID/name, node ID/name, and file path`,
+		Example: "gns3util -s https://controller:3080 project node-file my-project my-node /path/to/file",
+		Args:    cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -399,10 +405,11 @@ func NewStreamPcapCmd() *cobra.Command {
 	var outputFile string
 
 	var cmd = &cobra.Command{
-		Use:   "stream-pcap",
-		Short: "Stream PCAP capture file from compute",
-		Long:  `Stream the PCAP capture file from compute by project ID/name and link ID/name`,
-		Args:  cobra.ExactArgs(2),
+		Use:     "stream-pcap [project-name/id] [link-name/id]",
+		Short:   "Stream PCAP capture file from compute",
+		Long:    `Stream the PCAP capture file from compute by project ID/name and link ID/name`,
+		Example: "gns3util -s https://controller:3080 project stream-pcap my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			linkID := args[1]

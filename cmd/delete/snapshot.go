@@ -10,12 +10,11 @@ import (
 
 func NewDeleteSnapshotCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "snapshot [project-name/id] [snapshot-name/id]",
-		Short: "Delete a snapshot from a project",
-		Long:  `Delete a snapshot from a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete snapshot my-project my-snapshot
-gns3util -s https://controller:3080 delete snapshot 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     utils.DeleteSingleElementCmdName + " [project-name/id] [snapshot-name/id]",
+		Short:   "Delete a snapshot from a project",
+		Long:    `Delete a snapshot from a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project snapshot delete my-project my-snapshot",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			snapshotID := args[1]

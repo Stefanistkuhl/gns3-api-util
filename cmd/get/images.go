@@ -13,9 +13,10 @@ func NewGetImagesCmd() *cobra.Command {
 		imageType string
 	)
 	cmd := &cobra.Command{
-		Use:   "images",
-		Short: "Get the avaliable images on the Server",
-		Long:  `Get the avaliable images on the Server`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get the available images on the Server",
+		Long:    `Get the available images on the Server`,
+		Example: "gns3util -s https://controller:3080 image ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			if imageType != "" && imageType != "qemu" && imageType != "ios" && imageType != "iou" {
 				fmt.Println("The image type can only be qemu, ios, or iou")
@@ -34,10 +35,11 @@ func NewGetImagesCmd() *cobra.Command {
 
 func NewGetImageCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "image",
-		Short: "Get an image by path",
-		Long:  `Get an image by path`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [image-path]",
+		Short:   "Get an image by path",
+		Long:    `Get an image by path`,
+		Example: "gns3util -s https://controller:3080 image info /path/to/image",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			path := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

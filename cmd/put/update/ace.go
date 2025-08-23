@@ -24,10 +24,10 @@ func NewUpdateACECmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "ace [ace-id]",
+		Use:     utils.UpdateSingleElementCmdName + " [ace-id]",
 		Short:   "Update an ACE",
 		Long:    "Update an ACE. User, group and role IDs will be resolved from names if UUIDs are not provided.",
-		Example: "gns3util -s https://controller:3080 update ace [ace-id] --ace-type user --path /some/endpoint --role-id some-role",
+		Example: "gns3util -s https://controller:3080 acl update ace-id --ace-type user --path /some/endpoint --role-id some-role",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

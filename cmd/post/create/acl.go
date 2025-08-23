@@ -23,9 +23,10 @@ func NewCreateACLCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "ace",
-		Short: "Create an ACE rule",
-		Long:  "Create an Access Control Entry. If IDs are not UUIDv4, names will be resolved where possible.",
+		Use:     utils.CreateSingleElementCmdName,
+		Short:   "Create an ACE rule",
+		Long:    "Create an Access Control Entry. If IDs are not UUIDv4, names will be resolved where possible.",
+		Example: "gns3util -s https://controller:3080 acl create --ace-type allow --path /projects --role-id my-role",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

@@ -10,12 +10,11 @@ import (
 
 func NewDeleteLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove [project-name/id] [link-name/id]",
-		Short: "Delete a link from a project",
-		Long:  `Delete a link from a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete link my-project my-link
-gns3util -s https://controller:3080 delete link 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     utils.DeleteSingleElementCmdName + " [project-name/id] [link-name/id]",
+		Short:   "Delete a link from a project",
+		Long:    `Delete a link from a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 link delete my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			linkID := args[1]

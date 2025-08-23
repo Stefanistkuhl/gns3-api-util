@@ -10,10 +10,11 @@ import (
 
 func NewGetDrawingsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "drawings",
-		Short: "Get the drawings within a project by name or id",
-		Long:  `Get the drawings within a project by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Short:   "Get the drawings within a project by name or id",
+		Long:    `Get the drawings within a project by name or id`,
+		Example: "gns3util -s https://controller:3080 drawing ls my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -35,10 +36,11 @@ func NewGetDrawingsCmd() *cobra.Command {
 
 func NewGetDrawingCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a drawing within a project by name or id",
-		Long:  `Get a drawing within a project by name or id`,
-		Args:  cobra.ExactArgs(2),
+		Use:     utils.ListSingleElementCmdName + " [project-name/id] [drawing-name/id]",
+		Short:   "Get a drawing within a project by name or id",
+		Long:    `Get a drawing within a project by name or id`,
+		Example: "gns3util -s https://controller:3080 drawing info my-project my-drawing",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			linkID := args[1]

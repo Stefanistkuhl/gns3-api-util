@@ -25,9 +25,11 @@ func NewCreateQemuDiskImageCmd() *cobra.Command {
 		useJSON       string
 	)
 	cmd := &cobra.Command{
-		Use:   "qemu-disk-image [project-id] [node-id] [disk-name]",
-		Short: "Create a new disk for a node",
-		Args:  cobra.ExactArgs(3),
+		Use:     utils.CreateSingleElementCmdName + " [project-name/id] [node-name/id] [disk-name]",
+		Short:   "Create a new disk for a node",
+		Long:    "Create a new disk image for a QEMU node in a project",
+		Example: "gns3util -s https://controller:3080 node create my-project my-node my-disk --format qcow2 --size 10240",
+		Args:    cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -36,7 +38,6 @@ func NewCreateQemuDiskImageCmd() *cobra.Command {
 			projectID := args[0]
 			nodeID := args[1]
 			diskName := args[2]
-			// validate choice-like flags
 			if err := validateChoice(format, []string{"qcow2", "qcow", "vpc", "vdi", "vdmk", "raw"}, "--format"); err != nil {
 				return err
 			}

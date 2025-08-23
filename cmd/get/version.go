@@ -10,9 +10,10 @@ import (
 
 func NewGetVersionCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "version",
-		Short: "Get the version of the GNS3 Server",
-		Long:  `Get the version of the GNS3 Server`,
+		Use:     "version",
+		Short:   "Get the version of the GNS3 Server",
+		Long:    `Get the version of the GNS3 Server`,
+		Example: "gns3util -s https://controller:3080 get version",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

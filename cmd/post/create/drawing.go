@@ -20,9 +20,11 @@ func NewCreateDrawingCmd() *cobra.Command {
 		useJSON  string
 	)
 	cmd := &cobra.Command{
-		Use:   "new [project-id]",
-		Short: "Create a drawing",
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Short:   "Create a drawing",
+		Long:    "Create a drawing in a project with specified properties",
+		Example: "gns3util -s https://controller:3080 drawing create my-project --x 100 --y 200 --svg '<svg>...</svg>'",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

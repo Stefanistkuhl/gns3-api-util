@@ -21,9 +21,10 @@ import (
 func NewGetNotificationsCmd() *cobra.Command {
 	var timeout int = 5
 	var cmd = &cobra.Command{
-		Use:   "notifications",
-		Short: "Stream the notification of the controller",
-		Long:  `Stream the notification of the controller`,
+		Use:     "notifications",
+		Short:   "Stream the notification of the controller",
+		Long:    `Stream the notification of the controller`,
+		Example: "gns3util -s https://controller:3080 get notifications",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -98,10 +99,11 @@ func NewGetNotificationsCmd() *cobra.Command {
 func NewGetProjectNotificationCmd() *cobra.Command {
 	var timeout int = 5
 	var cmd = &cobra.Command{
-		Use:   "project-notifications",
-		Short: "Stream the notification of a project by id or name",
-		Long:  `Stream the notification of a project by id or name`,
-		Args:  cobra.ExactArgs(1),
+		Use:     "notifications [project-name/id]",
+		Short:   "Stream the notification of a project by id or name",
+		Long:    `Stream the notification of a project by id or name`,
+		Example: "gns3util -s https://controller:3080 project notifications my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

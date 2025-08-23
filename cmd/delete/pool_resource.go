@@ -10,12 +10,11 @@ import (
 
 func NewDeletePoolResourceCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "pool-resource [pool-name/id] [resource-id]",
-		Short: "Delete a resource from a pool",
-		Long:  `Delete a resource from a pool on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete pool-resource my-pool 123e4567-e89b-12d3-a456-426614174000
-gns3util -s https://controller:3080 delete pool-resource 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "resource [pool-name/id] [resource-id]",
+		Short:   "Delete a resource from a pool",
+		Long:    `Delete a resource from a pool on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 pool resource my-pool resource-id",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			poolID := args[0]
 			resourceID := args[1]

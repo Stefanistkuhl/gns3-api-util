@@ -10,12 +10,11 @@ import (
 
 func NewDeleteDrawingCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove [project-name/id] [drawing-name/id]",
-		Short: "Delete a drawing from a project",
-		Long:  `Delete a drawing from a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete drawing my-project my-drawing
-gns3util -s https://controller:3080 delete drawing 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     utils.DeleteSingleElementCmdName + " [project-name/id] [drawing-name/id]",
+		Short:   "Delete a drawing from a project",
+		Long:    `Delete a drawing from a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 drawing delete my-project my-drawing",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			drawingID := args[1]

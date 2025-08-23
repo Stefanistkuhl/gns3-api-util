@@ -10,9 +10,10 @@ import (
 
 func NewGetIouLicenseCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "iou-license",
-		Short: "Get the iou-license of the GNS3 Server",
-		Long:  `Get the iou-license of the GNS3 Server`,
+		Use:     "iou-license",
+		Short:   "Get the iou-license of the GNS3 Server",
+		Long:    `Get the iou-license of the GNS3 Server`,
+		Example: "gns3util -s https://controller:3080 get iou-license",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

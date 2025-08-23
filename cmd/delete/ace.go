@@ -10,10 +10,10 @@ import (
 
 func NewDeleteACECmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "ace [ace-id]",
+		Use:     utils.DeleteSingleElementCmdName + " [ace-id]",
 		Short:   "Delete an ACE",
 		Long:    `Delete an Access Control Entry (ACE) from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete ace 123e4567-e89b-12d3-a456-426614174000`,
+		Example: "gns3util -s https://controller:3080 acl delete ace-id",
 		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			aceID := args[0]

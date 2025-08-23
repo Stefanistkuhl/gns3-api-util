@@ -12,6 +12,7 @@ const optsKey globalOptionsKey = "globalOptions"
 type GlobalOptions struct {
 	Server   string
 	Insecure bool
+	Raw      bool
 	KeyFile  string
 }
 

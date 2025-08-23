@@ -34,12 +34,11 @@ func NewNodeCmdGroup() *cobra.Command {
 
 func NewNodeDuplicateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "duplicate [project-name/id] [node-name/id]",
-		Short: "Duplicate a Node in a Project",
-		Long:  `Duplicate a node in a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node duplicate my-project my-node
-gns3util -s https://controller:3080 post node duplicate 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "duplicate [project-name/id] [node-name/id]",
+		Short:   "Duplicate a Node in a Project",
+		Long:    `Duplicate a node in a project on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node duplicate [project-name/id] [node-name/id]`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -100,12 +99,11 @@ gns3util -s https://controller:3080 post node duplicate 123e4567-e89b-12d3-a456-
 
 func NewNodeConsoleResetCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "node-console-reset [project-name/id] [node-name/id]",
-		Short: "Reset a console for a given node",
-		Long:  `Reset a console for a given node on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node node-console-reset my-project my-node
-gns3util -s https://controller:3080 post node node-console-reset 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "console-reset [project-name/id] [node-name/id]",
+		Short:   "Reset a console for a given node",
+		Long:    `Reset a console for a given node on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node node-console-reset [project-name/id] [node-name/id]`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -166,12 +164,11 @@ gns3util -s https://controller:3080 post node node-console-reset 123e4567-e89b-1
 
 func NewNodeIsolateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "node-isolate [project-name/id] [node-name/id]",
-		Short: "Isolate a node (suspend all attached links)",
-		Long:  `Isolate a node by suspending all attached links on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node node-isolate my-project my-node
-gns3util -s https://controller:3080 post node node-isolate 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "node-isolate [project-name/id] [node-name/id]",
+		Short:   "Isolate a node (suspend all attached links)",
+		Long:    `Isolate a node by suspending all attached links on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node node-isolate [project-name/id] [node-name/id]`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -232,12 +229,11 @@ gns3util -s https://controller:3080 post node node-isolate 123e4567-e89b-12d3-a4
 
 func NewNodeUnisolateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "node-unisolate [project-name/id] [node-name/id]",
-		Short: "Un-isolate a node (resume all attached suspended links)",
-		Long:  `Un-isolate a node by resuming all attached suspended links on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node node-unisolate my-project my-node
-gns3util -s https://controller:3080 post node node-unisolate 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "node-unisolate [project-name/id] [node-name/id]",
+		Short:   "Un-isolate a node (resume all attached suspended links)",
+		Long:    `Un-isolate a node by resuming all attached suspended links on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node node-unisolate [project-name/id] [node-name/id]`,
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -298,12 +294,11 @@ gns3util -s https://controller:3080 post node node-unisolate 123e4567-e89b-12d3-
 
 func NewReloadNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reload-nodes [project-name/id]",
-		Short: "Reload all nodes belonging to a project",
-		Long:  `Reload all nodes belonging to a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node reload-nodes my-project
-gns3util -s https://controller:3080 post node reload-nodes 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "reload-all [project-name/id]",
+		Short:   "Reload all nodes belonging to a project",
+		Long:    `Reload all nodes belonging to a given project on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node reload-all [project-name/id]`,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -358,12 +353,11 @@ gns3util -s https://controller:3080 post node reload-nodes 123e4567-e89b-12d3-a4
 
 func NewStartNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start-nodes [project-name/id]",
-		Short: "Start all nodes belonging to a project",
-		Long:  `Start all nodes belonging to a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node start-nodes my-project
-gns3util -s https://controller:3080 post node start-nodes 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "start-all [project-name/id]",
+		Short:   "Start all nodes belonging to a project",
+		Long:    `Start all nodes belonging to a given project on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node start-all [project-name/id]`,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -418,12 +412,11 @@ gns3util -s https://controller:3080 post node start-nodes 123e4567-e89b-12d3-a45
 
 func NewStopNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "stop-nodes [project-name/id]",
-		Short: "Stop all nodes belonging to a project",
-		Long:  `Stop all nodes belonging to a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node stop-nodes my-project
-gns3util -s https://controller:3080 post node stop-nodes 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "stop-all [project-name/id]",
+		Short:   "Stop all nodes belonging to a project",
+		Long:    `Stop all nodes belonging to a given project on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node stop-all [project-name/id]`,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -478,12 +471,11 @@ gns3util -s https://controller:3080 post node stop-nodes 123e4567-e89b-12d3-a456
 
 func NewSuspendNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "suspend-nodes [project-name/id]",
-		Short: "Suspend all nodes belonging to a project",
-		Long:  `Suspend all nodes belonging to a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post node suspend-nodes my-project
-gns3util -s https://controller:3080 post node suspend-nodes 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "suspend-all [project-name/id]",
+		Short:   "Suspend all nodes belonging to a project",
+		Long:    `Suspend all nodes belonging to a given project on the GNS3 server.`,
+		Example: `gns3util -s https://controller:3080 post node suspend-all [project-name/id]`,
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

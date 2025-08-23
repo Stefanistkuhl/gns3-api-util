@@ -10,12 +10,11 @@ import (
 
 func NewDeleteGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "group [group-name/id]",
-		Short: "Delete a group",
-		Long:  `Delete a group from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete group my-group
-gns3util -s https://controller:3080 delete group 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     utils.DeleteSingleElementCmdName + " [group-name/id]",
+		Short:   "Delete a group",
+		Long:    `Delete a group from the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 group delete my-group",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			groupID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

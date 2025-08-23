@@ -10,10 +10,11 @@ import (
 
 func NewGetNodesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "nodes",
-		Short: "Get the nodes within a project by name or id",
-		Long:  `Get the nodes within a project by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Short:   "Get the nodes within a project by name or id",
+		Long:    `Get the nodes within a project by name or id`,
+		Example: "gns3util -s https://controller:3080 node ls my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -35,10 +36,11 @@ func NewGetNodesCmd() *cobra.Command {
 
 func NewGetNodeCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a node in a project by name or id",
-		Long:  `Get a node in a project by name or id`,
-		Args:  cobra.ExactArgs(2),
+		Use:     utils.ListSingleElementCmdName + " [project-name/id] [node-name/id]",
+		Short:   "Get a node in a project by name or id",
+		Long:    `Get a node in a project by name or id`,
+		Example: "gns3util -s https://controller:3080 node info my-project my-node",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -68,10 +70,11 @@ func NewGetNodeCmd() *cobra.Command {
 
 func NewGetNodeLinksCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "node-links",
-		Short: "Get links of a given node in a project by id or name",
-		Long:  `Get links of a given node in a project by id or name`,
-		Args:  cobra.ExactArgs(2),
+		Use:     "links [project-name/id] [node-name/id]",
+		Short:   "Get links of a given node in a project by id or name",
+		Long:    `Get links of a given node in a project by id or name`,
+		Example: "gns3util -s https://controller:3080 node links my-project my-node",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -101,10 +104,11 @@ func NewGetNodeLinksCmd() *cobra.Command {
 
 func NewGetNodesAutoIdlePCCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "node-auto-idle-pc",
-		Short: "Get the auto-idle-pc ofa node in a project by id or name",
-		Long:  `Get the auto-idle-pc ofa node in a project by id or name`,
-		Args:  cobra.ExactArgs(2),
+		Use:     "auto-idle-pc [project-name/id] [node-name/id]",
+		Short:   "Get the auto-idle-pc of a node in a project by id or name",
+		Long:    `Get the auto-idle-pc of a node in a project by id or name`,
+		Example: "gns3util -s https://controller:3080 node auto-idle-pc my-project my-node",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]
@@ -134,10 +138,11 @@ func NewGetNodesAutoIdlePCCmd() *cobra.Command {
 
 func NewGetNodesAutoIdlePCProposalsCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "node-auto-idle-pc-proposals",
-		Short: "Get the auto-idle-pc-proposals ofa node in a project by id or name",
-		Long:  `Get the auto-idle-pc-proposals ofa node in a project by id or name`,
-		Args:  cobra.ExactArgs(2),
+		Use:     "auto-idle-pc-proposals [project-name/id] [node-name/id]",
+		Short:   "Get the auto-idle-pc-proposals of a node in a project by id or name",
+		Long:    `Get the auto-idle-pc-proposals of a node in a project by id or name`,
+		Example: "gns3util -s https://controller:3080 node auto-idle-pc-proposals my-project my-node",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			nodeID := args[1]

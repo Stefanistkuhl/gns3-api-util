@@ -61,12 +61,11 @@ func NewProjectDuplicateCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "duplicate [project-name/id]",
-		Short: "Duplicate a Project",
-		Long:  `Duplicate a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project duplicate my-project --name "duplicated-project"
-gns3util -s https://controller:3080 post project duplicate 123e4567-e89b-12d3-a456-426614174000 --name "duplicated-project"`,
-		Args: cobra.ExactArgs(1),
+		Use:     "duplicate [project-name/id]",
+		Short:   "Duplicate a Project",
+		Long:    `Duplicate a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project duplicate my-project --name \"duplicated-project\"",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -219,12 +218,11 @@ func NewProjectLoadCmd() *cobra.Command {
 
 func NewProjectCloseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project-close [project-name/id]",
-		Short: "Close a project",
-		Long:  `Close a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-close my-project
-gns3util -s https://controller:3080 post project project-close 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "close [project-name/id]",
+		Short:   "Close a project",
+		Long:    `Close a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project close my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -281,11 +279,11 @@ func NewProjectImportCmd() *cobra.Command {
 	var projectName string
 
 	cmd := &cobra.Command{
-		Use:   "project-import [archive-file]",
+		Use:   "import [archive-file]",
 		Short: "Import a project from a portable archive",
 		Long:  `Import a project from a portable archive (.gns3project file) on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-import /path/to/project.gns3project
-gns3util -s https://controller:3080 post project project-import --name "my-project" /path/to/project.gns3project`,
+		Example: `gns3util -s https://controller:3080 post project import /path/to/project.gns3project
+gns3util -s https://controller:3080 post project import --name "my-project" /path/to/project.gns3project`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			archiveFile := args[0]
@@ -365,12 +363,11 @@ gns3util -s https://controller:3080 post project project-import --name "my-proje
 
 func NewProjectLockCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project-lock [project-name/id]",
-		Short: "Lock all drawings and nodes in a project",
-		Long:  `Lock all drawings and nodes in a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-lock my-project
-gns3util -s https://controller:3080 post project project-lock 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "lock [project-name/id]",
+		Short:   "Lock all drawings and nodes in a project",
+		Long:    `Lock all drawings and nodes in a given project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project lock my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -425,12 +422,11 @@ gns3util -s https://controller:3080 post project project-lock 123e4567-e89b-12d3
 
 func NewProjectOpenCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project-open [project-name/id]",
-		Short: "Open a project",
-		Long:  `Open a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-open my-project
-gns3util -s https://controller:3080 post project project-open 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "open [project-name/id]",
+		Short:   "Open a project",
+		Long:    `Open a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project open my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -485,12 +481,11 @@ gns3util -s https://controller:3080 post project project-open 123e4567-e89b-12d3
 
 func NewProjectUnlockCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project-unlock [project-name/id]",
-		Short: "Unlock all drawings and nodes in a project",
-		Long:  `Unlock all drawings and nodes in a given project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-unlock my-project
-gns3util -s https://controller:3080 post project project-unlock 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     "unlock [project-name/id]",
+		Short:   "Unlock all drawings and nodes in a project",
+		Long:    `Unlock all drawings and nodes in a given project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project unlock my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
@@ -545,12 +540,11 @@ gns3util -s https://controller:3080 post project project-unlock 123e4567-e89b-12
 
 func NewProjectWriteFileCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project-write-file [project-name/id] [file-path]",
-		Short: "Write a file to a project",
-		Long:  `Write a file to a project with the given file path on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project project-write-file my-project /path/to/file
-gns3util -s https://controller:3080 post project project-write-file 123e4567-e89b-12d3-a456-426614174000 /path/to/file`,
-		Args: cobra.ExactArgs(2),
+		Use:     "write-file [project-name/id] [file-path]",
+		Short:   "Write a file to a project",
+		Long:    `Write a file to a project with the given file path on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project write-file my-project /path/to/file",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			filePath := args[1]
@@ -606,12 +600,11 @@ gns3util -s https://controller:3080 post project project-write-file 123e4567-e89
 
 func NewProjectStartCaptureCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start-capture [project-name/id] [link-name/id]",
-		Short: "Start a packet capture in a project on a given link",
-		Long:  `Start a packet capture in a project on a given link on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post project start-capture my-project my-link
-gns3util -s https://controller:3080 post project start-capture 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "start-capture [project-name/id] [link-name/id]",
+		Short:   "Start a packet capture in a project on a given link",
+		Long:    `Start a packet capture in a project on a given link on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project start-capture my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			linkID := args[1]

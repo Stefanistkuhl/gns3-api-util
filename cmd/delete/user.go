@@ -10,12 +10,11 @@ import (
 
 func NewDeleteUserCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove [user-name/id]",
-		Short: "Delete a user",
-		Long:  `Delete a user from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete user john
-gns3util -s https://controller:3080 delete user 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     utils.DeleteSingleElementCmdName + " [user-name/id]",
+		Short:   "Delete a user",
+		Long:    `Delete a user from the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 user delete my-user",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			userID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

@@ -23,10 +23,10 @@ func NewUpdateComputeCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [compute-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [compute-name/id]",
 		Short:   "Update a compute",
 		Long:    "Update a compute with new settings.",
-		Example: "gns3util -s https://controller:3080 update compute [compute-id] -n new-name",
+		Example: "gns3util -s https://controller:3080 compute update my-compute -n new-name",
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

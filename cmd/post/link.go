@@ -26,12 +26,11 @@ func NewLinkCmdGroup() *cobra.Command {
 
 func NewResetLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "reset [project-name/id] [link-name/id]",
-		Short: "Reset a link",
-		Long:  `Reset a link in a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post link reset my-project my-link
-gns3util -s https://controller:3080 post link reset 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "reset [project-name/id] [link-name/id]",
+		Short:   "Reset a link",
+		Long:    `Reset a link in a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 link reset my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 			linkID := args[1]
@@ -66,12 +65,11 @@ gns3util -s https://controller:3080 post link reset 123e4567-e89b-12d3-a456-4266
 
 func NewStartCaptureCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start-capture [project-name/id] [link-name/id]",
-		Short: "Start packet capture on a link",
-		Long:  `Start packet capture on a link in a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post link start-capture my-project my-link
-gns3util -s https://controller:3080 post link start-capture 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "start-capture [project-name/id] [link-name/id]",
+		Short:   "Start packet capture on a link",
+		Long:    `Start packet capture on a link in a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 link start-capture my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 			linkID := args[1]
@@ -106,12 +104,11 @@ gns3util -s https://controller:3080 post link start-capture 123e4567-e89b-12d3-a
 
 func NewStopCaptureCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "stop-capture [project-name/id] [link-name/id]",
-		Short: "Stop packet capture on a link",
-		Long:  `Stop packet capture on a link in a project on the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 post link stop-capture my-project my-link
-gns3util -s https://controller:3080 post link stop-capture 123e4567-e89b-12d3-a456-426614174000 456e7890-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(2),
+		Use:     "stop-capture [project-name/id] [link-name/id]",
+		Short:   "Stop packet capture on a link",
+		Long:    `Stop packet capture on a link in a project on the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 link stop-capture my-project my-link",
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 			linkID := args[1]

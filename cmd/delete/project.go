@@ -10,12 +10,11 @@ import (
 
 func NewDeleteProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove [project-name/id]",
-		Short: "Delete a project",
-		Long:  `Delete a project from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 project remove my-project
-gns3util -s https://controller:3080 project remove 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     utils.DeleteSingleElementCmdName + " [project-name/id]",
+		Short:   "Delete a project",
+		Long:    `Delete a project from the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 project delete my-project",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			projectID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

@@ -25,10 +25,10 @@ func NewUpdateQemuDiskImageCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "qemu-disk-image [project-name/id] [node-name/id] [disk-name]",
+		Use:     "update-qemu-disk-image [project-name/id] [node-name/id] [disk-name]",
 		Short:   "Update a new disk for a node",
 		Long:    "Update a new disk for a node in a project.",
-		Example: "gns3util -s https://controller:3080 update qemu-disk-image [project-id] [node-id] [disk-name] -f qcow2 -z 1024",
+		Example: "gns3util -s https://controller:3080 node update-qemu-disk-image my-project my-node my-disk -f qcow2 -z 1024",
 		Args:    cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

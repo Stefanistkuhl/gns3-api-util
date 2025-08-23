@@ -10,9 +10,10 @@ import (
 
 func NewGetAppliancesCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "appliances",
-		Short: "Get avaliable appliances",
-		Long:  `Get avaliable appliances`,
+		Use:     utils.ListAllCmdName,
+		Short:   "Get available appliances",
+		Long:    `Get available appliances`,
+		Example: "gns3util -s https://controller:3080 appliance ls",
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -26,10 +27,11 @@ func NewGetAppliancesCmd() *cobra.Command {
 
 func NewGetApplianceCmd() *cobra.Command {
 	var cmd = &cobra.Command{
-		Use:   "info",
-		Short: "Get a appliance by name or id",
-		Long:  `Get a appliance by name or id`,
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.ListSingleElementCmdName + " [appliance-name/id]",
+		Short:   "Get an appliance by name or id",
+		Long:    `Get an appliance by name or id`,
+		Example: "gns3util -s https://controller:3080 appliance info my-appliance",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

@@ -38,10 +38,10 @@ func NewUpdateNodeCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "modify [project-name/id] [node-name/id]",
+		Use:     utils.UpdateSingleElementCmdName + " [project-name/id] [node-name/id]",
 		Short:   "Update a Node in a Project",
 		Long:    "Update a Node in a Project. To use custom adapters the --use-json option has to be used.",
-		Example: "gns3util -s https://controller:3080 update node [project-name/id] [node-name/id] --name new-name",
+		Example: "gns3util -s https://controller:3080 update [project-name/id] [node-name/id] --name new-name",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

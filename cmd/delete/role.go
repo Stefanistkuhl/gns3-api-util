@@ -10,12 +10,11 @@ import (
 
 func NewDeleteRoleCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "role [role-name/id]",
-		Short: "Delete a role",
-		Long:  `Delete a role from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 delete role my-role
-gns3util -s https://controller:3080 delete role 123e4567-e89b-12d3-a456-426614174000`,
-		Args: cobra.ExactArgs(1),
+		Use:     utils.DeleteSingleElementCmdName + " [role-name/id]",
+		Short:   "Delete a role",
+		Long:    `Delete a role from the GNS3 server.`,
+		Example: "gns3util -s https://controller:3080 role delete my-role",
+		Args:    cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			roleID := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())

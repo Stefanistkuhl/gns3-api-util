@@ -16,9 +16,11 @@ func NewCreateSnapshotCmd() *cobra.Command {
 		useJSON string
 	)
 	cmd := &cobra.Command{
-		Use:   "snapshot [project-id]",
-		Short: "Create a snapshot of a project",
-		Args:  cobra.ExactArgs(1),
+		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Short:   "Create a snapshot of a project",
+		Long:    "Create a snapshot of a project with specified name",
+		Example: "gns3util -s https://controller:3080 project create my-project --name backup-2024",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
