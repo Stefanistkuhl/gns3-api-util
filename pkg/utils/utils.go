@@ -11,6 +11,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/pretty"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -28,6 +29,11 @@ var idElementName = map[string][2]string{
 	"appliance": {"appliance_id", "name"},
 	"pool":      {"resource_pool_id", "name"},
 	"node":      {"node_id", "name"},
+	"image":     {"path", "path"},
+	"link":      {"link_id", "name"},
+	"drawing":   {"drawing_id", "name"},
+	"snapshot":  {"snapshot_id", "name"},
+	"symbol":    {"symbol_id", "name"},
 }
 
 var subcommandKeyMap = map[string]string{
@@ -860,6 +866,14 @@ var commandMap = map[string]CommandConfig{
 	},
 }
 
+// GetIDFieldMapping returns the ID field and name field for a given resource type
+func GetIDFieldMapping(resourceType string) (string, string, bool) {
+	if fields, ok := idElementName[resourceType]; ok {
+		return fields[0], fields[1], true
+	}
+	return "", "", false
+}
+
 func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body any) ([]byte, int, error) {
 	cmd, ok := commandMap[cmdName]
 	if !ok {
@@ -940,25 +954,47 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 		return
 	}
 	if cfg.Raw {
-		result := pretty.Pretty(body)
-		result = pretty.Color(result, nil)
-		fmt.Print(string(result))
+		PrintJson(body)
 	} else {
-		var arr []any
-		if err := json.Unmarshal(body, &arr); err != nil {
-			panic(err)
+		PrintKV(body)
+	}
+}
+
+func PrintJson(body []byte) {
+	result := pretty.Pretty(body)
+	result = pretty.Color(result, nil)
+	fmt.Print(string(result))
+}
+
+func PrintKV(body []byte) {
+	result := gjson.ParseBytes(body)
+
+	if result.IsArray() {
+		if len(result.Array()) == 0 {
+			fmt.Println("No data found (empty array)")
+			return
 		}
-		for _, elem := range arr {
+		result.ForEach(func(_, elem gjson.Result) bool {
 			PrintSeperator()
-			if obj, ok := elem.(map[string]any); ok {
-				for k, v := range obj {
-					fmt.Printf("  %s: %v\n", colorUtils.Highlight(k), v)
-				}
+			if elem.IsObject() {
+				elem.ForEach(func(key, value gjson.Result) bool {
+					fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+					return true
+				})
 			} else {
-				fmt.Printf("  %v\n", elem)
+				fmt.Printf("  %s\n", elem.Raw)
 			}
-		}
+			return true
+		})
 		PrintSeperator()
+	} else if result.IsObject() {
+		PrintSeperator()
+		result.ForEach(func(key, value gjson.Result) bool {
+			fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+			return true
+		})
+		PrintSeperator()
+		fmt.Println(result.Raw)
 	}
 }
 

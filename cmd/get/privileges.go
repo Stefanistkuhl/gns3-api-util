@@ -8,10 +8,10 @@ import (
 
 func NewGetPrivilegesCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "privileges",
+		Use:     "privileges-all",
 		Short:   "Get all privileges",
 		Long:    `Get all privileges from the GNS3 server.`,
-		Example: `gns3util -s https://controller:3080 get privileges`,
+		Example: `gns3util -s https://controller:3080 role privileges-all`,
 		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

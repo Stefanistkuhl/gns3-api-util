@@ -19,7 +19,7 @@ func NewUpdateMeCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "me",
+		Use:     "update-current-user",
 		Short:   "Update the logged in user",
 		Long:    "Update the current user's password, email, or full name.",
 		Example: "gns3util -s https://controller:3080 update me -p newpassword -e newemail@example.com",
