@@ -3,19 +3,14 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/stefanistkuhl/gns3util/pkg/api"
-	"github.com/stefanistkuhl/gns3util/pkg/api/endpoints"
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
-	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
+	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/pathUtils"
 )
 
 var username string
@@ -30,8 +25,8 @@ func NewAuthLoginCmd() *cobra.Command {
 			viper.SetEnvPrefix("GNS3")
 			viper.AutomaticEnv()
 
-			viper.BindPFlag("user", cmd.Flags().Lookup("USER"))
-			viper.BindPFlag("password", cmd.Flags().Lookup("PASSWORD"))
+			viper.BindPFlag("user", cmd.Flags().Lookup("user"))
+			viper.BindPFlag("password", cmd.Flags().Lookup("password"))
 
 			if !cmd.Flags().Changed("user") {
 				username = viper.GetString("user")
@@ -39,72 +34,72 @@ func NewAuthLoginCmd() *cobra.Command {
 			if !cmd.Flags().Changed("password") {
 				password = viper.GetString("password")
 			}
+
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			var token schemas.Token
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
-				log.Fatalf("failed to get global options: %v", err)
+				fmt.Printf("failed to get global options: %v\n", err)
+				return
 			}
+
+			if username == "" || password == "" {
+				interactiveUsername, interactivePassword, err := utils.GetLoginCredentials()
+				if err != nil {
+					fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+					return
+				}
+
+				if username == "" {
+					username = interactiveUsername
+				}
+				if password == "" {
+					password = interactivePassword
+				}
+			}
+
+			if username == "" || password == "" {
+				fmt.Printf("%s Username and password are required\n", colorUtils.Error("Error:"))
+				return
+			}
+
 			credentials := schemas.Credentials{
 				Username: username,
 				Password: password,
 			}
-			data, _ := json.Marshal(credentials)
 
-			settings := api.NewSettings(
-				api.WithBaseURL(cfg.Server),
-				api.WithVerify(cfg.Insecure),
-			)
-
-			client := api.NewGNS3Client(settings)
-
-			ep := endpoints.PostEndpoints{}
-
-			reqOpts := api.
-				NewRequestOptions(settings).
-				WithURL(ep.Authenticate()).
-				WithMethod(api.POST).
-				WithData(string(data))
-
-			tokenData, res, err := client.Do(reqOpts)
+			data, err := json.Marshal(credentials)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("%s Failed to marshal credentials: %v\n", colorUtils.Error("Error:"), err)
 				return
 			}
-			if res.StatusCode == 200 {
-				err = json.Unmarshal([]byte(tokenData), &token)
-				if err != nil {
-					log.Fatalf("Error unmarshaling JSON: %v", err)
-				}
-				err := authentication.SaveAuthData(cfg, token, username)
-				if err != nil {
-					log.Fatalln(err)
-				}
-				var keyFilePath string
-				if cfg.KeyFile == "" {
-					k, err := pathUtils.GetGNS3Dir()
-					if err != nil {
-						log.Fatalln(err)
-					}
-					keyFilePath = filepath.Join(k, "gns3key")
-				} else {
-					keyFilePath = cfg.KeyFile
-				}
 
-				fmt.Printf("%s logged in as user %s and saved token to %s", colorUtils.Success("Success:"), colorUtils.Bold(username), colorUtils.Bold(keyFilePath))
+			var payload map[string]any
+			if err := json.Unmarshal(data, &payload); err != nil {
+				fmt.Printf("%s Failed to prepare payload: %v\n", colorUtils.Error("Error:"), err)
+				return
+			}
+
+			_, status, err := utils.CallClient(cfg, "userAuthenticate", []string{}, payload)
+			if err != nil {
+				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
+					fmt.Printf("%v Authentication failed. Please check your username and password.\n", colorUtils.Error("Error:"))
+					return
+				}
+				fmt.Printf("%v %v\n", colorUtils.Error("Error:"), err)
+				return
+			}
+
+			if status == 200 {
+				fmt.Printf("%v Successfully logged in as %s\n", colorUtils.Success("Success:"), colorUtils.Bold(username))
+			} else {
+				fmt.Printf("%v Authentication failed (status: %d)\n", colorUtils.Error("Error:"), status)
 			}
 
 		},
 	}
 	cmd.Flags().StringVarP(&username, "user", "u", "", "User to log in as (env: GNS3_USER)")
 	cmd.Flags().StringVarP(&password, "password", "p", "", "Password to use (env: GNS3_PASSWORD)")
-	if os.Getenv("GNS3_USER") == "" {
-		cmd.MarkFlagRequired("user")
-	}
-	if os.Getenv("GNS3_PASSWORD") == "" {
-		cmd.MarkFlagRequired("password")
-	}
 
 	return cmd
 }

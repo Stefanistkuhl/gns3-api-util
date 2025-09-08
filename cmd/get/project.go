@@ -84,6 +84,8 @@ func NewGetProjectStatsCmd() *cobra.Command {
 }
 
 func NewGetProjectLockedCmd() *cobra.Command {
+	var useFuzzy bool
+	var multi bool
 	var cmd = &cobra.Command{
 		Use:     "locked [project-name/id]",
 		Short:   "Get if a project is locked by id or name",
@@ -106,6 +108,8 @@ func NewGetProjectLockedCmd() *cobra.Command {
 			utils.ExecuteAndPrint(cfg, "getProjectLocked", []string{id})
 		},
 	}
+	cmd.Flags().BoolVarP(&useFuzzy, "fuzzy", "f", false, "Use fuzzy search to find a project")
+	cmd.Flags().BoolVarP(&multi, "multi", "m", false, "Get multiple projects")
 	return cmd
 }
 

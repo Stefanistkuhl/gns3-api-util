@@ -31,6 +31,7 @@ func NewUserCmdGroup() *cobra.Command {
 	// Update subcommands
 	userCmd.AddCommand(update.NewUpdateMeCmd())
 	userCmd.AddCommand(update.NewUpdateUserCmd())
+	userCmd.AddCommand(update.NewChangePasswordCmd())
 
 	// Delete subcommands
 	userCmd.AddCommand(delete.NewDeleteUserCmd())

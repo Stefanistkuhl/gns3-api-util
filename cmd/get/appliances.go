@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
+	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 )
 
@@ -26,27 +27,58 @@ func NewGetAppliancesCmd() *cobra.Command {
 }
 
 func NewGetApplianceCmd() *cobra.Command {
+	var useFuzzy bool
+	var multi bool
 	var cmd = &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [appliance-name/id]",
 		Short:   "Get an appliance by name or id",
 		Long:    `Get an appliance by name or id`,
 		Example: "gns3util -s https://controller:3080 appliance info my-appliance",
-		Args:    cobra.ExactArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			if useFuzzy {
+				if len(args) > 1 {
+					return fmt.Errorf("at most 1 positional arg allowed when --fuzzy is set")
+				}
+				return nil
+			}
+			if len(args) != 1 {
+				return fmt.Errorf("requires 1 arg [appliance-name/id] when --fuzzy is not set")
+			}
+			return nil
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if multi && !useFuzzy {
+				return fmt.Errorf("the --multi (-m) flag can only be used together with --fuzzy (-f)")
+			}
+			return nil
+		},
 		Run: func(cmd *cobra.Command, args []string) {
-			id := args[0]
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
 				fmt.Printf("failed to get global options: %v", err)
 			}
-			if !utils.IsValidUUIDv4(args[0]) {
-				id, err = utils.ResolveID(cfg, "appliance", args[0], nil)
+			if useFuzzy {
+				params := fuzzy.NewFuzzyInfoParams(cfg, "getAppliances", "name", multi)
+				err := fuzzy.FuzzyInfo(params)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
+
+			} else {
+				id := args[0]
+				if !utils.IsValidUUIDv4(args[0]) {
+					id, err = utils.ResolveID(cfg, "appliance", args[0], nil)
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+				}
+				utils.ExecuteAndPrint(cfg, "getAppliance", []string{id})
 			}
-			utils.ExecuteAndPrint(cfg, "getAppliance", []string{id})
 		},
 	}
+	cmd.Flags().BoolVarP(&useFuzzy, "fuzzy", "f", false, "Use fuzzy search to find an appliance")
+	cmd.Flags().BoolVarP(&multi, "multi", "m", false, "Get multiple appliances")
 	return cmd
 }

@@ -44,12 +44,7 @@ func NewGetUserCmd() *cobra.Command {
 			}
 
 			if useFuzzy {
-				params := fuzzy.FuzzyInfoParams{
-					Cfg:    cfg,
-					Multi:  multi,
-					Method: "getUsers",
-					Key:    "username",
-				}
+				params := fuzzy.NewFuzzyInfoParams(cfg, "getUsers", "username", multi)
 				err := fuzzy.FuzzyInfo(params)
 				if err != nil {
 					fmt.Println(err)
@@ -124,21 +119,20 @@ func NewGetGroupMembershipsCmd() *cobra.Command {
 				return
 			}
 			if useFuzzy {
-				params := fuzzy.FuzzyInfoParams{
-					Cfg:    cfg,
-					Multi:  multi,
-					Method: "getUsers",
-					Key:    "username",
-				}
+				params := fuzzy.NewFuzzyInfoParamsWithContext(cfg, "getUsers", "username", multi, "user", "User:")
 				ids, err := fuzzy.FuzzyInfoIDs(params)
 				if err != nil {
 					fmt.Println(err)
 					return
 				}
-				for _, id := range ids {
-					utils.ExecuteAndPrint(cfg, "getGroupMemberships", []string{id})
 
+				userMemberships, err := utils.GetResourceWithContext(cfg, "getGroupMemberships", ids, "user", "User:")
+				if err != nil {
+					fmt.Printf("Error getting group memberships: %v\n", err)
+					return
 				}
+
+				utils.PrintResourceWithContext(userMemberships, "User:")
 			} else {
 				id := args[0]
 				if !utils.IsValidUUIDv4(args[0]) {

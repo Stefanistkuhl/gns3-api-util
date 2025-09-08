@@ -176,7 +176,10 @@ func (f *fuzzyFinder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 
-			f.selection = append(f.selection, choice)
+			if !slices.Contains(f.selection, choice) {
+				f.selection = append(f.selection, choice)
+			}
+
 			return f, tea.Sequence(
 				func() tea.Msg { return selectionMsg(f.selection) },
 				tea.Quit,
@@ -230,6 +233,21 @@ func clearLines(n int) {
 	}
 }
 
+// deduplicate removes duplicate strings from a slice while preserving order
+func deduplicate(slice []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(slice))
+
+	for _, item := range slice {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
 func NewFuzzyFinder(input []string, multiMode bool) []string {
 	var result []string
 	model, err := newFuzzyFinder(input, multiMode)
@@ -247,6 +265,7 @@ func NewFuzzyFinder(input []string, multiMode bool) []string {
 	final := a.(*fuzzyFinder)
 	lines := countLines(final.View())
 	clearLines(lines)
-	result = final.selection
+
+	result = deduplicate(final.selection)
 	return result
 }
