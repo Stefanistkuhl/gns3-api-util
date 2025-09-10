@@ -236,7 +236,7 @@ func getProjectNameFromID(cfg config.GlobalOptions, projectID string) (string, e
 		return "", fmt.Errorf("failed to get project with status %d", resp.StatusCode)
 	}
 
-	var project map[string]interface{}
+	var project map[string]any
 	if err := json.Unmarshal(body, &project); err != nil {
 		return "", fmt.Errorf("failed to parse project response: %w", err)
 	}

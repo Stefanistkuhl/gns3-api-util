@@ -39,6 +39,8 @@ func NewCreateCmdGroup() *cobra.Command {
 	createCmd.AddCommand(NewCreateSnapshotCmd())
 	createCmd.AddCommand(NewCreateComputeCmd())
 	createCmd.AddCommand(NewCreatePoolCmd())
+	createCmd.AddCommand(NewCreateClassCmd())
+	createCmd.AddCommand(NewCreateExerciseCmd())
 
 	return createCmd
 }

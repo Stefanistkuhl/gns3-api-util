@@ -3,6 +3,8 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/cmd/auth"
+	"github.com/stefanistkuhl/gns3util/cmd/class"
+	"github.com/stefanistkuhl/gns3util/cmd/exercise"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 )
 
@@ -42,10 +44,11 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&raw, "raw", "", false, "Output all data in raw json")
 	rootCmd.MarkPersistentFlagRequired("server")
 
-	// Core commands
 	rootCmd.AddCommand(auth.NewAuthCmdGroup())
 
-	// Resource management commands
+	rootCmd.AddCommand(class.NewClassCmdGroup())
+	rootCmd.AddCommand(exercise.NewExerciseCmdGroup())
+
 	rootCmd.AddCommand(NewProjectCmdGroup())
 	rootCmd.AddCommand(NewNodeCmdGroup())
 	rootCmd.AddCommand(NewLinkCmdGroup())
@@ -56,17 +59,14 @@ func init() {
 	rootCmd.AddCommand(NewImageCmdGroup())
 	rootCmd.AddCommand(NewSymbolCmdGroup())
 
-	// Access control commands
 	rootCmd.AddCommand(NewUserCmdGroup())
 	rootCmd.AddCommand(NewGroupCmdGroup())
 	rootCmd.AddCommand(NewRoleCmdGroup())
 	rootCmd.AddCommand(NewAclCmdGroup())
 
-	// Resource organization commands
 	rootCmd.AddCommand(NewPoolCmdGroup())
 	rootCmd.AddCommand(NewSnapshotCmdGroup())
 
-	// System commands
 	rootCmd.AddCommand(NewSystemCmdGroup())
 
 	rootCmd.AddCommand(NewRemoteCmdGroup())
