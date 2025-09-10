@@ -1,14 +1,24 @@
 package exercise
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/stefanistkuhl/gns3util/pkg/api"
+	"github.com/stefanistkuhl/gns3util/pkg/api/endpoints"
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
+	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
+	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
@@ -20,7 +30,7 @@ func NewExerciseCreateCmd() *cobra.Command {
 		Long: `Create an exercise (project) for every group in a class with ACLs to lock down access.
 
 This command will:
-- Create a project for each group in the specified class
+- Use an existing template project from the server (recommended) or create empty projects for each group
 - Create resource pools for each project
 - Create ACLs to restrict access to each group's project
 - Assign the "User" role to each group for their respective projects`,
@@ -30,6 +40,15 @@ This command will:
 
   # Create exercise with custom project name format
   gns3util -s https://controller:3080 exercise create --class "CS101" --exercise "Lab1" --format "{{class}}-{{exercise}}-{{group}}"
+
+  # Create exercise using interactive template selection (recommended)
+  gns3util -s https://controller:3080 exercise create --class "CS101" --exercise "Lab1" --select-template
+
+  # Create exercise using a specific template project by name/ID
+  gns3util -s https://controller:3080 exercise create --class "CS101" --exercise "Lab1" --template "MyTemplateProject"
+
+  # Create exercise using a template file (fallback)
+  gns3util -s https://controller:3080 exercise create --class "CS101" --exercise "Lab1" --template "/path/to/template.gns3project"
 		`,
 		RunE: runCreateExercise,
 	}
@@ -37,6 +56,8 @@ This command will:
 	createExerciseCmd.Flags().String("class", "", "Class name to create exercise for")
 	createExerciseCmd.Flags().String("exercise", "", "Exercise name")
 	createExerciseCmd.Flags().String("format", "{{class}}-{{exercise}}-{{group}}-{{uuid}}", "Project name format (supports {{class}}, {{exercise}}, {{group}}, {{uuid}})")
+	createExerciseCmd.Flags().String("template", "", "Existing project name/ID or path to template file (.gns3project) to use as base for all exercise projects")
+	createExerciseCmd.Flags().Bool("select-template", false, "Interactively select a template project from existing projects on the server (recommended)")
 	createExerciseCmd.Flags().Bool("confirm", true, "Confirm before creating projects")
 
 	createExerciseCmd.MarkFlagRequired("class")
@@ -54,6 +75,8 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 	className, _ := cmd.Flags().GetString("class")
 	exerciseName, _ := cmd.Flags().GetString("exercise")
 	format, _ := cmd.Flags().GetString("format")
+	templatePath, _ := cmd.Flags().GetString("template")
+	selectTemplate, _ := cmd.Flags().GetBool("select-template")
 	confirm, _ := cmd.Flags().GetBool("confirm")
 
 	groupsBody, status, err := utils.CallClient(cfg, "getGroups", []string{}, nil)
@@ -94,6 +117,35 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get User role ID: %w", err)
 	}
 
+	var templateProjectID string
+	if selectTemplate {
+		templateProjectID, err = selectTemplateWithFuzzy(cfg)
+		if err != nil {
+			return fmt.Errorf("failed to select template project: %w", err)
+		}
+		fmt.Printf("%v Selected template project: %v\n",
+			colorUtils.Success("Success:"),
+			colorUtils.Bold(templateProjectID))
+	} else if templatePath != "" {
+		if _, err := os.Stat(templatePath); err == nil {
+			templateProjectID, err = importTemplateProject(cfg, templatePath, className, exerciseName)
+			if err != nil {
+				return fmt.Errorf("failed to import template project: %w", err)
+			}
+			fmt.Printf("%v Imported template project: %v\n",
+				colorUtils.Success("Success:"),
+				colorUtils.Bold(templateProjectID))
+		} else {
+			templateProjectID, err = resolveTemplateProject(cfg, templatePath)
+			if err != nil {
+				return fmt.Errorf("failed to resolve template project: %w", err)
+			}
+			fmt.Printf("%v Using existing template project: %v\n",
+				colorUtils.Success("Success:"),
+				colorUtils.Bold(templateProjectID))
+		}
+	}
+
 	existingExercises, err := checkExistingExercises(cfg, className, classGroups)
 	if err != nil {
 		return fmt.Errorf("failed to check existing exercises: %w", err)
@@ -127,8 +179,7 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 
 		projectName := generateProjectName(format, className, exerciseName, groupNumber)
 
-		// Create project
-		if err := createProjectForGroup(cfg, projectName, groupID, roleID); err != nil {
+		if err := createProjectForGroup(cfg, projectName, groupID, roleID, templateProjectID); err != nil {
 			fmt.Printf("%v Failed to create project for group %s: %v\n",
 				colorUtils.Error("Error:"),
 				colorUtils.Bold(groupName),
@@ -141,6 +192,16 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 			colorUtils.Success("Success:"),
 			colorUtils.Bold(projectName),
 			colorUtils.Highlight(groupName))
+	}
+
+	if templateProjectID != "" {
+		if err := cleanupTemplateProject(cfg, templateProjectID); err != nil {
+			fmt.Printf("%v Warning: Failed to clean up template project: %v\n",
+				colorUtils.Warning("Warning:"),
+				err)
+		} else {
+			fmt.Printf("%v Cleaned up template project\n", colorUtils.Info("Info:"))
+		}
 	}
 
 	fmt.Printf("\n%v Created %d projects for exercise '%s'\n",
@@ -204,31 +265,186 @@ func getUserRoleID(cfg config.GlobalOptions) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("User role not found")
+	return "", fmt.Errorf("user role not found")
 }
 
-func createProjectForGroup(cfg config.GlobalOptions, projectName, groupID, roleID string) error {
-	projectData := schemas.ProjectCreate{
-		Name: &projectName,
+func importTemplateProject(cfg config.GlobalOptions, templatePath, className, exerciseName string) (string, error) {
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("template file does not exist: %s", templatePath)
 	}
 
-	projectBody, status, err := utils.CallClient(cfg, "createProject", []string{}, projectData)
+	file, err := os.Open(templatePath)
 	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
+		return "", fmt.Errorf("failed to open template file: %w", err)
+	}
+	defer file.Close()
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("file", filepath.Base(templatePath))
+	if err != nil {
+		return "", fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	if status != 201 {
-		return fmt.Errorf("failed to create project: status %d", status)
+	if _, err := io.Copy(part, file); err != nil {
+		return "", fmt.Errorf("failed to copy file content: %w", err)
 	}
 
-	var projectResponse schemas.ProjectResponse
-	if err := json.Unmarshal(projectBody, &projectResponse); err != nil {
-		return fmt.Errorf("failed to parse project response: %w", err)
+	writer.Close()
+
+	token, err := authentication.GetKeyForServer(cfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to get token: %w", err)
 	}
 
-	projectID := projectResponse.ProjectID
+	settings := api.NewSettings(
+		api.WithBaseURL(cfg.Server),
+		api.WithVerify(cfg.Insecure),
+		api.WithToken(token),
+	)
+	client := api.NewGNS3Client(settings)
 
-	_, status, err = utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
+	ep := endpoints.Endpoints{}
+	templateProjectID := uuid.New().String()
+	templateProjectName := fmt.Sprintf("%s-%s-template", className, exerciseName)
+	urlStr := ep.Post.ProjectImport(templateProjectID) + fmt.Sprintf("?name=%s", url.QueryEscape(templateProjectName))
+
+	reqOpts := api.NewRequestOptions(settings).
+		WithURL(urlStr).
+		WithMethod(api.POST).
+		WithData(buf.String())
+
+	_, resp, err := client.Do(reqOpts)
+	if err != nil {
+		return "", fmt.Errorf("failed to import template project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 201 {
+		return "", fmt.Errorf("failed to import template project with status %d", resp.StatusCode)
+	}
+
+	return templateProjectID, nil
+}
+
+func resolveTemplateProject(cfg config.GlobalOptions, templateIdentifier string) (string, error) {
+	if utils.IsValidUUIDv4(templateIdentifier) {
+		return templateIdentifier, nil
+	}
+
+	projectID, err := utils.ResolveID(cfg, "project", templateIdentifier, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve template project '%s': %w", templateIdentifier, err)
+	}
+
+	return projectID, nil
+}
+
+func selectTemplateWithFuzzy(cfg config.GlobalOptions) (string, error) {
+	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+	if status != 200 {
+		return "", fmt.Errorf("failed to get projects: status %d", status)
+	}
+
+	var projects []schemas.ProjectResponse
+	if err := json.Unmarshal(projectsBody, &projects); err != nil {
+		return "", fmt.Errorf("failed to parse projects response: %w", err)
+	}
+
+	if len(projects) == 0 {
+		return "", fmt.Errorf("no projects found on server")
+	}
+
+	var projectNames []string
+	for _, project := range projects {
+		projectNames = append(projectNames, project.Name)
+	}
+
+	selectedNames := fuzzy.NewFuzzyFinder(projectNames, false)
+	if len(selectedNames) == 0 {
+		return "", fmt.Errorf("no project selected")
+	}
+
+	selectedName := selectedNames[0]
+	for _, project := range projects {
+		if project.Name == selectedName {
+			return project.ProjectID, nil
+		}
+	}
+
+	return "", fmt.Errorf("selected project not found")
+}
+
+func cleanupTemplateProject(cfg config.GlobalOptions, templateProjectID string) error {
+	_, status, err := utils.CallClient(cfg, "closeProject", []string{templateProjectID}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to close template project: %w", err)
+	}
+	if status != 200 && status != 204 {
+		return fmt.Errorf("failed to close template project: status %d", status)
+	}
+
+	_, status, err = utils.CallClient(cfg, "deleteProject", []string{templateProjectID}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete template project: %w", err)
+	}
+	if status != 204 {
+		return fmt.Errorf("failed to delete template project: status %d", status)
+	}
+
+	return nil
+}
+
+func createProjectForGroup(cfg config.GlobalOptions, projectName, groupID, roleID, templateProjectID string) error {
+	var projectID string
+
+	if templateProjectID != "" {
+		duplicateData := schemas.ProjectDuplicate{
+			Name: projectName,
+		}
+
+		projectBody, status, err := utils.CallClient(cfg, "duplicateProject", []string{templateProjectID}, duplicateData)
+		if err != nil {
+			return fmt.Errorf("failed to duplicate template project: %w", err)
+		}
+
+		if status != 201 {
+			return fmt.Errorf("failed to duplicate template project: status %d", status)
+		}
+
+		var projectResponse schemas.ProjectResponse
+		if err := json.Unmarshal(projectBody, &projectResponse); err != nil {
+			return fmt.Errorf("failed to parse project response: %w", err)
+		}
+
+		projectID = projectResponse.ProjectID
+	} else {
+		projectData := schemas.ProjectCreate{
+			Name: &projectName,
+		}
+
+		projectBody, status, err := utils.CallClient(cfg, "createProject", []string{}, projectData)
+		if err != nil {
+			return fmt.Errorf("failed to create project: %w", err)
+		}
+
+		if status != 201 {
+			return fmt.Errorf("failed to create project: status %d", status)
+		}
+
+		var projectResponse schemas.ProjectResponse
+		if err := json.Unmarshal(projectBody, &projectResponse); err != nil {
+			return fmt.Errorf("failed to parse project response: %w", err)
+		}
+
+		projectID = projectResponse.ProjectID
+	}
+
+	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to close project: %w", err)
 	}

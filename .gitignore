@@ -17,6 +17,8 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+*.gns3project
+CLI_STRUCTURE.md
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -31,3 +33,8 @@ gns3util
 
 api.json
 test_class.json
+scripts/test.yml
+*.yaml
+*.yml
+docs/
+docs/
