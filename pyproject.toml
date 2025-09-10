@@ -1,0 +1,27 @@
+[project]
+name = "gns3util-docs"
+version = "1.0.0"
+description = "Documentation for GNS3 API Utility"
+requires-python = ">=3.8"
+dependencies = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.4.0",
+    "pymdownx-highlight",
+    "pymdownx-inlinehilite", 
+    "pymdownx-superfences",
+    "pymdownx-tabbed",
+    "pymdownx-snippets",
+    "pymdownx-arithmatex",
+    "pymdownx-emoji",
+    "pymdownx-critic",
+    "pymdownx-caret",
+    "pymdownx-keys",
+    "pymdownx-mark",
+    "pymdownx-tilde",
+    "pymdownx-tasklist",
+    "pymdownx-details",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
