@@ -252,15 +252,6 @@ The tool supports multiple authentication methods:
 go build -o gns3util
 ```
 
-### Testing
-```bash
-# Run example scripts test
-./scripts/examples/test-all-scripts.sh http://test-server:3080
-
-# Run specific tests
-go test ./...
-```
-
 ### Contributing
 1. Fork the repository
 2. Create a feature branch
@@ -290,10 +281,6 @@ go test ./...
   - Similar to GitHub Actions
   - Define workflows in YAML
   - Automated task execution
-
-- **Improvements**
-  - Better error messages
-  - Better error handling
 
 ## Documentation
 
