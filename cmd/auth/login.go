@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
+	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
@@ -80,7 +81,7 @@ func NewAuthLoginCmd() *cobra.Command {
 				return
 			}
 
-			_, status, err := utils.CallClient(cfg, "userAuthenticate", []string{}, payload)
+			body, status, err := utils.CallClient(cfg, "userAuthenticate", []string{}, payload)
 			if err != nil {
 				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
 					fmt.Printf("%v Authentication failed. Please check your username and password.\n", colorUtils.Error("Error:"))
@@ -92,6 +93,17 @@ func NewAuthLoginCmd() *cobra.Command {
 
 			if status == 200 {
 				fmt.Printf("%v Successfully logged in as %s\n", colorUtils.Success("Success:"), colorUtils.Bold(username))
+				var token schemas.Token
+				marshallErr := json.Unmarshal(body, &token)
+				if marshallErr != nil {
+					fmt.Printf("%v failed to unmarshall response: %s", colorUtils.Error("Error:"), marshallErr)
+					return
+				}
+				writeErr := authentication.SaveAuthData(cfg, token, credentials.Username)
+				if writeErr != nil {
+					fmt.Printf("%v failed to write authentication data to the keyfile: %s", colorUtils.Error("Error:"), writeErr)
+					return
+				}
 			} else {
 				fmt.Printf("%v Authentication failed (status: %d)\n", colorUtils.Error("Error:"), status)
 			}
