@@ -68,6 +68,8 @@ func init() {
 
 	// System commands
 	rootCmd.AddCommand(NewSystemCmdGroup())
+
+	rootCmd.AddCommand(NewRemoteCmdGroup())
 }
 
 func Execute() {

@@ -71,7 +71,7 @@ func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body an
 	}
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
-		api.WithVerify(cfg.Insecure),
+		api.WithVerify(!cfg.Insecure),
 		api.WithToken(token),
 	)
 
@@ -311,7 +311,7 @@ func ResolveID(cfg config.GlobalOptions, subcommand string, name string, args []
 
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
-		api.WithVerify(cfg.Insecure),
+		api.WithVerify(!cfg.Insecure),
 		api.WithToken(token),
 	)
 	client := api.NewGNS3Client(settings)

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/stefanistkuhl/gns3util/pkg/api"
 	"github.com/stefanistkuhl/gns3util/pkg/api/endpoints"
@@ -38,12 +39,13 @@ func LoadKeys(keyFileLocation string) ([]pathUtils.GNS3Key, error) {
 		}
 	}
 
-	return pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	keys, err := pathUtils.LoadGNS3KeysFile(filePath)
+	return keys, err
 }
 
 func TryKeys(keys []pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, error) {
 	for _, key := range keys {
-		if cfg.Server == key.ServerURL {
+		if normalizeURL(cfg.Server) == normalizeURL(key.ServerURL) {
 			result, success := tryKey(key, cfg)
 			if success {
 				return result, nil
@@ -53,10 +55,24 @@ func TryKeys(keys []pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, error)
 	return nil, fmt.Errorf("No working API-Key found for the server %s. Please use the %s command to authenticate.", colorUtils.Bold(cfg.Server), colorUtils.Bold("auth login"))
 }
 
+func normalizeURL(url string) string {
+	if strings.HasPrefix(url, "http://") {
+		url = url[7:]
+	} else if strings.HasPrefix(url, "https://") {
+		url = url[8:]
+	}
+
+	if colonIndex := strings.Index(url, ":"); colonIndex != -1 {
+		url = url[:colonIndex]
+	}
+
+	return url
+}
+
 func tryKey(key pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, bool) {
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
-		api.WithVerify(cfg.Insecure),
+		api.WithVerify(!cfg.Insecure),
 		api.WithToken(key.AccessToken),
 	)
 
@@ -171,7 +187,7 @@ func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
 		}
 	}
 	for _, key := range keys {
-		if key.ServerURL == cfg.Server {
+		if normalizeURL(key.ServerURL) == normalizeURL(cfg.Server) {
 			return key.AccessToken, nil
 		}
 	}
