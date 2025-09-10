@@ -1,83 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Student Group Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  </head>
 
-<head>
-	<meta charset="UTF-8">
-	<title>Student Group JSON Generator</title>
-	<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap">
-	<link rel="stylesheet" href="style.css">
-	<link rel="icon" href="favicon.ico" type="image/x-icon" />
-</head>
+  <body>
+    <div class="main-content">
+      <header class="mb-8 text-center">
+        <h1 class="text-3xl font-bold mb-2">Student Group Manager</h1>
+        <p class="text-muted">Create and manage student groups with ease</p>
+      </header>
 
-<body>
-	<div class="content-wrapper">
-		<button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
-			<svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<circle cx="12" cy="12" r="5" />
-				<line x1="12" y1="1" x2="12" y2="3" />
-				<line x1="12" y1="21" x2="12" y2="23" />
-				<line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-				<line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-				<line x1="1" y1="12" x2="3" y2="12" />
-				<line x1="21" y1="12" x2="23" y2="12" />
-				<line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-				<line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-			</svg>
-			<svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
-				viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-			</svg>
-		</button>
-	</div>
+      <!-- Class Setup Section -->
+      <section class="section">
+        <h2 class="section-title">
+          <i class="fas fa-chalkboard"></i>
+          <span>Class Setup</span>
+        </h2>
+        <div class="form-group">
+          <label for="className" class="form-label">Class Name</label>
+          <input
+            type="text"
+            id="className"
+            class="form-control"
+            placeholder="e.g., Computer Science 101"
+          />
+        </div>
+      </section>
 
-	<main class="p-4 max-w-2xl mx-auto space-y-4">
-		<h1 class="text-2xl font-bold">Student Group JSON Generator</h1>
+      <!-- Group Management Section -->
+      <section class="section">
+        <h2 class="section-title">
+          <i class="fas fa-users"></i>
+          <span>Group Management</span>
+        </h2>
 
-		<div>
-			<label>Class Name: <input id="className" class="border p-1" /></label>
-		</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div class="form-group">
+            <label for="groupName" class="form-label">Group Name</label>
+            <input
+              type="text"
+              id="groupName"
+              class="form-control"
+              placeholder="e.g., Group"
+            />
+          </div>
 
-		<div class="border p-2 rounded">
-			<h2 class="font-semibold">Create or Select Group</h2>
-			<input id="groupName" placeholder="Group Name" class="border p-1 m-1" />
-			<input id="groupNumber" placeholder="Group Number" class="border p-1 m-1" />
-			<button id="addGroupBtn" class="bg-primary text-white p-1 px-2 rounded">Add/Select
-				Group</button>
+          <div class="form-group">
+            <label for="groupNumber" class="form-label">Group Number</label>
+            <input
+              type="number"
+              id="groupNumber"
+              class="form-control"
+              placeholder="e.g., 1"
+              min="1"
+            />
+          </div>
+        </div>
 
-			<div class="mt-2">
-				<label>Selected Group:
-					<select id="selectedGroup" class="border p-1">
-						<option value="" disabled selected>Select Group</option>
-					</select>
-				</label>
-			</div>
-		</div>
+        <div class="form-group">
+          <label for="selectedGroup" class="form-label"
+            >Or Select Existing Group</label
+          >
+          <select id="selectedGroup" class="form-control">
+            <option value="" disabled selected>Select a group...</option>
+          </select>
+        </div>
 
-		<div class="border p-2 rounded">
-			<h2 class="font-semibold">Add Student to Selected Group</h2>
-			<input id="fullName" placeholder="Full Name" class="border p-1 m-1" />
-			<input id="userName" placeholder="Username" class="border p-1 m-1" />
-			<input id="email" placeholder="Email" class="border p-1 m-1" />
-			<p id="userDataError" class="text-error text-sm" style="display:none"></p>
+        <div class="form-actions">
+          <button id="addGroupBtn" class="btn btn-primary">
+            <i class="fas fa-plus mr-1"></i>
+            Create/Select Group
+          </button>
+        </div>
+      </section>
 
-			<div class="m-1">
-				<label>Password Length (8–128):
-					<input type="number" id="passwordLength" min="8" max="128" value="12"
-						class="border p-1 w-20 ml-2" />
-				</label>
-				<p id="passwordError" class="text-error text-sm" style="display:none"></p>
-			</div>
+      <!-- Student Management Section -->
+      <section class="section">
+        <h2 class="section-title">
+          <i class="fas fa-user-graduate"></i>
+          <span>Add Student</span>
+        </h2>
 
-			<button id="addStudentBtn" class="bg-primary text-white p-1 px-2 rounded">Add Student</button>
-		</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div class="form-group">
+            <label for="fullName" class="form-label">Full Name</label>
+            <input
+              type="text"
+              id="fullName"
+              class="form-control"
+              placeholder="John Doe"
+            />
+          </div>
 
-		<button id="generateJSONBtn" class="bg-tertiary text-white p-2 px-4 rounded">Generate Class</button>
-		<button id="saveJSONBtn" class="bg-warning text-white p-2 px-4 rounded">Save JSON as
-			file</button>
-		<button id="clearJSONBtn" class="bg-error text-white p-2 px-4 rounded">Clear</button>
-	</main>
-	<script src="script.js"></script>
-</body>
+          <div class="form-group">
+            <label for="userName" class="form-label">Username</label>
+            <input
+              type="text"
+              id="userName"
+              class="form-control"
+              placeholder="johndoe"
+            />
+          </div>
 
+          <div class="form-group">
+            <label for="email" class="form-label">Email</label>
+            <input
+              type="email"
+              id="email"
+              class="form-control"
+              placeholder="john@example.com"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="passwordLength" class="form-label"
+              >Password Length</label
+            >
+            <input
+              type="number"
+              id="passwordLength"
+              class="form-control"
+              min="8"
+              max="128"
+              value="12"
+            />
+            <small class="text-muted text-sm">8-128 characters</small>
+          </div>
+        </div>
+
+        <div
+          id="userDataError"
+          class="text-error text-sm mb-4"
+          style="display: none"
+        ></div>
+        <div
+          id="passwordError"
+          class="text-error text-sm mb-4"
+          style="display: none"
+        ></div>
+
+        <div class="form-actions">
+          <button id="addStudentBtn" class="btn btn-accent">
+            <i class="fas fa-user-plus mr-1"></i>
+            Add Student
+          </button>
+        </div>
+      </section>
+
+      <!-- Actions Section -->
+      <section class="section">
+        <h2 class="section-title">
+          <i class="fas fa-cog"></i>
+          <span>Actions</span>
+        </h2>
+        <div class="flex flex-wrap action-btns">
+          <button id="generateJSONBtn" class="btn btn-primary">
+            <i class="fas fa-code mr-1"></i>
+            Generate Class
+          </button>
+          <button id="saveJSONBtn" class="btn btn-success">
+            <i class="fas fa-save mr-1"></i>
+            Save as JSON
+          </button>
+          <button id="clearJSONBtn" class="btn btn-error">
+            <i class="fas fa-trash-alt mr-1"></i>
+            Clear All
+          </button>
+        </div>
+      </section>
+
+      <!-- Groups List Section -->
+      <section class="section">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="section-title">
+            <i class="fas fa-list-ul"></i>
+            <span>Groups & Students</span>
+          </h2>
+          <span id="groupCount" class="text-muted text-sm">0 groups</span>
+        </div>
+
+        <div id="groupsList" class="space-y-4">
+          <!-- Groups will be listed here -->
+          <div class="empty-state">
+            <i class="fas fa-inbox" style="font-size: 3rem; opacity: 0.5"></i>
+            <p>No groups created yet. Add a group to get started!</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Theme Toggle Button -->
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+      <i class="fas fa-sun sun-icon"></i>
+      <i class="fas fa-moon moon-icon"></i>
+    </button>
+
+    <script src="script.js"></script>
+  </body>
 </html>
