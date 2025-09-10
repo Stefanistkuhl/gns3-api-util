@@ -6,8 +6,13 @@ on:
   pull_request:
     branches: [ docs ]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +25,21 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+      - name: Build documentation
+        run: mkdocs build
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/docs'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
-        run: |
-          mkdocs gh-deploy --force --message "Deploy documentation from docs branch"
+        id: deployment
+        uses: actions/deploy-pages@v4
