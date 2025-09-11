@@ -22,7 +22,7 @@ To load completions for all new sessions, add to your shell profile:
 
 Supported shells: bash, zsh, fish, powershell`,
 		ValidArgs: []string{"bash", "zsh", "fish", "powershell"},
-		Args:      cobra.ExactValidArgs(1),
+		Args:      cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 		Run: func(cmd *cobra.Command, args []string) {
 			shell := args[0]
 			switch shell {
