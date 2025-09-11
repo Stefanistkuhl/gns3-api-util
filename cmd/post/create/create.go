@@ -20,7 +20,7 @@ func NewCreateCmdGroup() *cobra.Command {
   gns3util -s https://controller:3080 create user --use-json '{"username":"alice","password":"secret","is_active":true}'
         `,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 

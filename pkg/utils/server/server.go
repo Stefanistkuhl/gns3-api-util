@@ -46,13 +46,13 @@ func StartInteractiveServer(host string, port int) (schemas.Class, error) {
 func handleIndex() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		w.Write(utils.GetEmbeddedHTML())
+		_, _ = w.Write(utils.GetEmbeddedHTML())
 	}
 }
 
 func handleCSS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css")
-	w.Write(utils.GetEmbeddedCSS())
+	_, _ = w.Write(utils.GetEmbeddedCSS())
 }
 
 func handleJS(port int) http.HandlerFunc {
@@ -68,13 +68,13 @@ const SERVER_PORT = %d;
 %s
 `, port, jsContent)
 
-		w.Write([]byte(jsContent))
+		_, _ = w.Write([]byte(jsContent))
 	}
 }
 
 func handleFavicon(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/x-icon")
-	w.Write(utils.GetEmbeddedFavicon())
+	_, _ = w.Write(utils.GetEmbeddedFavicon())
 }
 
 func handleDataSubmission(classDataChan chan<- schemas.Class) http.HandlerFunc {
@@ -90,6 +90,6 @@ func handleDataSubmission(classDataChan chan<- schemas.Class) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 	}
 }

@@ -25,9 +25,9 @@ var (
 	inputBox    = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("183"))
-	markedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("84")).
-			Render
+	// markedStyle = lipgloss.NewStyle().
+	//		Foreground(lipgloss.Color("84")).
+	//		Render
 )
 
 type selectionMsg []string

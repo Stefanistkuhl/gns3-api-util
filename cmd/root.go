@@ -32,7 +32,7 @@ var rootCmd = &cobra.Command{
 		cmd.SetContext(ctx)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 
@@ -42,7 +42,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", "", "Set a location for a keyfile to use")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false, "Ignore unsigned SSL-Certificates")
 	rootCmd.PersistentFlags().BoolVarP(&raw, "raw", "", false, "Output all data in raw json")
-	rootCmd.MarkPersistentFlagRequired("server")
+	_ = rootCmd.MarkPersistentFlagRequired("server")
 
 	rootCmd.AddCommand(auth.NewAuthCmdGroup())
 
@@ -73,5 +73,5 @@ func init() {
 }
 
 func Execute() {
-	rootCmd.Execute()
+	_ = rootCmd.Execute()
 }

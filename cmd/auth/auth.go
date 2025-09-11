@@ -10,7 +10,7 @@ func NewAuthCmdGroup() *cobra.Command {
 		Short: "Authentication commands",
 		Long:  `Authentication commands`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 

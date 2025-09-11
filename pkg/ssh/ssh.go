@@ -109,7 +109,7 @@ func ConnectWithKeyOrPassword(hostname, username string, port int, customPrivate
 	config.Auth = append(config.Auth, ssh.PasswordCallback(func() (string, error) {
 		fmt.Printf("Enter password for %s@%s: ", username, hostname)
 		var password string
-		fmt.Scanln(&password)
+		_, _ = fmt.Scanln(&password)
 		return password, nil
 	}))
 

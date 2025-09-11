@@ -10,7 +10,7 @@ func NewGetCmdGroup() *cobra.Command {
 		Short: "Get GNS3 resources (e.g., projects, users)",
 		Long:  `Provides commands to retrieve various resources from a GNS3v3 server.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 

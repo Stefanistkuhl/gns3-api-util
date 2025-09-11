@@ -11,7 +11,7 @@ func NewUpdateCmdGroup() *cobra.Command {
 		Long:    "Update various GNS3 resources like users, groups, projects, nodes, etc.",
 		Example: "gns3util -s https://controller:3080 update user [user-name/id] --username newname",
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 

@@ -106,7 +106,7 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 	}
 
 	if nonInteractive == "" && !deleteAll {
-		if selectClass == false && selectGroup == true {
+		if !selectClass && selectGroup {
 			return fmt.Errorf("in interactive mode, --select-class and --select-group must both be set")
 		}
 		if (selectClass || selectGroup) && multi {

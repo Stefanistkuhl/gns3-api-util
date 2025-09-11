@@ -69,7 +69,7 @@ will be automatically loaded and command line flags will be ignored.`,
 				// Prompt for reverse proxy port
 				fmt.Printf("Reverse proxy port to uninstall [%d]: ", reverseProxyPort)
 				var input string
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "" {
 					if port, err := strconv.Atoi(input); err == nil {
 						reverseProxyPort = port
@@ -78,7 +78,7 @@ will be automatically loaded and command line flags will be ignored.`,
 
 				// Prompt for GNS3 port
 				fmt.Printf("GNS3 server port [%d]: ", gns3Port)
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "" {
 					if port, err := strconv.Atoi(input); err == nil {
 						gns3Port = port
@@ -87,28 +87,28 @@ will be automatically loaded and command line flags will be ignored.`,
 
 				// Prompt for domain
 				fmt.Printf("Domain that was used (leave empty if none) [%s]: ", domain)
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "" {
 					domain = input
 				}
 
 				// Prompt for subject
 				fmt.Printf("SSL certificate subject that was used [%s]: ", subject)
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "" {
 					subject = input
 				}
 
 				// Prompt for firewall allow
 				fmt.Printf("Firewall allow subnet that was used (leave empty if none) [%s]: ", firewallAllow)
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				if input != "" {
 					firewallAllow = input
 				}
 
 				// Prompt for firewall block
 				fmt.Printf("Were firewall rules configured? (y/N): ")
-				fmt.Scanln(&input)
+				_, _ = fmt.Scanln(&input)
 				firewallBlock = strings.ToLower(input) == "y" || strings.ToLower(input) == "yes"
 
 				fmt.Println()

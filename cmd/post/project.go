@@ -161,7 +161,7 @@ func NewProjectDuplicateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&showGrid, "show-grid", false, "Show grid")
 	cmd.Flags().StringVar(&useJSON, "use-json", "", "Provide a raw JSON string to send instead of flags")
 
-	cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("name")
 
 	return cmd
 }
@@ -338,7 +338,7 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 			reqOpts := api.NewRequestOptions(settings).
 				WithURL(urlStr).
 				WithMethod(api.POST).
-				WithData(string(buf.Bytes()))
+				WithData(buf.String())
 
 			_, resp, err := client.Do(reqOpts)
 			if err != nil {

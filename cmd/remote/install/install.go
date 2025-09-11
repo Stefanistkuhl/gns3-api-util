@@ -20,7 +20,7 @@ func NewInstallCmd() *cobra.Command {
 		Short: "Install something on the remote server via SSH",
 		Long:  `Install something on the remote server via SSH`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 	cmd.AddCommand(NewInstallHttpsCmd())

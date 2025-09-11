@@ -43,7 +43,7 @@ gns3util -s https://controller:3080 user change-password my-user -p "newpassword
 			viper.SetEnvPrefix("GNS3")
 			viper.AutomaticEnv()
 
-			viper.BindPFlag("password", cmd.Flags().Lookup("password"))
+			_ = viper.BindPFlag("password", cmd.Flags().Lookup("password"))
 
 			if !cmd.Flags().Changed("password") {
 				passwordFlag = viper.GetString("password")

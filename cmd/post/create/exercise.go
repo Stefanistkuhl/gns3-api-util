@@ -39,8 +39,8 @@ This command will:
 	createExerciseCmd.Flags().String("format", "{{class}}-{{exercise}}-{{group}}-{{uuid}}", "Project name format (supports {{class}}, {{exercise}}, {{group}}, {{uuid}})")
 	createExerciseCmd.Flags().Bool("confirm", true, "Confirm before creating projects")
 
-	createExerciseCmd.MarkFlagRequired("class")
-	createExerciseCmd.MarkFlagRequired("exercise")
+	_ = createExerciseCmd.MarkFlagRequired("class")
+	_ = createExerciseCmd.MarkFlagRequired("exercise")
 
 	return createExerciseCmd
 }
@@ -331,6 +331,6 @@ func checkExistingExercises(cfg config.GlobalOptions, className string, classGro
 func confirmAction(message string) bool {
 	fmt.Printf("%s (y/N): ", message)
 	var response string
-	fmt.Scanln(&response)
+	_, _ = fmt.Scanln(&response)
 	return strings.ToLower(response) == "y" || strings.ToLower(response) == "yes"
 }

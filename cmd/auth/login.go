@@ -26,8 +26,8 @@ func NewAuthLoginCmd() *cobra.Command {
 			viper.SetEnvPrefix("GNS3")
 			viper.AutomaticEnv()
 
-			viper.BindPFlag("user", cmd.Flags().Lookup("user"))
-			viper.BindPFlag("password", cmd.Flags().Lookup("password"))
+		_ = viper.BindPFlag("user", cmd.Flags().Lookup("user"))
+		_ = viper.BindPFlag("password", cmd.Flags().Lookup("password"))
 
 			if !cmd.Flags().Changed("user") {
 				username = viper.GetString("user")

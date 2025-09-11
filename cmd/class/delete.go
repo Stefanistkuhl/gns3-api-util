@@ -259,6 +259,6 @@ func deleteClassWithConfirmation(cfg config.GlobalOptions, className string, con
 func confirmAction(message string) bool {
 	fmt.Printf("%v %s (y/N): ", colorUtils.Warning("Warning:"), message)
 	var response string
-	fmt.Scanln(&response)
+	_, _ = fmt.Scanln(&response)
 	return response == "y" || response == "Y" || response == "yes" || response == "Yes"
 }
