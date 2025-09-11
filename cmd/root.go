@@ -70,6 +70,9 @@ func init() {
 	rootCmd.AddCommand(NewSystemCmdGroup())
 
 	rootCmd.AddCommand(NewRemoteCmdGroup())
+	
+	// Add completion commands
+	rootCmd.AddCommand(NewCompletionCmd())
 }
 
 func Execute() {

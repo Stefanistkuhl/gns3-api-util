@@ -33,6 +33,10 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      - name: Generate shell completions
+        run: |
+          ./scripts/generate-completions.sh
+
       - name: Build for multiple platforms
         run: |
           mkdir -p dist
@@ -49,13 +53,13 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-windows-amd64.exe .
           GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-windows-arm64.exe .
           
-          # Create compressed archives
+          # Create compressed archives with completions
           cd dist
           for file in gns3util-*; do
             if [[ "$file" == *".exe" ]]; then
-              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
+              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE ../completions/ 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
             else
-              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
+              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE ../completions/ 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
             fi
           done
 
