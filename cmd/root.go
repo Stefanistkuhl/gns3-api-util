@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/cmd/auth"
 	"github.com/stefanistkuhl/gns3util/cmd/class"
@@ -13,7 +16,11 @@ var (
 	keyFile  string
 	insecure bool
 	raw      bool
+	version  bool
 )
+
+// Version is set during build time
+var Version = "1.0.9"
 
 var Foo bool
 
@@ -22,6 +29,23 @@ var rootCmd = &cobra.Command{
 	Short: "A utility for GNS3v3",
 	Long:  `A utility for GNS3v3 for managing GNS3v3 projects and devices.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Skip server validation for completion command and version flag
+		if cmd.Name() == "completion" || (cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
+			return
+		}
+		
+		// Skip server validation if version flag is set
+		if version {
+			return
+		}
+
+		// Check if server is provided for commands that need it
+		if server == "" {
+			fmt.Fprintf(os.Stderr, "Error: required flag(s) \"server\" not set\n")
+			_ = cmd.Help()
+			os.Exit(1)
+		}
+
 		opts := config.GlobalOptions{
 			Server:   server,
 			Insecure: insecure,
@@ -32,6 +56,10 @@ var rootCmd = &cobra.Command{
 		cmd.SetContext(ctx)
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		if version {
+			fmt.Printf("gns3util version %s\n", Version)
+			os.Exit(0)
+		}
 		_ = cmd.Help()
 	},
 }
@@ -42,7 +70,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", "", "Set a location for a keyfile to use")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false, "Ignore unsigned SSL-Certificates")
 	rootCmd.PersistentFlags().BoolVarP(&raw, "raw", "", false, "Output all data in raw json")
-	_ = rootCmd.MarkPersistentFlagRequired("server")
+	rootCmd.Flags().BoolVarP(&version, "version", "V", false, "Print version information")
+	
+	// Only mark server as required if version flag is not set
+	// This is handled in PersistentPreRun
 
 	rootCmd.AddCommand(auth.NewAuthCmdGroup())
 
@@ -70,7 +101,7 @@ func init() {
 	rootCmd.AddCommand(NewSystemCmdGroup())
 
 	rootCmd.AddCommand(NewRemoteCmdGroup())
-	
+
 	// Add completion commands
 	rootCmd.AddCommand(NewCompletionCmd())
 }

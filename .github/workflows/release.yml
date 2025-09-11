@@ -41,17 +41,20 @@ jobs:
         run: |
           mkdir -p dist
           
+          # Get version from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          
           # Build for Linux
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-linux-amd64 .
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-linux-arm64 .
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-linux-arm64 .
           
           # Build for macOS
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-darwin-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-darwin-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-darwin-arm64 .
           
           # Build for Windows
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-windows-amd64.exe .
-          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-windows-arm64.exe .
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-arm64.exe .
           
           # Create compressed archives with completions
           cd dist

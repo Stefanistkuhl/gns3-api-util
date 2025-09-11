@@ -1,6 +1,6 @@
 # Maintainer: Stefanistkuhl <stefanistkuhl@example.com>
 pkgname=gns3util
-pkgver=1.0.2
+pkgver=1.0.8
 pkgrel=1
 pkgdesc="GNS3 API utility for managing GNS3v3 servers"
 arch=('x86_64' 'aarch64')
@@ -10,8 +10,17 @@ depends=('glibc')
 makedepends=('go')
 source_x86_64=("https://github.com/Stefanistkuhl/gns3-api-util/releases/download/v${pkgver}/gns3util-linux-amd64.tar.gz")
 source_aarch64=("https://github.com/Stefanistkuhl/gns3-api-util/releases/download/v${pkgver}/gns3util-linux-arm64.tar.gz")
-sha256sums_x86_64=('2ab3ba906d83e7bd66e59dad26065b7d28e6324bcfa7d630ca67c014f7bde8c5')
-sha256sums_aarch64=('7ea74a4c7e7c7217c258ba2c0af99f2490ed6e4e9bc4230088b7da0c153ee46a')
+sha256sums_x86_64=('0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5')
+sha256sums_aarch64=('0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5')
+
+prepare() {
+    # Extract the source archive
+    if [ -f "gns3util-linux-amd64.tar.gz" ]; then
+        tar -xzf gns3util-linux-amd64.tar.gz
+    elif [ -f "gns3util-linux-arm64.tar.gz" ]; then
+        tar -xzf gns3util-linux-arm64.tar.gz
+    fi
+}
 
 package() {
     # Install binary (rename from platform-specific name to generic name)
