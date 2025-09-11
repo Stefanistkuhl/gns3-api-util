@@ -38,3 +38,10 @@ scripts/test.yml
 *.yml
 docs/
 docs/
+
+# GitHub Actions workflow test files
+.github/event.json
+.actrc
+
+# Build artifacts
+dist/
