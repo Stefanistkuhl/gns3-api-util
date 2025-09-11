@@ -273,8 +273,8 @@ go build -o gns3util
 ## Roadmap
 
 ### **Package Managers**
+- **AUR (Arch Linux)**: `paru -S gns3util` 
 - **Homebrew (macOS)**: `brew install gns3util` - Coming Soon
-- **AUR (Arch Linux)**: `paru -S gns3util` - Coming Soon
 - **Chocolatey (Windows)**: `choco install gns3util` - Coming Soon
 
 ### **Future Features**
