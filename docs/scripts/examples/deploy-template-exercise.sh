@@ -16,10 +16,10 @@ TEMPLATE_PROJECT=$4
 # Create class if it doesn't exist
 echo "Creating class: $CLASS_NAME"
 # Note: This script assumes the class already exists or is created via JSON file
-# Use: ./gns3util -s $GNS3_SERVER class create --file class.json
+# Use: gns3util -s $GNS3_SERVER class create --file class.json
 
 # Create exercise using template
 echo "Creating exercise '$EXERCISE_NAME' using template '$TEMPLATE_PROJECT'"
-./gns3util -s $GNS3_SERVER exercise create --class "$CLASS_NAME" --exercise "$EXERCISE_NAME" --template "$TEMPLATE_PROJECT" --confirm=false
+gns3util -s $GNS3_SERVER exercise create --class "$CLASS_NAME" --exercise "$EXERCISE_NAME" --template "$TEMPLATE_PROJECT" --confirm=false
 
 echo "Exercise deployment complete!"

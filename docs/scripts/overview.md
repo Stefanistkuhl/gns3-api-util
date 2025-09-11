@@ -140,10 +140,10 @@ Before running scripts, ensure you're authenticated:
 
 ```bash
 # Interactive login
-./gns3util -s https://server:3080 auth login
+gns3util -s https://server:3080 auth login
 
 # Or use keyfile
-./gns3util -s https://server:3080 -k ~/.gns3/gns3key project ls
+gns3util -s https://server:3080 -k ~/.gns3/gns3key project ls
 ```
 
 ### **Dependencies**
@@ -162,7 +162,7 @@ Before running scripts, ensure you're authenticated:
 ### **Educational Workflow**
 ```bash
 # 1. Create class
-./gns3util -s https://server:3080 class create --file class.json
+gns3util -s https://server:3080 class create --file class.json
 
 # 2. Deploy exercise with template
 ./scripts/examples/deploy-template-exercise.sh \
@@ -172,7 +172,7 @@ Before running scripts, ensure you're authenticated:
   "NetworkTemplate"
 
 # 3. Verify deployment
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # 4. Cleanup when done
 ./scripts/examples/cleanup-class.sh \
@@ -183,10 +183,10 @@ Before running scripts, ensure you're authenticated:
 ### **Template Management**
 ```bash
 # 1. Create template project
-./gns3util -s https://server:3080 project new --name "NetworkTemplate"
+gns3util -s https://server:3080 project new --name "NetworkTemplate"
 
 # 2. Configure template
-./gns3util -s https://server:3080 node create "NetworkTemplate" \
+gns3util -s https://server:3080 node create "NetworkTemplate" \
   --name "Router1" \
   --node-type "qemu" \
   --compute-id "local"
@@ -251,7 +251,7 @@ chmod +x scripts/examples/*.sh
 #### Authentication Failed
 ```bash
 # Verify authentication
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # Check keyfile
 cat ~/.gns3/gns3key
@@ -260,10 +260,10 @@ cat ~/.gns3/gns3key
 #### Server Connection Failed
 ```bash
 # Verify connectivity
-./gns3util -s https://server:3080 --help
+gns3util -s https://server:3080 --help
 
 # Check server status
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 ```
 
 ### **Debug Mode**
@@ -318,7 +318,7 @@ TEMPLATE="NetworkTemplate"
 
 # 1. Create class
 echo "Creating class..."
-./gns3util -s "$SERVER" class create --file class.json
+gns3util -s "$SERVER" class create --file class.json
 
 # 2. Deploy exercise
 echo "Deploying exercise..."
@@ -330,7 +330,7 @@ echo "Deploying exercise..."
 
 # 3. Verify deployment
 echo "Verifying deployment..."
-./gns3util -s "$SERVER" project ls | grep "$CLASS-$EXERCISE"
+gns3util -s "$SERVER" project ls | grep "$CLASS-$EXERCISE"
 
 # 4. Cleanup
 echo "Cleaning up..."
@@ -349,17 +349,17 @@ TEMPLATE="NetworkTemplate"
 
 # Create template
 echo "Creating template..."
-./gns3util -s "$SERVER" project new --name "$TEMPLATE"
+gns3util -s "$SERVER" project new --name "$TEMPLATE"
 
 # Configure template
 echo "Configuring template..."
-./gns3util -s "$SERVER" node create "$TEMPLATE" \
+gns3util -s "$SERVER" node create "$TEMPLATE" \
   --name "Router1" \
   --node-type "qemu" \
   --compute-id "local"
 
 # Export template
 echo "Exporting template..."
-./gns3util -s "$SERVER" project export "$TEMPLATE" \
+gns3util -s "$SERVER" project export "$TEMPLATE" \
   --output "template.gns3project"
 ```

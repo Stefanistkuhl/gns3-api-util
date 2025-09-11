@@ -9,7 +9,7 @@ GNS3util supports multiple authentication methods for connecting to GNS3v3 serve
 The most user-friendly method for first-time setup:
 
 ```bash
-./gns3util -s https://your-gns3-server:3080 auth login
+gns3util -s https://your-gns3-server:3080 auth login
 ```
 
 This will prompt you for:
@@ -28,7 +28,7 @@ echo "your-api-key" > ~/.gns3/gns3key
 chmod 600 ~/.gns3/gns3key
 
 # Use keyfile
-./gns3util -s https://server:3080 -k ~/.gns3/gns3key project ls
+gns3util -s https://server:3080 -k ~/.gns3/gns3key project ls
 ```
 
 ### 3. Username/Password
@@ -36,7 +36,7 @@ chmod 600 ~/.gns3/gns3key
 Direct authentication without saving credentials:
 
 ```bash
-./gns3util -s https://server:3080 -u username -p password project ls
+gns3util -s https://server:3080 -u username -p password project ls
 ```
 
 ### 4. Environment Variables
@@ -50,7 +50,7 @@ export GNS3_KEYFILE="~/.gns3/gns3key"
 export GNS3_USERNAME="username"
 export GNS3_PASSWORD="password"
 
-./gns3util project ls
+gns3util project ls
 ```
 
 ## Server Configuration
@@ -67,13 +67,13 @@ export GNS3_PASSWORD="password"
 
 #### Ignore Certificate Errors
 ```bash
-./gns3util -s https://server:3080 -i --help
+gns3util -s https://server:3080 -i --help
 ```
 
 #### Custom CA Certificate
 ```bash
 export SSL_CERT_FILE="/path/to/ca-cert.pem"
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 ```
 
 ## Keyfile Management
@@ -81,7 +81,7 @@ export SSL_CERT_FILE="/path/to/ca-cert.pem"
 ### Creating a Keyfile
 ```bash
 # Interactive creation
-./gns3util -s https://server:3080 auth login --save-keyfile ~/.gns3/gns3key
+gns3util -s https://server:3080 auth login --save-keyfile ~/.gns3/gns3key
 
 # Manual creation
 echo "your-api-key" > ~/.gns3/gns3key
@@ -104,12 +104,12 @@ your-api-key-here
 
 ### 1. Server Connection
 ```bash
-./gns3util -s https://server:3080 --help
+gns3util -s https://server:3080 --help
 ```
 
 ### 2. Credential Validation
 ```bash
-./gns3util -s https://server:3080 auth login
+gns3util -s https://server:3080 auth login
 ```
 
 ### 3. Session Management
@@ -124,23 +124,23 @@ your-api-key-here
 #### Authentication Failed
 ```bash
 # Check credentials
-./gns3util -s https://server:3080 -u username -p password project ls
+gns3util -s https://server:3080 -u username -p password project ls
 
 # Verify keyfile
 cat ~/.gns3/gns3key
 
 # Test connection
-./gns3util -s https://server:3080 --help
+gns3util -s https://server:3080 --help
 ```
 
 #### SSL Certificate Errors
 ```bash
 # Ignore certificate errors
-./gns3util -s https://server:3080 -i project ls
+gns3util -s https://server:3080 -i project ls
 
 # Use custom CA
 export SSL_CERT_FILE="/path/to/ca-cert.pem"
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 ```
 
 #### Connection Refused
@@ -158,7 +158,7 @@ export SSL_CERT_FILE="/path/to/ca-cert.pem"
 
 Enable verbose logging:
 ```bash
-./gns3util -s https://server:3080 --verbose project ls
+gns3util -s https://server:3080 --verbose project ls
 ```
 
 ### Testing Authentication
@@ -166,13 +166,13 @@ Enable verbose logging:
 Test your authentication setup:
 ```bash
 # Test basic connection
-./gns3util -s https://server:3080 --help
+gns3util -s https://server:3080 --help
 
 # Test authentication
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # Test specific permissions
-./gns3util -s https://server:3080 class ls
+gns3util -s https://server:3080 class ls
 ```
 
 ## Security Best Practices
@@ -202,10 +202,10 @@ Test your authentication setup:
 ### Basic Authentication
 ```bash
 # Interactive login
-./gns3util -s https://gns3.example.com:3080 auth login
+gns3util -s https://gns3.example.com:3080 auth login
 
 # With keyfile
-./gns3util -s https://gns3.example.com:3080 -k ~/.gns3/gns3key project ls
+gns3util -s https://gns3.example.com:3080 -k ~/.gns3/gns3key project ls
 ```
 
 ### Script Authentication
@@ -214,7 +214,7 @@ Test your authentication setup:
 SERVER="https://gns3.example.com:3080"
 KEYFILE="~/.gns3/gns3key"
 
-./gns3util -s "$SERVER" -k "$KEYFILE" project ls
+gns3util -s "$SERVER" -k "$KEYFILE" project ls
 ```
 
 ### Environment-based Authentication
@@ -223,5 +223,5 @@ KEYFILE="~/.gns3/gns3key"
 export GNS3_SERVER="https://gns3.example.com:3080"
 export GNS3_KEYFILE="~/.gns3/gns3key"
 
-./gns3util project ls
+gns3util project ls
 ```

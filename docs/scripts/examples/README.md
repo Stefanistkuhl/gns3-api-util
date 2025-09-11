@@ -187,13 +187,13 @@ Test all example scripts with comprehensive reporting.
 
 ```bash
 # Check authentication
-./gns3util -s http://server:3080 auth status
+gns3util -s http://server:3080 auth status
 
 # List available projects
-./gns3util -s http://server:3080 project ls
+gns3util -s http://server:3080 project ls
 
 # Check server version
-./gns3util -s http://server:3080 system version
+gns3util -s http://server:3080 system version
 ```
 
 ## Contributing

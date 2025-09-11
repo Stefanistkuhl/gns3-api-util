@@ -1,8 +1,6 @@
 # Roadmap
 
 ## Package Managers
-- **Homebrew (macOS)**: `brew install gns3util` - Coming Soon
-- **AUR (Arch Linux)**: `paru -S gns3util` - Coming Soon
 - **Chocolatey (Windows)**: `choco install gns3util` - Coming Soon
 
 ## Future Features

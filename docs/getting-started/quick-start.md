@@ -8,10 +8,10 @@ First, authenticate with your GNS3 server:
 
 ```bash
 # Interactive login
-./gns3util -s https://your-gns3-server:3080 auth login
+gns3util -s https://your-gns3-server:3080 auth login
 
 # Or use a keyfile
-./gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
+gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
 ```
 
 ## Step 2: Create Your First Class
@@ -20,10 +20,10 @@ Create a class with student groups:
 
 ```bash
 # Create class from JSON file
-./gns3util -s https://server:3080 class create --file class.json
+gns3util -s https://server:3080 class create --file class.json
 
 # Or create interactively
-./gns3util -s https://server:3080 class create --interactive
+gns3util -s https://server:3080 class create --interactive
 ```
 
 Example class.json:
@@ -46,7 +46,7 @@ Example class.json:
 
 ### Using an Existing Project as Template
 ```bash
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "NetworkTemplate" \
@@ -55,7 +55,7 @@ Example class.json:
 
 ### Interactive Template Selection
 ```bash
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --select-template
@@ -63,7 +63,7 @@ Example class.json:
 
 ### Using a Template File
 ```bash
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "/path/to/template.gns3project"
@@ -75,13 +75,13 @@ Check that everything was created correctly:
 
 ```bash
 # List classes
-./gns3util -s https://server:3080 class ls
+gns3util -s https://server:3080 class ls
 
 # List projects
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # List nodes in a project
-./gns3util -s https://server:3080 node ls "CS101-Lab1-Group1-<uuid>"
+gns3util -s https://server:3080 node ls "CS101-Lab1-Group1-<uuid>"
 ```
 
 ## Step 5: Test Student Access
@@ -90,10 +90,10 @@ Login as a student to verify they can only see their assigned projects:
 
 ```bash
 # Login as student
-./gns3util -s https://server:3080 -u student1 -p password123 auth login
+gns3util -s https://server:3080 -u student1 -p password123 auth login
 
 # List projects (should only show student's projects)
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 ```
 
 ## Next Steps
@@ -121,22 +121,22 @@ Login as a student to verify they can only see their assigned projects:
 ### Project Management
 ```bash
 # List projects
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # Create project
-./gns3util -s https://server:3080 project new --name "MyProject"
+gns3util -s https://server:3080 project new --name "MyProject"
 
 # Duplicate project
-./gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
+gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
 ```
 
 ### Node Management
 ```bash
 # List nodes
-./gns3util -s https://server:3080 node ls "MyProject"
+gns3util -s https://server:3080 node ls "MyProject"
 
 # Create node
-./gns3util -s https://server:3080 node create "MyProject" \
+gns3util -s https://server:3080 node create "MyProject" \
   --name "Router1" \
   --node-type "qemu" \
   --compute-id "local"
@@ -145,10 +145,10 @@ Login as a student to verify they can only see their assigned projects:
 ### Class Management
 ```bash
 # List classes
-./gns3util -s https://server:3080 class ls
+gns3util -s https://server:3080 class ls
 
 # Delete class
-./gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
+gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
 ```
 
 ## Troubleshooting

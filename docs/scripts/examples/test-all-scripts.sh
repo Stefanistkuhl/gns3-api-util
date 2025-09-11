@@ -59,7 +59,7 @@ EOF
 # Function to create test template project
 create_test_template() {
     echo "--- Creating test template project ---"
-    ./gns3util -s $GNS3_SERVER project new --name "TestTemplate$TIMESTAMP" --auto-close true
+    gns3util -s $GNS3_SERVER project new --name "TestTemplate$TIMESTAMP" --auto-close true
     echo "Template project created: TestTemplate$TIMESTAMP"
     echo ""
 }
@@ -69,14 +69,14 @@ cleanup_test_data() {
     echo "--- Cleaning up test data ---"
     
     # Delete test classes
-    ./gns3util -s $GNS3_SERVER class delete --name "TestClass$TIMESTAMP" --no-confirm 2>/dev/null || true
-    ./gns3util -s $GNS3_SERVER class delete --name "TestClass2$TIMESTAMP" --no-confirm 2>/dev/null || true
-    ./gns3util -s $GNS3_SERVER class delete --name "TestClass3$TIMESTAMP" --no-confirm 2>/dev/null || true
+    gns3util -s $GNS3_SERVER class delete --name "TestClass$TIMESTAMP" --no-confirm 2>/dev/null || true
+    gns3util -s $GNS3_SERVER class delete --name "TestClass2$TIMESTAMP" --no-confirm 2>/dev/null || true
+    gns3util -s $GNS3_SERVER class delete --name "TestClass3$TIMESTAMP" --no-confirm 2>/dev/null || true
     
     # Delete test projects
-    ./gns3util -s $GNS3_SERVER project delete "Student-1-Lab" 2>/dev/null || true
-    ./gns3util -s $GNS3_SERVER project delete "Student-2-Lab" 2>/dev/null || true
-    ./gns3util -s $GNS3_SERVER project delete "TestTemplate$TIMESTAMP" 2>/dev/null || true
+    gns3util -s $GNS3_SERVER project delete "Student-1-Lab" 2>/dev/null || true
+    gns3util -s $GNS3_SERVER project delete "Student-2-Lab" 2>/dev/null || true
+    gns3util -s $GNS3_SERVER project delete "TestTemplate$TIMESTAMP" 2>/dev/null || true
     
     # Clean up temp files
     rm -f /tmp/TestClass$TIMESTAMP.json /tmp/TestClass2$TIMESTAMP.json /tmp/TestClass3$TIMESTAMP.json
@@ -104,9 +104,9 @@ create_test_class "TestClass2$TIMESTAMP"
 create_test_class "TestClass3$TIMESTAMP"
 
 # Create the classes
-./gns3util -s $GNS3_SERVER class create --file /tmp/TestClass$TIMESTAMP.json
-./gns3util -s $GNS3_SERVER class create --file /tmp/TestClass2$TIMESTAMP.json
-./gns3util -s $GNS3_SERVER class create --file /tmp/TestClass3$TIMESTAMP.json
+gns3util -s $GNS3_SERVER class create --file /tmp/TestClass$TIMESTAMP.json
+gns3util -s $GNS3_SERVER class create --file /tmp/TestClass2$TIMESTAMP.json
+gns3util -s $GNS3_SERVER class create --file /tmp/TestClass3$TIMESTAMP.json
 echo "Test classes created successfully"
 echo ""
 

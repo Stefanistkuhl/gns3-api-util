@@ -8,18 +8,28 @@
 
 ## Package Managers
 
-### Homebrew (macOS) - Coming Soon
+### AUR (Arch Linux)
 ```bash
-# Installation will be available soon
+# Using paru (recommended)
+paru -S gns3util
+
+# Or using yay
+yay -S gns3util
+```
+
+### Homebrew (macOS)
+```bash
+# Add the tap first
+brew tap Stefanistkuhl/tap
+
+# Then install gns3util
 brew install gns3util
 ```
 
-### AUR (Arch Linux) - Coming Soon
+### Windows - Coming Soon
 ```bash
 # Installation will be available soon
-yay -S gns3util
-# or
-paru -S gns3util
+# Package manager support for Windows is in development
 ```
 
 ## Building from Source
@@ -54,7 +64,7 @@ Download from the [releases page](https://github.com/stefanistkuhl/gns3-api-util
 
 Test your installation:
 ```bash
-./gns3util --help
+gns3util --help
 ```
 
 You should see the help output with available commands.
@@ -72,7 +82,7 @@ export GNS3_KEYFILE="~/.gns3/gns3key"
 The program will automatically create a keyfile when you use interactive login:
 ```bash
 # The program creates ~/.gns3/gns3key automatically
-./gns3util -s https://server:3080 auth login
+gns3util -s https://server:3080 auth login
 ```
 
 ## Troubleshooting
@@ -86,7 +96,7 @@ chmod +x gns3util
 
 #### SSL Certificate Errors
 ```bash
-./gns3util -s https://server:3080 -i --help
+gns3util -s https://server:3080 -i --help
 ```
 
 #### Connection Refused
@@ -97,4 +107,4 @@ chmod +x gns3util
 #### Authentication Failed
 - Verify your API key is correct
 - Check the keyfile permissions
-- Try interactive login: `./gns3util auth login`
+- Try interactive login: `gns3util auth login`

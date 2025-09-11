@@ -15,10 +15,10 @@ EXERCISE_NAME=$3
 # Create class
 echo "Creating class: $CLASS_NAME"
 # Note: This script assumes the class already exists or is created via JSON file
-# Use: ./gns3util -s $GNS3_SERVER class create --file class.json
+# Use: gns3util -s $GNS3_SERVER class create --file class.json
 
 # Create exercise with interactive template selection
 echo "Creating exercise with template selection..."
-./gns3util -s $GNS3_SERVER exercise create --class "$CLASS_NAME" --exercise "$EXERCISE_NAME" --select-template --confirm=false
+gns3util -s $GNS3_SERVER exercise create --class "$CLASS_NAME" --exercise "$EXERCISE_NAME" --select-template --confirm=false
 
 echo "Exercise created with selected template!"

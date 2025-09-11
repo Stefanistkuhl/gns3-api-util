@@ -42,10 +42,10 @@ which bash  # Required shell
 ### Initial Setup
 ```bash
 # Test connection to GNS3 server
-./gns3util -s https://your-gns3-server:3080 system version
+gns3util -s https://your-gns3-server:3080 system version
 
 # Authenticate (if not using keyfile)
-./gns3util -s https://your-gns3-server:3080 auth login
+gns3util -s https://your-gns3-server:3080 auth login
 ```
 
 ## Template-Based Exercise Scripts
@@ -62,21 +62,21 @@ which bash  # Required shell
 **Step-by-Step Example**:
 ```bash
 # 1. First, create a template project
-./gns3util -s https://server:3080 project new --name "NetworkTemplate" --auto-close true
+gns3util -s https://server:3080 project new --name "NetworkTemplate" --auto-close true
 
 # 2. Add nodes to the template
-./gns3util -s https://server:3080 node create "NetworkTemplate" \
+gns3util -s https://server:3080 node create "NetworkTemplate" \
   --name "Router1" \
   --node-type "qemu" \
   --compute-id "local"
 
-./gns3util -s https://server:3080 node create "NetworkTemplate" \
+gns3util -s https://server:3080 node create "NetworkTemplate" \
   --name "Switch1" \
   --node-type "ethernet_switch" \
   --compute-id "local"
 
 # 3. Create a class
-./gns3util -s https://server:3080 class create --interactive
+gns3util -s https://server:3080 class create --interactive
 
 # 4. Deploy the exercise
 ./deploy-template-exercise.sh \
@@ -105,7 +105,7 @@ which bash  # Required shell
 **Step-by-Step Example**:
 ```bash
 # 1. Ensure you have multiple projects to choose from
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # 2. Run the interactive script
 ./create-exercise-interactive.sh \
@@ -136,7 +136,7 @@ which bash  # Required shell
 **Step-by-Step Example**:
 ```bash
 # 1. Export an existing project as template file
-./gns3util -s https://server:3080 project export "MyProject" --file "template.gns3project"
+gns3util -s https://server:3080 project export "MyProject" --file "template.gns3project"
 
 # 2. Use the template file to create exercise
 ./import-template-and-create-exercise.sh \
@@ -184,7 +184,7 @@ You can modify the script to add different node types or configurations:
 
 ```bash
 # Edit the script to add more nodes
-./gns3util -s $GNS3_SERVER node create "$PROJECT_UUID" \
+gns3util -s $GNS3_SERVER node create "$PROJECT_UUID" \
   --name "Server1" \
   --node-type "qemu" \
   --compute-id "local"
@@ -283,27 +283,27 @@ echo "Setting up $COURSE networking course..."
 
 # 1. Create template projects
 echo "Creating template projects..."
-./gns3util -s $SERVER project new --name "BasicNetworkTemplate" --auto-close true
-./gns3util -s $SERVER project new --name "AdvancedNetworkTemplate" --auto-close true
+gns3util -s $SERVER project new --name "BasicNetworkTemplate" --auto-close true
+gns3util -s $SERVER project new --name "AdvancedNetworkTemplate" --auto-close true
 
 # 2. Add nodes to templates
 echo "Configuring basic network template..."
-./gns3util -s $SERVER node create "BasicNetworkTemplate" \
+gns3util -s $SERVER node create "BasicNetworkTemplate" \
   --name "Router1" --node-type "qemu" --compute-id "local"
-./gns3util -s $SERVER node create "BasicNetworkTemplate" \
+gns3util -s $SERVER node create "BasicNetworkTemplate" \
   --name "Switch1" --node-type "ethernet_switch" --compute-id "local"
 
 echo "Configuring advanced network template..."
-./gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
+gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
   --name "Router1" --node-type "qemu" --compute-id "local"
-./gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
+gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
   --name "Router2" --node-type "qemu" --compute-id "local"
-./gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
+gns3util -s $SERVER node create "AdvancedNetworkTemplate" \
   --name "Switch1" --node-type "ethernet_switch" --compute-id "local"
 
 # 3. Create class
 echo "Creating class..."
-./gns3util -s $SERVER class create --interactive
+gns3util -s $SERVER class create --interactive
 
 # 4. Deploy labs
 echo "Deploying labs..."
@@ -346,7 +346,7 @@ echo "Deploying week $WEEK lab..."
 
 # 3. Verify deployment
 echo "Verifying deployment..."
-./gns3util -s $SERVER project ls | grep "$CLASS-Week$WEEK"
+gns3util -s $SERVER project ls | grep "$CLASS-Week$WEEK"
 
 echo "Week $WEEK setup complete!"
 ```
@@ -369,7 +369,7 @@ echo "Creating individual labs for $STUDENT_COUNT students..."
 
 # Verify creation
 echo "Verifying lab creation..."
-./gns3util -s $SERVER project ls | grep "Student-" | wc -l
+gns3util -s $SERVER project ls | grep "Student-" | wc -l
 
 echo "Individual labs created successfully!"
 echo "Students can access their labs at: https://your-gns3-server:3080"
@@ -391,19 +391,19 @@ ls -la scripts/examples/
 #### 2. Authentication Issues
 ```bash
 # Check authentication status
-./gns3util -s https://server:3080 auth status
+gns3util -s https://server:3080 auth status
 
 # Re-authenticate if needed
-./gns3util -s https://server:3080 auth login
+gns3util -s https://server:3080 auth login
 ```
 
 #### 3. Template Not Found
 ```bash
 # List available projects
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # Check specific project
-./gns3util -s https://server:3080 project info "TemplateName"
+gns3util -s https://server:3080 project info "TemplateName"
 ```
 
 #### 4. Class Creation Failed
@@ -412,16 +412,16 @@ ls -la scripts/examples/
 cat class.json | jq .
 
 # Validate with dry run
-./gns3util -s https://server:3080 class create --file class.json --dry-run
+gns3util -s https://server:3080 class create --file class.json --dry-run
 ```
 
 #### 5. Node Creation Issues
 ```bash
 # Check available node types
-./gns3util -s https://server:3080 node ls "ProjectName"
+gns3util -s https://server:3080 node ls "ProjectName"
 
 # Verify compute IDs
-./gns3util -s https://server:3080 compute ls
+gns3util -s https://server:3080 compute ls
 ```
 
 ### Debug Mode

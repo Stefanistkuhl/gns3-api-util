@@ -29,16 +29,16 @@ A powerful command-line utility for managing GNS3v3 servers, with advanced templ
 go build -o gns3util
 
 # Or use the pre-built binary
-./gns3util --help
+gns3util --help
 ```
 
 ### Authentication
 ```bash
 # Login to your GNS3 server
-./gns3util -s https://your-gns3-server:3080 auth login
+gns3util -s https://your-gns3-server:3080 auth login
 
 # Or use a keyfile
-./gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
+gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
 ```
 
 ### Basic Usage
@@ -46,29 +46,29 @@ go build -o gns3util
 #### Create a Class
 ```bash
 # Create class from JSON file
-./gns3util -s https://server:3080 class create --file class.json
+gns3util -s https://server:3080 class create --file class.json
 
 # Interactive class creation
-./gns3util -s https://server:3080 class create --interactive
+gns3util -s https://server:3080 class create --interactive
 ```
 
 #### Create an Exercise with Template
 ```bash
 # Using existing project as template
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "NetworkTemplate" \
   --confirm=false
 
 # Interactive template selection
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --select-template
 
 # Using template file
-./gns3util -s https://server:3080 exercise create \
+gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "/path/to/template.gns3project"
@@ -180,22 +180,22 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ### Project Management
 ```bash
 # List all projects
-./gns3util -s https://server:3080 project ls
+gns3util -s https://server:3080 project ls
 
 # Create new project
-./gns3util -s https://server:3080 project new --name "MyProject" --auto-close true
+gns3util -s https://server:3080 project new --name "MyProject" --auto-close true
 
 # Duplicate project
-./gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
+gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
 ```
 
 ### Node Management
 ```bash
 # List nodes in project
-./gns3util -s https://server:3080 node ls "MyProject"
+gns3util -s https://server:3080 node ls "MyProject"
 
 # Create nodes
-./gns3util -s https://server:3080 node create "MyProject" \
+gns3util -s https://server:3080 node create "MyProject" \
   --name "Router1" \
   --node-type "qemu" \
   --compute-id "local"
@@ -204,10 +204,10 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ### Class Management
 ```bash
 # List classes
-./gns3util -s https://server:3080 class ls
+gns3util -s https://server:3080 class ls
 
 # Delete class
-./gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
+gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
 ```
 
 ## Configuration
@@ -254,6 +254,6 @@ For issues, questions, or contributions:
 - Open an issue on GitHub
 - Check the [online documentation](https://stefanistkuhl.github.io/gns3-api-util/)
 - Review the [example scripts](scripts/examples/) for usage patterns
-- Review the CLI help: `./gns3util --help`
+- Review the CLI help: `gns3util --help`
 # Updated Thu Sep 11 01:43:57 AM CEST 2025
 <!-- Cache bust: Thu Sep 11 01:46:56 AM CEST 2025 -->
