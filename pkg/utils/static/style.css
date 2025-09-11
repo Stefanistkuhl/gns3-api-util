@@ -1,217 +1,740 @@
-/* 
-  Color palette: Rosé Pine Dawn (light mode) & Rosé Pine Moon (dark mode)
-  https://rosepinetheme.com/palette/
-*/
-
-/* 1. CSS Variables: Light Theme */
 :root {
-  --color-bg: #faf4ed;
-  --color-surface: #fffaf3;
-  --color-border: #f2e9e1;
-  --color-muted: #9893a5;
-  --color-subtle: #797593;
-  --color-text: #575279;
-  --color-error: #b4637a;
-  --color-warning: #ea9d34;
-  --color-accent: #d7827e;
-  --color-primary: #286983;
-  --color-secondary: #56949f;
-  --color-tertiary: #907aa9;
+  /* Light Theme */
+  --color-bg: #f8f9fa;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f3f5;
+  --color-border: #e9ecef;
+  --color-muted: #6c757d;
+  --color-subtle: #ced4da;
+  --color-text: #212529;
+  --color-error: #e64980;
+  --color-warning: #f76707;
+  --color-success: #40c057;
+  --color-accent: #845ef7; /* Purple accent */
+  --color-primary: #4dabf7; /* Blue primary */
+  --color-secondary: #20c997; /* Teal secondary */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --transition: all 0.2s ease-in-out;
 }
 
-/* 2. CSS Variables: Dark Theme */
 body.dark-mode {
-  --color-bg: #232136;
-  --color-surface: #2a273f;
-  --color-border: #393552;
-  --color-muted: #6e6a86;
-  --color-subtle: #908caa;
-  --color-text: #e0def4;
-  --color-error: #eb6f92;
-  --color-warning: #ea9d34;
-  --color-accent: #d7827e;
-  --color-primary: #3e8fb0;
-  --color-secondary: #9ccfd8;
-  --color-tertiary: #c4a7e7;
+  /* Dark Theme */
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-alt: #2d2d2d;
+  --color-border: #2a2a2a;
+  --color-muted: #9e9e9e;
+  --color-subtle: #5c5c5c;
+  --color-text: #e0e0e0;
+  --color-error: #ff6b6b;
+  --color-warning: #ffa94d;
+  --color-success: #69db7c;
+  --color-accent: #b197fc; /* Lighter purple for dark mode */
+  --color-primary: #74c0fc; /* Lighter blue for dark mode */
+  --color-secondary: #38d9a9; /* Lighter teal for dark mode */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25),
+    0 2px 4px -1px rgba(0, 0, 0, 0.15);
 }
 
 /* 3. Reset & Base Styles */
-body {
-  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, sans-serif;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  padding: 2rem 1rem;
+}
+
 /* 4. Layout Utilities */
-.p-4 {
-  padding: 1rem;
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
-.max-w-2xl {
-  max-width: 42rem;
+.main-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
 }
 
-.mx-auto {
-  margin-left: auto;
-  margin-right: auto;
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
-.space-y-4>*+* {
-  margin-top: 1rem;
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-title svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+.mb-4 {
+  margin-bottom: 1rem;
+}
+.mb-6 {
+  margin-bottom: 1.5rem;
 }
 
 .mt-2 {
   margin-top: 0.5rem;
 }
-
-.m-1 {
-  margin: 0.25rem;
-}
-
-.ml-2 {
-  margin-left: 0.5rem;
-}
-
-.w-20 {
-  width: 5rem;
-}
-
-/* 5. Typography */
-.text-2xl {
-  font-size: 1.5rem;
-}
-
-.font-bold {
-  font-weight: bold;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.text-sm {
-  font-size: 0.875rem;
-}
-
-.text-white {
-  color: #fff;
-}
-
-.text-error {
-  color: var(--color-error);
-}
-
-/* 6. Form Controls */
-input,
-select {
-  min-width: 200px;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  border-radius: 0.25rem;
-  padding: 0.25rem;
-}
-
-input[type="number"] {
-  width: 5rem;
-}
-
-.border {
-  border: 1px solid var(--color-border);
-}
-
-.rounded {
-  border-radius: 0.25rem;
-}
-
-.p-1 {
-  padding: 0.25rem;
+.mt-4 {
+  margin-top: 1rem;
 }
 
 .p-2 {
   padding: 0.5rem;
 }
-
-.px-2 {
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
+.p-3 {
+  padding: 0.75rem;
+}
+.p-4 {
+  padding: 1rem;
 }
 
-.px-4 {
-  padding-left: 1rem;
-  padding-right: 1rem;
+.rounded {
+  border-radius: 0.375rem;
+}
+.rounded-lg {
+  border-radius: 0.5rem;
 }
 
-/* 7. Buttons */
-button {
-  outline: none;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  font-family: inherit;
-  transition: background 0.2s, color 0.2s;
-}
-
-.bg-primary {
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.bg-secondary {
-  background: var(--color-secondary);
-  color: #fff;
-}
-
-.bg-tertiary {
-  background: var(--color-tertiary);
-  color: #fff;
-}
-
-.bg-error {
-  background: var(--color-error);
-  color: #fff;
-}
-
-.bg-warning {
-  background: var(--color-warning);
-  color: #fff;
-}
-
-.bg-accent {
-  background: var(--color-accent);
-  color: #fff;
-}
-
-/* 8. Theme Toggle Button */
-.theme-toggle {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: background-color 0.3s;
+/* 5. Typography */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 1rem;
   color: var(--color-text);
 }
 
-.theme-toggle .moon-icon {
+h1 {
+  font-size: 2rem;
+}
+h2 {
+  font-size: 1.5rem;
+}
+h3 {
+  font-size: 1.25rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+.text-base {
+  font-size: 1rem;
+}
+.text-lg {
+  font-size: 1.125rem;
+}
+.text-xl {
+  font-size: 1.25rem;
+}
+.text-2xl {
+  font-size: 1.5rem;
+}
+
+.font-normal {
+  font-weight: 400;
+}
+.font-medium {
+  font-weight: 500;
+}
+.font-semibold {
+  font-weight: 600;
+}
+.font-bold {
+  font-weight: 700;
+}
+
+.text-muted {
+  color: var(--color-muted);
+}
+.text-primary {
+  color: var(--color-primary);
+}
+.text-error {
+  color: var(--color-error);
+}
+.text-success {
+  color: var(--color-success);
+}
+.text-warning {
+  color: var(--color-warning);
+}
+
+.leading-tight {
+  line-height: 1.25;
+}
+
+/* 6. Form Controls */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
   display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  background-clip: padding-box;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  border-color: var(--color-primary);
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(77, 171, 247, 0.25);
+}
+
+.form-control::placeholder {
+  color: var(--color-subtle);
+  opacity: 1;
+}
+
+input[type="number"] {
+  width: 5.5rem;
+}
+
+select.form-control {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  padding-right: 2.5rem;
+}
+
+/* Form grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* 7. Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: 1px solid transparent;
+  padding: 0.5rem 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  gap: 0.5rem;
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Button variants */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #3a8bc8;
+  border-color: #3a8bc8;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: #1a1a1a;
+  border-color: var(--color-secondary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #38d9a9;
+  border-color: #38d9a9;
+  transform: translateY(-1px);
+}
+
+.btn-accent {
+  background-color: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background-color: #9775fa;
+  border-color: #9775fa;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--color-surface-alt);
+  transform: translateY(-1px);
+}
+
+.btn-error {
+  background-color: var(--color-error);
+  color: white;
+  border-color: var(--color-error);
+}
+
+.btn-error:hover:not(:disabled) {
+  background-color: #e03131;
+  border-color: #e03131;
+  transform: translateY(-1px);
+}
+
+.btn-warning {
+  background-color: var(--color-warning);
+  color: #1a1a1a;
+  border-color: var(--color-warning);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #ffa94d;
+  border-color: #ffa94d;
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background-color: var(--color-success);
+  color: #1a1a1a;
+  border-color: var(--color-success);
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #69db7c;
+  border-color: #69db7c;
+  transform: translateY(-1px);
+}
+
+/* Button with icon */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.btn-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* 8. Cards & Containers */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.card-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.card-footer {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--color-surface-alt);
+  border-top: 1px solid var(--color-border);
+}
+
+/* 9. Editable List Styles */
+/* Group styles */
+.group-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin-bottom: 1rem;
+}
+
+.group-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  background-color: var(--color-surface-alt);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.group-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.group-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.student-list {
+  padding: 0.5rem 0;
+  margin: 0;
+  list-style: none;
+}
+
+.student-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.25rem;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.student-item:last-child {
+  border-bottom: none;
+}
+
+.student-item:hover {
+  background-color: var(--color-surface-alt);
+}
+
+.student-info {
+  flex: 1;
+}
+
+.student-name {
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 0.25rem;
+}
+
+.student-username {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.student-email {
+  font-size: 0.8125rem;
+  color: var(--color-subtle);
+  margin-top: 0.125rem;
+}
+
+.student-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.student-item:hover .student-actions {
+  opacity: 1;
+}
+
+/* Edit form styles */
+.edit-form {
+  padding: 1.25rem;
+  background-color: var(--color-surface-alt);
+  border-radius: 0 0 0.5rem 0.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--color-muted);
+}
+
+.empty-state svg {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .student-actions {
+    width: 100%;
+    justify-content: flex-end;
+    opacity: 1;
+  }
+}
+
+/* 10. Theme Toggle Button */
+.theme-toggle {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  z-index: 1000;
+  padding: 0;
+}
+
+.theme-toggle i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  font-size: 1.25rem;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+.theme-toggle .sun-icon,
+.theme-toggle .moon-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: all 0.3s ease;
 }
 
 .theme-toggle .sun-icon {
   display: none;
+  color: #ffd43b;
 }
 
-body.dark-mode .moon-icon {
+.theme-toggle .moon-icon {
+  display: block;
+  color: white;
+}
+
+body.dark-mode .theme-toggle {
+  background: var(--color-accent);
+}
+
+body.dark-mode .theme-toggle .sun-icon {
+  display: block;
+}
+
+body.dark-mode .theme-toggle .moon-icon {
   display: none;
 }
 
-body.dark-mode .sun-icon {
-  display: block;
+/* 11. Utility Classes */
+.hidden {
+  display: none !important;
+}
+.w-full {
+  width: 100%;
+}
+.text-center {
+  text-align: center;
+}
+.ml-auto {
+  margin-left: auto;
+}
+.mr-auto {
+  margin-right: auto;
+}
+
+/* 12. Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* 13. Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
 }
 
 /* 9. Error Text */
@@ -229,4 +752,9 @@ body.dark-mode .sun-icon {
 .bg-accent {
   /* Ensures text is white for all colored buttons */
   color: #fff;
+}
+
+/* Add gap between action btns */
+.action-btns {
+  column-gap: 7px;
 }
