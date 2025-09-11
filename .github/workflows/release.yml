@@ -34,13 +34,30 @@ jobs:
         run: go test ./...
 
       - name: Build for multiple platforms
-        uses: thatisuday/go-cross-build@v1
-        with:
-          platforms: 'linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64,windows/arm64'
-          package: ''
-          name: 'gns3util'
-          compress: 'true'
-          dest: 'dist'
+        run: |
+          mkdir -p dist
+          
+          # Build for Linux
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-linux-arm64 .
+          
+          # Build for macOS
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-darwin-arm64 .
+          
+          # Build for Windows
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/gns3util-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/gns3util-windows-arm64.exe .
+          
+          # Create compressed archives
+          cd dist
+          for file in gns3util-*; do
+            if [[ "$file" == *".exe" ]]; then
+              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
+            else
+              tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE 2>/dev/null || tar -czf "${file}.tar.gz" "$file"
+            fi
+          done
 
       - name: Generate checksums
         run: |
