@@ -16,11 +16,11 @@ var (
 	keyFile  string
 	insecure bool
 	raw      bool
+	noColor  bool
 	version  bool
 )
 
-// Version is set during build time
-var Version = "1.0.9"
+var Version = "1.1.0"
 
 var Foo bool
 
@@ -28,22 +28,21 @@ var rootCmd = &cobra.Command{
 	Use:   "gns3util",
 	Short: "A utility for GNS3v3",
 	Long:  `A utility for GNS3v3 for managing GNS3v3 projects and devices.`,
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Skip server validation for completion command and version flag
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if cmd.Name() == "completion" || (cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
-			return
-		}
-		
-		// Skip server validation if version flag is set
-		if version {
-			return
+			return nil
 		}
 
-		// Check if server is provided for commands that need it
-		if server == "" {
-			fmt.Fprintf(os.Stderr, "Error: required flag(s) \"server\" not set\n")
-			_ = cmd.Help()
-			os.Exit(1)
+		if version {
+			return nil
+		}
+
+		if err := validateGlobalFlags(); err != nil {
+			return err
+		}
+
+		if err := validateRequiresServer(); err != nil {
+			return err
 		}
 
 		opts := config.GlobalOptions{
@@ -54,6 +53,8 @@ var rootCmd = &cobra.Command{
 		}
 		ctx := config.WithGlobalOptions(cmd.Context(), opts)
 		cmd.SetContext(ctx)
+
+		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if version {
@@ -66,14 +67,12 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	cobra.OnFinalize()
-	rootCmd.PersistentFlags().StringVarP(&server, "server", "s", "", "GNS3v3 Server URL (required)")
+	rootCmd.PersistentFlags().StringVarP(&server, "server", "s", "", "GNS3v3 Server URL (required for non cluster commands)")
 	rootCmd.PersistentFlags().StringVarP(&keyFile, "key-file", "k", "", "Set a location for a keyfile to use")
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false, "Ignore unsigned SSL-Certificates")
 	rootCmd.PersistentFlags().BoolVarP(&raw, "raw", "", false, "Output all data in raw json")
+	rootCmd.PersistentFlags().BoolVarP(&noColor, "no-color", "", false, "Output all data in raw json and dont use a colored output")
 	rootCmd.Flags().BoolVarP(&version, "version", "V", false, "Print version information")
-	
-	// Only mark server as required if version flag is not set
-	// This is handled in PersistentPreRun
 
 	rootCmd.AddCommand(auth.NewAuthCmdGroup())
 
@@ -102,10 +101,23 @@ func init() {
 
 	rootCmd.AddCommand(NewRemoteCmdGroup())
 
-	// Add completion commands
-	rootCmd.AddCommand(NewCompletionCmd())
+	rootCmd.AddCommand(NewClusterCmdGroup())
 }
 
 func Execute() {
 	_ = rootCmd.Execute()
+}
+
+func validateGlobalFlags() error {
+	if noColor && !raw {
+		return fmt.Errorf("--no-color can only be used when --raw is also used")
+	}
+	return nil
+}
+
+func validateRequiresServer() error {
+	if server == "" {
+		return fmt.Errorf("required flag(s) \"server\" not set")
+	}
+	return nil
 }

@@ -26,8 +26,8 @@ func NewAuthLoginCmd() *cobra.Command {
 			viper.SetEnvPrefix("GNS3")
 			viper.AutomaticEnv()
 
-		_ = viper.BindPFlag("user", cmd.Flags().Lookup("user"))
-		_ = viper.BindPFlag("password", cmd.Flags().Lookup("password"))
+			_ = viper.BindPFlag("user", cmd.Flags().Lookup("user"))
+			_ = viper.BindPFlag("password", cmd.Flags().Lookup("password"))
 
 			if !cmd.Flags().Changed("user") {
 				username = viper.GetString("user")
@@ -80,7 +80,6 @@ func NewAuthLoginCmd() *cobra.Command {
 				fmt.Printf("%s Failed to prepare payload: %v\n", colorUtils.Error("Error:"), err)
 				return
 			}
-
 			body, status, err := utils.CallClient(cfg, "userAuthenticate", []string{}, payload)
 			if err != nil {
 				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {

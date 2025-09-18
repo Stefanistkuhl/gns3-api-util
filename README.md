@@ -41,6 +41,7 @@ A powerful command-line utility for managing GNS3v3 servers, with advanced templ
 paru -S gns3util
 
 # macOS (Homebrew)
+brew tap stefanistkuhl/tap
 brew install gns3util
 ```
 
@@ -273,8 +274,6 @@ go build -o gns3util
 ## Roadmap
 
 ### **Package Managers**
-- **Homebrew (macOS)**: `brew install gns3util` - Coming Soon
-- **AUR (Arch Linux)**: `paru -S gns3util` - Coming Soon
 - **Chocolatey (Windows)**: `choco install gns3util` - Coming Soon
 
 ### **Future Features**

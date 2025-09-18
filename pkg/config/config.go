@@ -13,6 +13,7 @@ type GlobalOptions struct {
 	Server   string
 	Insecure bool
 	Raw      bool
+	NoColors bool
 	KeyFile  string
 }
 

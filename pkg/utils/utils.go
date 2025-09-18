@@ -1,11 +1,17 @@
 package utils
 
 import (
+	"bufio"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stefanistkuhl/gns3util/pkg/api"
@@ -66,10 +72,15 @@ func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body an
 		return nil, 0, fmt.Errorf("unknown command: %s", cmdName)
 	}
 
-	token, err := authentication.GetKeyForServer(cfg)
-	if err != nil {
-		return nil, 0, err
+	token := ""
+	if cmdName != "userAuthenticate" {
+		err := errors.New("")
+		token, err = authentication.GetKeyForServer(cfg)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
+
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
 		api.WithVerify(!cfg.Insecure),
@@ -136,7 +147,11 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 		return
 	}
 	if cfg.Raw {
-		PrintJson(body)
+		if cfg.NoColors {
+			PrintJsonUgly(body)
+		} else {
+			PrintJson(body)
+		}
 	} else {
 		PrintKV(body)
 	}
@@ -145,6 +160,11 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 func PrintJson(body []byte) {
 	result := pretty.Pretty(body)
 	result = pretty.Color(result, nil)
+	fmt.Print(string(result))
+}
+
+func PrintJsonUgly(body []byte) {
+	result := pretty.Pretty(body)
 	fmt.Print(string(result))
 }
 
@@ -490,4 +510,140 @@ func GetEmbeddedJS() []byte {
 func GetEmbeddedFavicon() []byte {
 	data, _ := staticFiles.ReadFile("static/favicon.ico")
 	return data
+}
+
+func ValidateUrl(input string) bool {
+	_, err := url.ParseRequestURI(input)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func ValidateUrlWithReturn(input string) *url.URL {
+	u, err := url.ParseRequestURI(input)
+	if err != nil {
+		return nil
+	}
+	return u
+}
+
+func ValidateAndTestUrl(input string) bool {
+	if !ValidateUrl(input) {
+		return false
+	}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	req, err := http.NewRequest(http.MethodGet, input, nil)
+	if err != nil {
+		return false
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusPermanentRedirect {
+		loc := resp.Header.Get("Location")
+		if loc == "/static/web-ui/bundled" {
+			return true
+		}
+		return true
+	}
+
+	if resp.StatusCode >= 200 && resp.StatusCode <= 399 {
+		return true
+	}
+
+	return false
+}
+
+func Deduplicate(slice []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(slice))
+
+	for _, item := range slice {
+		if !seen[item] {
+			seen[item] = true
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+type Column[T any] struct {
+	Header string
+	Value  func(item T) string
+}
+
+func PrintTable[T any](items []T, columns []Column[T]) {
+	if len(items) == 0 {
+		fmt.Println("No records found.")
+		return
+	}
+
+	widths := make([]int, len(columns))
+	for i, col := range columns {
+		widths[i] = len(col.Header)
+	}
+	for _, it := range items {
+		for i, col := range columns {
+			val := col.Value(it)
+			if len(val) > widths[i] {
+				widths[i] = len(val)
+			}
+		}
+	}
+
+	for i, col := range columns {
+		fmt.Printf("%-*s  ", widths[i], col.Header)
+	}
+	fmt.Println()
+
+	for i := range columns {
+		fmt.Print(strings.Repeat("-", widths[i]) + "  ")
+	}
+	fmt.Println()
+
+	for _, it := range items {
+		for i, col := range columns {
+			fmt.Printf("%-*s  ", widths[i], col.Value(it))
+		}
+		fmt.Println()
+	}
+}
+
+func ConfirmPrompt(msg string, defaultYes bool) bool {
+	reader := bufio.NewReader(os.Stdin)
+	var options string
+
+	if defaultYes {
+		options = "[Y/n]"
+	} else {
+		options = "[y/N]"
+	}
+
+	fmt.Printf("%s %s ", msg, options)
+
+	input, _ := reader.ReadString('\n')
+	input = strings.TrimSpace(strings.ToLower(input))
+
+	switch input {
+	case "y", "yes":
+		return true
+	case "n", "no":
+		return false
+	case "":
+		return defaultYes
+	default:
+		return defaultYes
+	}
 }
