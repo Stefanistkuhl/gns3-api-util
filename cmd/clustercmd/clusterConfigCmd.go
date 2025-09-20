@@ -13,12 +13,9 @@ func NewClusterConfigmdGroup() *cobra.Command {
 			cmd.Help()
 		},
 	}
-	//sync
 	//check
-	//apply
-	//edit
-	//export
-	//import
+	clusterConfigCmd.AddCommand(NewEditConfigCmd())
 	clusterConfigCmd.AddCommand(NewSyncClusterConfigCmdGroup())
+	clusterConfigCmd.AddCommand(NewApplyConfigCmd())
 	return clusterConfigCmd
 }

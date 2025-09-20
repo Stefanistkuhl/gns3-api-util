@@ -19,6 +19,7 @@ type Cluster struct {
 type Node struct {
 	Host      string `toml:"host"`
 	Port      int    `toml:"port"`
+	User      string `toml:"user"`
 	Protocol  string `toml:"protocol"`
 	Weight    int    `toml:"weight"`
 	MaxGroups int    `toml:"max_groups"`

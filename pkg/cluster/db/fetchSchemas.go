@@ -27,3 +27,12 @@ type NodeDataAll struct {
 	Weight    int
 	MaxGroups int
 }
+
+type CreateClustersAndNodes struct {
+	Clusters []ClusterAndNodes
+}
+
+type ClusterAndNodes struct {
+	Cluster ClusterName
+	Nodes   []NodeDataAll
+}

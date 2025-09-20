@@ -8,10 +8,167 @@ import (
 	"strings"
 
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
+	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
-func ApplyConfig() {
+func ApplyConfig(cfg Config) error {
+	conn, openErr := db.InitIfNeeded()
+	if openErr != nil {
+		return fmt.Errorf("%s %v", colorUtils.Error("DB open error:"), openErr)
+	}
+	defer conn.Close()
+
+	var create db.CreateClustersAndNodes
+	for _, cluster := range cfg.Clusters {
+		var createCluster db.ClusterAndNodes
+		c := db.ClusterName{
+			Name: cluster.Name,
+			Desc: sql.NullString{
+				String: cluster.Description,
+				Valid:  cluster.Description != "",
+			},
+		}
+		createCluster.Cluster = c
+		for _, node := range cluster.Nodes {
+			n := db.NodeDataAll{
+				User:      node.User,
+				Protocol:  node.Protocol,
+				Host:      node.Host,
+				Port:      node.Port,
+				Weight:    node.Weight,
+				MaxGroups: node.MaxGroups,
+			}
+			if utils.ValidateAndTestUrl(fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port)) {
+				createCluster.Nodes = append(createCluster.Nodes, n)
+			} else {
+				return fmt.Errorf("%s cant connect to: %s", colorUtils.Error("Error:"), fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port))
+			}
+
+		}
+		create.Clusters = append(create.Clusters, createCluster)
+	}
+	createNeeded, err := BuildCreateDelta(create, conn)
+	if err != nil {
+		return fmt.Errorf("%s failed to get the diff of the existing elements in the db and config %s", colorUtils.Error("Error:"), err)
+	}
+	createErr := CreateClusterAndNodes(createNeeded, conn)
+	if createErr != nil {
+		return createErr
+	}
+
+	return nil
+}
+
+func normName(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
+
+func nodeUniqKey(protocol, host string, port int) string {
+	return fmt.Sprintf("%s|%s|%d",
+		strings.ToLower(strings.TrimSpace(protocol)),
+		strings.ToLower(strings.TrimSpace(host)),
+		port,
+	)
+}
+
+func CreateClusterAndNodes(create db.CreateClustersAndNodes, conn *sql.DB) error {
+	var na []db.NodeDataAll
+	var ca []db.ClusterName
+	for _, cluster := range create.Clusters {
+		ca = append(ca, cluster.Cluster)
+	}
+	clusters, createClustersErr := db.CreateClusters(conn, ca)
+	if createClustersErr != nil {
+		return createClustersErr
+	}
+	for i, cluster := range clusters {
+		for j := range create.Clusters[i].Nodes {
+			create.Clusters[i].Nodes[j].ClusterID = cluster.Id
+			na = append(na, create.Clusters[i].Nodes[j])
+		}
+	}
+	createNodesErr := db.InsertNodesIntoClusters(conn, na)
+	if createNodesErr != nil {
+		return createNodesErr
+	}
+
+	return nil
+}
+
+func BuildCreateDelta(create db.CreateClustersAndNodes, conn *sql.DB) (db.CreateClustersAndNodes, error) {
+	dbClusters, err := db.GetClusters(conn)
+	if err != nil && err != sql.ErrNoRows {
+		return db.CreateClustersAndNodes{}, fmt.Errorf("load clusters: %w", err)
+	}
+	dbNodes, err := db.GetNodes(conn)
+	if err != nil && err != sql.ErrNoRows {
+		return db.CreateClustersAndNodes{}, fmt.Errorf("load nodes: %w", err)
+	}
+
+	existingClusters := make(map[string]db.ClusterName, len(dbClusters))
+	for _, c := range dbClusters {
+		existingClusters[normName(c.Name)] = c
+	}
+
+	existingNodes := make(map[int]map[string]struct{})
+	for _, n := range dbNodes {
+		if _, ok := existingNodes[n.ClusterID]; !ok {
+			existingNodes[n.ClusterID] = make(map[string]struct{})
+		}
+		k := nodeUniqKey(n.Protocol, n.Host, n.Port)
+		existingNodes[n.ClusterID][k] = struct{}{}
+	}
+
+	var out db.CreateClustersAndNodes
+
+	for _, req := range create.Clusters {
+		nname := normName(req.Cluster.Name)
+		existing, clusterExists := existingClusters[nname]
+
+		if !clusterExists {
+			seen := make(map[string]struct{})
+			var newNodes []db.NodeDataAll
+			for _, n := range req.Nodes {
+				key := nodeUniqKey(n.Protocol, n.Host, n.Port)
+				if _, dup := seen[key]; dup {
+					continue
+				}
+				seen[key] = struct{}{}
+				newNodes = append(newNodes, n)
+			}
+			if len(newNodes) > 0 || true {
+				out.Clusters = append(out.Clusters, db.ClusterAndNodes{
+					Cluster: req.Cluster,
+					Nodes:   newNodes,
+				})
+			}
+			continue
+		}
+
+		exNodes := existingNodes[existing.Id]
+		seenNew := make(map[string]struct{})
+		var missing []db.NodeDataAll
+		for _, n := range req.Nodes {
+			key := nodeUniqKey(n.Protocol, n.Host, n.Port)
+			if _, dup := seenNew[key]; dup {
+				continue
+			}
+			seenNew[key] = struct{}{}
+			if exNodes != nil {
+				if _, ok := exNodes[key]; ok {
+					continue
+				}
+			}
+			missing = append(missing, n)
+		}
+		if len(missing) > 0 {
+			out.Clusters = append(out.Clusters, db.ClusterAndNodes{
+				Cluster: existing,
+				Nodes:   missing,
+			})
+		}
+	}
+
+	return out, nil
 }
 
 func SyncConfigWithDb(cfg Config) (Config, bool, error) {

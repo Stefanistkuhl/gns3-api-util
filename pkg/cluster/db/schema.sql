@@ -11,7 +11,7 @@ create table nodes (
 	auth_user text not null,
 	host text not null,
 	port integer not null,
-	weight integer not null default 5 check (value between 0 and 10),
+	weight integer not null default 5 check (weight between 0 and 10),
 	max_groups integer default 3,
 	unique(protocol, host, port)
 );
@@ -36,6 +36,7 @@ create table users (
 	username text not null unique,
 	full_name text,
 	group_id integer not null,
+	default_password text not null;
 	foreign key (group_id) references groups(group_id) on delete cascade
 );
 

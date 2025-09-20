@@ -50,7 +50,7 @@ func NewInstallHttpsCmd() *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			// Handle interactive mode
 			if interactive {
-				editedText, err := utils.EditTextWithEditor(ssl.InteractiveOptionsText)
+				editedText, err := utils.EditTextWithEditor(ssl.InteractiveOptionsText, "txt")
 				if err != nil {
 					log.Fatalf("failed to edit options: %v", err)
 				}

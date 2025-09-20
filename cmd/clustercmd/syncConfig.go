@@ -10,10 +10,10 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
-var noConfirm bool
-var verbose bool
-
 func NewSyncClusterConfigCmdGroup() *cobra.Command {
+	var noConfirm bool
+	var verbose bool
+
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "sync your cluster config file with the local database",

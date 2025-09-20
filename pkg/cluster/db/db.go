@@ -137,6 +137,81 @@ func UpdateRows(
 	return result.RowsAffected()
 }
 
+func CreateClusters(conn *sql.DB, clusters []ClusterName) ([]ClusterName, error) {
+	var ids []ClusterName
+
+	tx, err := conn.Begin()
+	if err != nil {
+		return ids, fmt.Errorf("begin tx: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+        INSERT INTO clusters (name, description)
+        VALUES (?, ?)
+    `)
+	if err != nil {
+		tx.Rollback()
+		return ids, fmt.Errorf("prepare stmt: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, c := range clusters {
+		res, err := stmt.Exec(c.Name, c.Desc)
+		if err != nil {
+			tx.Rollback()
+			return ids, fmt.Errorf("insert cluster %s failed: %w", c.Name, err)
+		}
+		id, idErr := res.LastInsertId()
+		if idErr != nil {
+			return ids, fmt.Errorf("insert cluster %s failed: %w", c.Name, err)
+
+		}
+		a := ClusterName{
+			Id:   int(id),
+			Name: c.Name,
+			Desc: c.Desc,
+		}
+		ids = append(ids, a)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+
+	return ids, nil
+}
+
+func InsertNodesIntoClusters(conn *sql.DB, nodes []NodeDataAll) error {
+	tx, err := conn.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+
+	stmt, err := tx.Prepare(`
+        INSERT INTO nodes (cluster_id, protocol, host, port, weight, max_groups, auth_user)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("prepare stmt: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, n := range nodes {
+		_, err := stmt.Exec(n.ClusterID, n.Protocol, n.Host, n.Port, n.Weight, n.MaxGroups, n.User)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("insert node %s:%d failed: %w", n.Host, n.Port, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+
+	return nil
+}
+
 func InsertNodes(clusterID int, nodes []NodeData) error {
 	dbConn, err := InitIfNeeded()
 	if err != nil {
@@ -163,7 +238,7 @@ func InsertNodes(clusterID int, nodes []NodeData) error {
 		_, err := stmt.Exec(clusterID, n.Protocol, n.Host, n.Port, n.Weight, n.MaxGroups, n.User)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("insert node %s:%s failed: %w", n.Host, n.Port, err)
+			return fmt.Errorf("insert node %s:%d failed: %w", n.Host, n.Port, err)
 		}
 	}
 

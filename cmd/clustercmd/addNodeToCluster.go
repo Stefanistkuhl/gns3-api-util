@@ -1,159 +1,23 @@
 package clustercmd
 
 import (
-	"database/sql"
 	"fmt"
 	"os"
-	"strconv"
-	"sync"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/stefanistkuhl/gns3util/pkg/cluster"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
-	"github.com/stefanistkuhl/gns3util/pkg/config"
-	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
-type AddNodeOptions struct {
-	Servers   []string
-	Weight    int
-	MaxGroups int
-	Username  string
-	Password  string
-	ClusterID int
-}
-
-func validateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobra.Command) {
-	viper.SetEnvPrefix("GNS3")
-	viper.AutomaticEnv()
-
-	_ = viper.BindPFlag("user", cmd.Flags().Lookup("user"))
-	_ = viper.BindPFlag("password", cmd.Flags().Lookup("password"))
-
-	dbConn, err := db.InitIfNeeded()
-	if err != nil {
-		fmt.Printf("%s failed to init db: %v\n", colorUtils.Error("Error:"), err)
-		os.Exit(1)
-	}
-	defer dbConn.Close()
-
-	clusters, fetchErr := db.QueryRows(dbConn,
-		"SELECT cluster_id, name, description FROM clusters WHERE name = ? LIMIT 1",
-		func(rows *sql.Rows) (db.ClusterName, error) {
-			var c db.ClusterName
-			err := rows.Scan(&c.Id, &c.Name, &c.Desc)
-			return c, err
-		},
-		clusterName,
-	)
-	if fetchErr != nil {
-		if fetchErr == sql.ErrNoRows || len(clusters) == 0 {
-			fmt.Printf("%s cluster %s not found\n", colorUtils.Error("Error:"), clusterName)
-			os.Exit(1)
-		}
-		fmt.Printf("%s failed to query cluster: %v\n", colorUtils.Error("Error:"), fetchErr)
-		os.Exit(1)
-	}
-
-	opts.ClusterID = clusters[0].Id
-
-	if !cmd.Flags().Changed("user") {
-		opts.Username = viper.GetString("user")
-	}
-	if !cmd.Flags().Changed("password") {
-		opts.Password = viper.GetString("password")
-	}
-
-	if opts.Weight < 0 || opts.Weight > 10 {
-		fmt.Printf("%s --weight must be between 0 and 10\n", colorUtils.Error("Error:"))
-		os.Exit(1)
-	}
-	if opts.MaxGroups < 0 {
-		fmt.Printf("%s --max-groups must be > 0\n", colorUtils.Error("Error:"))
-		os.Exit(1)
-	}
-}
-
-func runAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.NodeData, error) {
-	cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
-
-	u := utils.ValidateUrlWithReturn(server)
-	if u == nil {
-		return db.NodeData{}, fmt.Errorf("invalid server URL: %s", server)
-	}
-
-	cfg.Server = server
-	_, status, reqErr := utils.CallClient(cfg, "getMe", nil, nil)
-	if reqErr != nil || status != 200 {
-		return db.NodeData{}, fmt.Errorf("failed to query node %s: %v", server, reqErr)
-	}
-	port, toIntErr := strconv.Atoi(u.Port())
-	if toIntErr != nil {
-		return db.NodeData{}, fmt.Errorf("failed to convert port to an int")
-	}
-
-	return db.NodeData{
-		Protocol:  u.Scheme,
-		Host:      u.Hostname(),
-		Port:      port,
-		Weight:    opts.Weight,
-		MaxGroups: opts.MaxGroups,
-		User:      opts.Username,
-	}, nil
-}
-
-func runAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error) {
-	if len(opts.Servers) == 0 {
-		fmt.Println(colorUtils.Info("No servers provided, entering interactive mode..."))
-		// TODO: implement Bubble Tea picker thing
-		return nil, nil
-	}
-
-	if len(opts.Servers) == 1 {
-		n, err := runAddNode(opts.Servers[0], opts, cmd)
-		if err != nil {
-			return nil, err
-		}
-		return []db.NodeData{n}, nil
-	}
-
-	var nodes []db.NodeData
-	var errs []error
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, server := range opts.Servers {
-		wg.Add(1)
-		go func(s string) {
-			defer wg.Done()
-			n, err := runAddNode(s, opts, cmd)
-			mu.Lock()
-			defer mu.Unlock()
-			if err != nil {
-				errs = append(errs, err)
-				return
-			}
-			nodes = append(nodes, n)
-		}(server)
-	}
-	wg.Wait()
-
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("some nodes failed: %v", errs)
-	}
-
-	return nodes, nil
-}
-
 func NewAddNodeCmd() *cobra.Command {
-	opts := &AddNodeOptions{}
+	opts := &cluster.AddNodeOptions{}
 	cmd := &cobra.Command{
 		Use:   "add-node [cluster-name]",
 		Short: "Add a single node to a cluster",
 		Args:  cobra.ExactArgs(1),
 		PreRun: func(cmd *cobra.Command, args []string) {
-			validateClusterAndCreds(args[0], opts, cmd)
+			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
 			if len(opts.Servers) == 0 {
 				fmt.Println(colorUtils.Info("No servers provided, will enter interactive mode."))
 			}
@@ -164,7 +28,7 @@ func NewAddNodeCmd() *cobra.Command {
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			nodes, err := runAddNodes(opts, cmd)
+			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
 				fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
 				os.Exit(1)
@@ -185,13 +49,13 @@ func NewAddNodeCmd() *cobra.Command {
 }
 
 func NewAddNodesCmd() *cobra.Command {
-	opts := &AddNodeOptions{}
+	opts := &cluster.AddNodeOptions{}
 	cmd := &cobra.Command{
 		Use:   "add-nodes [cluster-name]",
 		Short: "Add multiple nodes to a cluster",
 		Args:  cobra.ExactArgs(1),
 		PreRun: func(cmd *cobra.Command, args []string) {
-			validateClusterAndCreds(args[0], opts, cmd)
+			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
 			if len(opts.Servers) == 0 {
 				fmt.Println(colorUtils.Info("No servers provided, will enter interactive mode."))
 			}
@@ -202,7 +66,7 @@ func NewAddNodesCmd() *cobra.Command {
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			nodes, err := runAddNodes(opts, cmd)
+			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
 				fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
 				os.Exit(1)
@@ -222,7 +86,7 @@ func NewAddNodesCmd() *cobra.Command {
 	return cmd
 }
 
-func addCommonFlags(cmd *cobra.Command, opts *AddNodeOptions) {
+func addCommonFlags(cmd *cobra.Command, opts *cluster.AddNodeOptions) {
 	cmd.Flags().StringSliceVarP(&opts.Servers, "server", "s", nil, "Server(s) to add")
 	cmd.Flags().IntVarP(&opts.Weight, "weight", "w", 5, "Weight to assign to node(s) (0–10, default 5)")
 	cmd.Flags().IntVarP(&opts.MaxGroups, "max-groups", "g", 3, "Maximum groups per node (default 3)")

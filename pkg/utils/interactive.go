@@ -269,8 +269,8 @@ func GetPasswordFromInput() (string, error) {
 	return model.password, nil
 }
 
-func EditTextWithEditor(text string) (string, error) {
-	tmpFile, err := os.CreateTemp("", "gns3util-edit-*.txt")
+func EditTextWithEditor(text string, ext string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "gns3util-edit-*."+ext)
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary file: %v", err)
 	}
