@@ -226,7 +226,11 @@
       <div class="modal-content">
         <div class="modal-header">
           <h2 class="modal-title">Export Options</h2>
-          <button id="closeModal" class="btn btn-icon btn-outline" aria-label="Close modal">
+          <button
+            id="closeModal"
+            class="btn btn-icon btn-outline"
+            aria-label="Close modal"
+          >
             <i class="fas fa-times"></i>
           </button>
         </div>
@@ -255,6 +259,10 @@
                     <i class="fas fa-download mr-1"></i>
                     Download JSON
                   </button>
+                  <button id="copyJsonBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy JSON
+                  </button>
                 </div>
               </div>
 
@@ -268,6 +276,10 @@
                   <button id="exportTomlBtn" class="btn btn-primary">
                     <i class="fas fa-download mr-1"></i>
                     Download TOML
+                  </button>
+                  <button id="copyTomlBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy TOML
                   </button>
                 </div>
               </div>
@@ -283,6 +295,10 @@
                     <i class="fas fa-download mr-1"></i>
                     Download YAML
                   </button>
+                  <button id="copyYamlBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy YAML
+                  </button>
                 </div>
               </div>
 
@@ -290,12 +306,19 @@
               <div class="tab-pane" id="markdown">
                 <div class="export-preview">
                   <h3>Markdown Export Preview</h3>
-                  <pre id="markdownPreview" class="export-preview-content"></pre>
+                  <pre
+                    id="markdownPreview"
+                    class="export-preview-content"
+                  ></pre>
                 </div>
                 <div class="export-actions">
                   <button id="exportMarkdownBtn" class="btn btn-primary">
                     <i class="fas fa-download mr-1"></i>
                     Download Markdown
+                  </button>
+                  <button id="copyMarkdownBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy Markdown
                   </button>
                 </div>
               </div>
@@ -304,12 +327,18 @@
               <div class="tab-pane" id="pdf">
                 <div class="export-preview">
                   <h3>PDF Export</h3>
-                  <p class="text-muted">Export the class data as a formatted PDF document.</p>
+                  <p class="text-muted">
+                    Export the class data as a formatted PDF document.
+                  </p>
                 </div>
                 <div class="export-actions">
                   <button id="exportPdfBtn" class="btn btn-primary">
                     <i class="fas fa-download mr-1"></i>
                     Download PDF
+                  </button>
+                  <button id="copyPdfBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy as Markdown
                   </button>
                 </div>
               </div>
@@ -318,24 +347,31 @@
               <div class="tab-pane" id="image">
                 <div class="export-preview">
                   <h3>Image Export</h3>
-                  <p class="text-muted">Export the class data as an image file.</p>
+                  <p class="text-muted">
+                    Export the class data as an image file.
+                  </p>
                   <div class="image-format-selector">
                     <label class="form-label">Image Format:</label>
                     <div class="format-options">
                       <label class="format-option">
-                        <input type="radio" name="imageFormat" value="png" checked>
+                        <input
+                          type="radio"
+                          name="imageFormat"
+                          value="png"
+                          checked
+                        />
                         <span class="format-label">PNG</span>
                       </label>
                       <label class="format-option">
-                        <input type="radio" name="imageFormat" value="jpg">
+                        <input type="radio" name="imageFormat" value="jpg" />
                         <span class="format-label">JPG</span>
                       </label>
                       <label class="format-option">
-                        <input type="radio" name="imageFormat" value="avif">
+                        <input type="radio" name="imageFormat" value="avif" />
                         <span class="format-label">AVIF</span>
                       </label>
                       <label class="format-option">
-                        <input type="radio" name="imageFormat" value="webp">
+                        <input type="radio" name="imageFormat" value="webp" />
                         <span class="format-label">WebP</span>
                       </label>
                     </div>
@@ -346,6 +382,10 @@
                     <i class="fas fa-download mr-1"></i>
                     Download Image
                   </button>
+                  <button id="copyImageBtn" class="btn btn-outline">
+                    <i class="fas fa-copy mr-1"></i>
+                    Copy Image
+                  </button>
                 </div>
               </div>
             </div>
@@ -353,6 +393,9 @@
         </div>
       </div>
     </div>
+
+    <!-- PDF Export Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
 
     <script src="script.js"></script>
   </body>
