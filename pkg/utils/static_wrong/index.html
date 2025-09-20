@@ -28,7 +28,18 @@
       <!-- Class Setup Section -->
       <section class="section">
         <h2 class="section-title">
-          <i class="fas fa-chalkboard"></i>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="400"
+            height="284.193"
+            viewBox="0 0 400 284.193"
+          >
+            <path
+              d="M190.382 10.666c-6.148 1.297-170.851 56.059-173.207 57.59-7.7 5.003-8.531 17.07-1.615 23.445 2.516 2.32 4.607 3.208 18.291 7.769l15.45 5.15-1.403 2.099c-4.334 6.485-8.63 18.659-8.63 24.457 0 2.029-.382 2.783-1.995 3.931-9.084 6.468-10.219 21.133-2.312 29.885l2.498 2.765-7.428 36.088c-10.62 51.594-11.816 48.395 18.089 48.399 30.442.004 29.263 2.975 18.836-47.474l-7.676-37.139 2.392-2.392c7.636-7.636 7.151-21.593-1.006-28.963l-2.665-2.407.898-4.293c1.518-7.253 8.319-17.762 11.495-17.762.546 0 17.651 5.513 38.012 12.253 100.882 33.391 85.533 31.133 124.456 18.307 145.962-48.098 145.16-47.824 148.219-50.643 6.948-6.405 6.134-18.473-1.584-23.469-2.061-1.335-56.179-19.461-153.207-51.318-21.087-6.923-27.519-8.047-35.908-6.278M93.327 145.923c-4.934 39.065-7.675 66.662-6.911 69.593 12.544 48.139 211.298 48.13 223.843-.01.721-2.768.408-6.657-2.708-33.611-4.719-40.824-4.805-41.462-5.54-41.462-.352 0-20.2 6.449-44.106 14.331-50.395 16.617-50.12 16.545-61.898 16.061-10.456-.43-4.915 1.128-57.344-16.123-23.852-7.848-43.654-14.269-44.005-14.269s-.949 2.47-1.331 5.49"
+              fill="#fff"
+              fill-rule="evenodd"
+            />
+          </svg>
           <span>Class Setup</span>
         </h2>
         <div class="form-group">
@@ -173,9 +184,9 @@
             <i class="fas fa-code mr-1"></i>
             Generate Class
           </button>
-          <button id="saveJSONBtn" class="btn btn-success">
-            <i class="fas fa-save mr-1"></i>
-            Save as JSON
+          <button id="exportBtn" class="btn btn-success">
+            <i class="fas fa-download mr-1"></i>
+            Export
           </button>
           <button id="clearJSONBtn" class="btn btn-error">
             <i class="fas fa-trash-alt mr-1"></i>
@@ -209,6 +220,139 @@
       <i class="fas fa-sun sun-icon"></i>
       <i class="fas fa-moon moon-icon"></i>
     </button>
+
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title">Export Options</h2>
+          <button id="closeModal" class="btn btn-icon btn-outline" aria-label="Close modal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Export Format Tabs -->
+          <div class="tabs">
+            <div class="tab-buttons">
+              <button class="tab-btn active" data-tab="json">JSON</button>
+              <button class="tab-btn" data-tab="toml">TOML</button>
+              <button class="tab-btn" data-tab="yaml">YAML</button>
+              <button class="tab-btn" data-tab="markdown">Markdown</button>
+              <button class="tab-btn" data-tab="pdf">PDF</button>
+              <button class="tab-btn" data-tab="image">Image</button>
+            </div>
+
+            <div class="tab-content">
+              <!-- JSON Tab -->
+              <div class="tab-pane active" id="json">
+                <div class="export-preview">
+                  <h3>JSON Export Preview</h3>
+                  <pre id="jsonPreview" class="export-preview-content"></pre>
+                </div>
+                <div class="export-actions">
+                  <button id="exportJsonBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download JSON
+                  </button>
+                </div>
+              </div>
+
+              <!-- TOML Tab -->
+              <div class="tab-pane" id="toml">
+                <div class="export-preview">
+                  <h3>TOML Export Preview</h3>
+                  <pre id="tomlPreview" class="export-preview-content"></pre>
+                </div>
+                <div class="export-actions">
+                  <button id="exportTomlBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download TOML
+                  </button>
+                </div>
+              </div>
+
+              <!-- YAML Tab -->
+              <div class="tab-pane" id="yaml">
+                <div class="export-preview">
+                  <h3>YAML Export Preview</h3>
+                  <pre id="yamlPreview" class="export-preview-content"></pre>
+                </div>
+                <div class="export-actions">
+                  <button id="exportYamlBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download YAML
+                  </button>
+                </div>
+              </div>
+
+              <!-- Markdown Tab -->
+              <div class="tab-pane" id="markdown">
+                <div class="export-preview">
+                  <h3>Markdown Export Preview</h3>
+                  <pre id="markdownPreview" class="export-preview-content"></pre>
+                </div>
+                <div class="export-actions">
+                  <button id="exportMarkdownBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download Markdown
+                  </button>
+                </div>
+              </div>
+
+              <!-- PDF Tab -->
+              <div class="tab-pane" id="pdf">
+                <div class="export-preview">
+                  <h3>PDF Export</h3>
+                  <p class="text-muted">Export the class data as a formatted PDF document.</p>
+                </div>
+                <div class="export-actions">
+                  <button id="exportPdfBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download PDF
+                  </button>
+                </div>
+              </div>
+
+              <!-- Image Tab -->
+              <div class="tab-pane" id="image">
+                <div class="export-preview">
+                  <h3>Image Export</h3>
+                  <p class="text-muted">Export the class data as an image file.</p>
+                  <div class="image-format-selector">
+                    <label class="form-label">Image Format:</label>
+                    <div class="format-options">
+                      <label class="format-option">
+                        <input type="radio" name="imageFormat" value="png" checked>
+                        <span class="format-label">PNG</span>
+                      </label>
+                      <label class="format-option">
+                        <input type="radio" name="imageFormat" value="jpg">
+                        <span class="format-label">JPG</span>
+                      </label>
+                      <label class="format-option">
+                        <input type="radio" name="imageFormat" value="avif">
+                        <span class="format-label">AVIF</span>
+                      </label>
+                      <label class="format-option">
+                        <input type="radio" name="imageFormat" value="webp">
+                        <span class="format-label">WebP</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div class="export-actions">
+                  <button id="exportImageBtn" class="btn btn-primary">
+                    <i class="fas fa-download mr-1"></i>
+                    Download Image
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="script.js"></script>
   </body>
