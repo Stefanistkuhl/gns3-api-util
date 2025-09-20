@@ -36,13 +36,13 @@ const closeModal = document.getElementById("closeModal");
 const tabBtns = document.querySelectorAll(".tab-btn");
 const tabPanes = document.querySelectorAll(".tab-pane");
 
-// Export Buttons
-const exportJsonBtn = document.getElementById("exportJsonBtn");
-const exportTomlBtn = document.getElementById("exportTomlBtn");
-const exportYamlBtn = document.getElementById("exportYamlBtn");
-const exportMarkdownBtn = document.getElementById("exportMarkdownBtn");
-const exportPdfBtn = document.getElementById("exportPdfBtn");
-const exportImageBtn = document.getElementById("exportImageBtn");
+// Copy Buttons
+const copyJsonBtn = document.getElementById("copyJsonBtn");
+const copyTomlBtn = document.getElementById("copyTomlBtn");
+const copyYamlBtn = document.getElementById("copyYamlBtn");
+const copyMarkdownBtn = document.getElementById("copyMarkdownBtn");
+const copyPdfBtn = document.getElementById("copyPdfBtn");
+const copyImageBtn = document.getElementById("copyImageBtn");
 
 // Application state
 let classData = {
@@ -317,7 +317,7 @@ if (window.groupListClickHandler) {
 }
 
 // Define the click handler
-window.groupListClickHandler = function(e) {
+window.groupListClickHandler = function (e) {
   // Handle edit group button
   const editGroupBtn = e.target.closest(".edit-group-btn");
   if (editGroupBtn) {
@@ -341,11 +341,14 @@ window.groupListClickHandler = function(e) {
   if (editStudentBtn) {
     e.stopPropagation();
     e.preventDefault();
-    const existingForm = document.querySelector('.edit-form');
+    const existingForm = document.querySelector(".edit-form");
     if (existingForm) {
       const existingStudentItem = existingForm.previousElementSibling;
-      if (existingStudentItem && existingStudentItem.classList.contains('student-item')) {
-        existingStudentItem.style.display = '';
+      if (
+        existingStudentItem &&
+        existingStudentItem.classList.contains("student-item")
+      ) {
+        existingStudentItem.style.display = "";
       }
       existingForm.remove();
     }
@@ -371,7 +374,7 @@ window.groupListClickHandler = function(e) {
     const groupCard = e.target.closest(".group-card");
     const groupIndex = parseInt(groupCard.dataset.groupIndex);
     const group = classData.groups[groupIndex];
-    const newName = form.querySelector(".edit-group-name")?.value.trim() || '';
+    const newName = form.querySelector(".edit-group-name")?.value.trim() || "";
 
     if (newName && newName !== group.name) {
       group.name = newName;
@@ -393,7 +396,7 @@ window.groupListClickHandler = function(e) {
     const form = e.target.closest(".edit-form");
     const groupCard = e.target.closest(".group-card");
     if (!form || !groupCard) return;
-    
+
     const groupHeader = groupCard.querySelector(".group-header");
     if (groupHeader) groupHeader.style.display = "";
     form.remove();
@@ -567,23 +570,23 @@ function renderGroups() {
 
 function handleEditGroup(e) {
   // Close any existing group edit forms first
-  const existingForms = document.querySelectorAll('.edit-form');
-  existingForms.forEach(form => form.remove());
-  
+  const existingForms = document.querySelectorAll(".edit-form");
+  existingForms.forEach((form) => form.remove());
+
   // Show any hidden group headers
-  document.querySelectorAll('.group-header').forEach(header => {
-    header.style.display = '';
+  document.querySelectorAll(".group-header").forEach((header) => {
+    header.style.display = "";
   });
 
   const groupCard = e.target.closest(".group-card");
   const groupIndex = parseInt(groupCard.dataset.groupIndex);
   const group = classData.groups[groupIndex];
-  const headerElement = groupCard.querySelector('.group-header');
-  
+  const headerElement = groupCard.querySelector(".group-header");
+
   if (!headerElement) return;
-  
+
   // Hide the group header while editing
-  headerElement.style.display = 'none';
+  headerElement.style.display = "none";
 
   // Create edit form
   const form = document.createElement("div");
@@ -791,51 +794,61 @@ clearJSONBtn.addEventListener("click", async () => {
 // Modal and Tab Functions
 function openExportModal() {
   updateExportPreviews();
-  exportModal.classList.add('show');
-  document.body.style.overflow = 'hidden';
+  exportModal.classList.add("show");
+  document.body.style.overflow = "hidden";
 }
 
 function closeExportModal() {
-  exportModal.classList.remove('show');
-  document.body.style.overflow = '';
+  exportModal.classList.remove("show");
+  document.body.style.overflow = "";
 }
 
 function switchTab(tabName) {
   // Remove active class from all tabs and panes
-  tabBtns.forEach(btn => btn.classList.remove('active'));
-  tabPanes.forEach(pane => pane.classList.remove('active'));
+  tabBtns.forEach((btn) => btn.classList.remove("active"));
+  tabPanes.forEach((pane) => pane.classList.remove("active"));
 
   // Add active class to selected tab and pane
   const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
   const activeTabPane = document.getElementById(tabName);
 
   if (activeTabBtn && activeTabPane) {
-    activeTabBtn.classList.add('active');
-    activeTabPane.classList.add('active');
+    activeTabBtn.classList.add("active");
+    activeTabPane.classList.add("active");
+    updateCurrentTab(tabName);
+    // Don't call updateExportPreviews here - only call it when data changes
   }
 }
 
 // Export Functions
 function updateExportPreviews() {
-  const jsonPreview = document.getElementById('jsonPreview');
-  const tomlPreview = document.getElementById('tomlPreview');
-  const yamlPreview = document.getElementById('yamlPreview');
-  const markdownPreview = document.getElementById('markdownPreview');
+  const jsonPreview = document.getElementById("jsonPreview");
+  const tomlPreview = document.getElementById("tomlPreview");
+  const yamlPreview = document.getElementById("yamlPreview");
+  const markdownPreview = document.getElementById("markdownPreview");
 
   if (jsonPreview) {
     jsonPreview.textContent = JSON.stringify(classData, null, 2);
+    jsonPreview.contentEditable = false;
+    jsonPreview.style.cursor = "default";
   }
 
   if (tomlPreview) {
     tomlPreview.textContent = convertToTOML(classData);
+    tomlPreview.contentEditable = false;
+    tomlPreview.style.cursor = "default";
   }
 
   if (yamlPreview) {
     yamlPreview.textContent = convertToYAML(classData);
+    yamlPreview.contentEditable = false;
+    yamlPreview.style.cursor = "default";
   }
 
   if (markdownPreview) {
     markdownPreview.textContent = convertToMarkdown(classData);
+    markdownPreview.contentEditable = false;
+    markdownPreview.style.cursor = "default";
   }
 }
 
@@ -845,7 +858,7 @@ function convertToTOML(data) {
     toml += `[[${data.name}.groups]]\n`;
     toml += `name = "${group.name}"\n`;
     toml += `students = [\n`;
-    group.students.forEach(student => {
+    group.students.forEach((student) => {
       toml += `  { fullName = "${student.fullName}", userName = "${student.userName}", email = "${student.email}" },\n`;
     });
     toml += `]\n\n`;
@@ -856,10 +869,10 @@ function convertToTOML(data) {
 function convertToYAML(data) {
   let yaml = `${data.name}:\n`;
   yaml += `  groups:\n`;
-  data.groups.forEach(group => {
+  data.groups.forEach((group) => {
     yaml += `    - name: "${group.name}"\n`;
     yaml += `      students:\n`;
-    group.students.forEach(student => {
+    group.students.forEach((student) => {
       yaml += `        - fullName: "${student.fullName}"\n`;
       yaml += `          userName: "${student.userName}"\n`;
       yaml += `          email: "${student.email}"\n`;
@@ -870,12 +883,12 @@ function convertToYAML(data) {
 
 function convertToMarkdown(data) {
   let markdown = `# ${data.name}\n\n`;
-  data.groups.forEach(group => {
+  data.groups.forEach((group) => {
     markdown += `## ${group.name}\n\n`;
     if (group.students.length > 0) {
       markdown += `| Full Name | Username | Email |\n`;
       markdown += `| --- | --- | --- |\n`;
-      group.students.forEach(student => {
+      group.students.forEach((student) => {
         markdown += `| ${student.fullName} | ${student.userName} | ${student.email} |\n`;
       });
       markdown += `\n`;
@@ -886,11 +899,57 @@ function convertToMarkdown(data) {
   return markdown;
 }
 
-// Download Functions
+// Copy Functions
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (err) {
+    console.error("Failed to copy text: ", err);
+    // Fallback for older browsers
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand("copy");
+      return true;
+    } catch (err2) {
+      console.error("Fallback copy failed: ", err2);
+      return false;
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  }
+}
+
+async function copyImageToClipboard(canvas) {
+  try {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        throw new Error("Failed to create blob from canvas");
+      }
+      const item = new ClipboardItem({ "image/png": blob });
+      await navigator.clipboard.write([item]);
+    });
+    return true;
+  } catch (err) {
+    console.error("Failed to copy image: ", err);
+    return false;
+  }
+}
+
+// Helper Functions
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function downloadFile(content, filename, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
@@ -899,133 +958,405 @@ function downloadFile(content, filename, mimeType) {
   URL.revokeObjectURL(url);
 }
 
-// Event Listeners for Modal
-closeModal.addEventListener('click', closeExportModal);
-
-exportModal.addEventListener('click', (e) => {
-  if (e.target === exportModal) {
-    closeExportModal();
+function showCopyFeedback(success, format) {
+  // Create or update feedback message
+  let feedback = document.getElementById("copy-feedback");
+  if (!feedback) {
+    feedback = document.createElement("div");
+    feedback.id = "copy-feedback";
+    feedback.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 10000;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    document.body.appendChild(feedback);
   }
-});
 
-// Tab switching
-tabBtns.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tabName = btn.dataset.tab;
-    switchTab(tabName);
-  });
-});
+  if (success) {
+    feedback.textContent = `${format} copied to clipboard!`;
+    feedback.style.backgroundColor = "var(--color-success, #10b981)";
+    feedback.style.color = "white";
+  } else {
+    feedback.textContent = `Failed to copy ${format}`;
+    feedback.style.backgroundColor = "var(--color-error, #ef4444)";
+    feedback.style.color = "white";
+  }
 
-// Export button event listeners
-exportJsonBtn.addEventListener('click', () => {
-  const content = JSON.stringify(classData, null, 2);
-  downloadFile(content, `${classData.name}.json`, 'application/json');
-});
+  // Auto-hide after 3 seconds
+  setTimeout(() => {
+    if (feedback.parentNode) {
+      feedback.style.opacity = "0";
+      setTimeout(() => {
+        if (feedback.parentNode) {
+          feedback.parentNode.removeChild(feedback);
+        }
+      }, 300);
+    }
+  }, 3000);
+}
 
-exportTomlBtn.addEventListener('click', () => {
-  const content = convertToTOML(classData);
-  downloadFile(content, `${classData.name}.toml`, 'application/toml');
-});
-
-exportYamlBtn.addEventListener('click', () => {
-  const content = convertToYAML(classData);
-  downloadFile(content, `${classData.name}.yaml`, 'application/yaml');
-});
-
-exportMarkdownBtn.addEventListener('click', () => {
-  const content = convertToMarkdown(classData);
-  downloadFile(content, `${classData.name}.md`, 'text/markdown');
-});
-
-exportPdfBtn.addEventListener('click', () => {
-  // For PDF export, we'll use a simple approach with print styles
-  // In a real application, you might use jsPDF or similar library
-  const printWindow = window.open('', '_blank');
-  const html = `
-    <html>
-      <head>
-        <title>${classData.name}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { color: #333; }
-          h2 { color: #666; margin-top: 30px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #f5f5f5; }
-        </style>
-      </head>
-      <body>
-        <h1>${classData.name}</h1>
-        ${classData.groups.map(group => `
-          <h2>${group.name}</h2>
-          ${group.students.length > 0 ? `
-            <table>
-              <tr><th>Full Name</th><th>Username</th><th>Email</th></tr>
-              ${group.students.map(student => `
-                <tr>
-                  <td>${student.fullName}</td>
-                  <td>${student.userName}</td>
-                  <td>${student.email}</td>
-                </tr>
-              `).join('')}
-            </table>
-          ` : '<p>No students in this group.</p>'}
-        `).join('')}
-      </body>
-    </html>
-  `;
-
-  printWindow.document.write(convertToMarkdown(classData));
-  printWindow.document.close();
-  printWindow.print();
-});
-
-exportImageBtn.addEventListener('click', () => {
-  const selectedFormat = document.querySelector('input[name="imageFormat"]:checked').value;
-
-  // For image export, we'll create a simple text-based representation
-  // In a real application, you might use html2canvas or similar library
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+function createImageCanvas() {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
 
   // Set canvas size
   canvas.width = 800;
   canvas.height = 600;
 
   // Fill background
-  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--color-surface');
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue(
+    "--color-surface"
+  );
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Add text
-  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--color-text');
-  ctx.font = '20px Arial';
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue(
+    "--color-text"
+  );
+  ctx.font = "20px Arial";
   ctx.fillText(`${classData.name} - Export`, 20, 40);
 
   let yPosition = 80;
-  classData.groups.forEach(group => {
-    ctx.font = '16px Arial';
+  classData.groups.forEach((group) => {
+    ctx.font = "16px Arial";
     ctx.fillText(group.name, 20, yPosition);
     yPosition += 30;
 
-    group.students.forEach(student => {
-      ctx.font = '14px Arial';
-      ctx.fillText(`${student.fullName} (${student.userName}) - ${student.email}`, 40, yPosition);
+    group.students.forEach((student) => {
+      ctx.font = "14px Arial";
+      ctx.fillText(
+        `${student.fullName} (${student.userName}) - ${student.email}`,
+        40,
+        yPosition
+      );
       yPosition += 25;
     });
     yPosition += 20;
   });
 
-  // Download the canvas as image
-  canvas.toBlob((blob) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${classData.name}.${selectedFormat}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, `image/${selectedFormat}`, 0.9);
+  return canvas;
+}
+
+// Edited Content Management
+let editedContent = {};
+let currentTab = "json";
+
+function getEditedContent(format) {
+  return editedContent[format];
+}
+
+function setEditedContent(format, content) {
+  editedContent[format] = content;
+}
+
+function getCurrentClassData() {
+  // Check if any format has been edited, starting with JSON since it's the most reliable
+  for (const format of ['json', 'toml', 'yaml', 'markdown']) {
+    const editedContent = getEditedContent(format);
+    if (editedContent) {
+      // Try to parse the edited content back to classData format
+      try {
+        if (format === 'json') {
+          return JSON.parse(editedContent);
+        } else {
+          // For non-JSON formats, we need to convert back to classData
+          // For now, we'll just use the original classData and rely on the user
+          // editing the specific format they want. This is a limitation of the current approach.
+          console.warn(`Edited content found in ${format} format, but cannot convert back to classData format`);
+          break;
+        }
+      } catch (error) {
+        console.warn(`Failed to parse edited ${format} content:`, error);
+        break;
+      }
+    }
+  }
+
+  // If no edited content found or parsing failed, use original classData
+  return classData;
+}
+
+function updateCurrentTab(tabName) {
+  currentTab = tabName;
+}
+
+// Event Listeners for Modal
+closeModal.addEventListener("click", closeExportModal);
+
+exportModal.addEventListener("click", (e) => {
+  if (e.target === exportModal) {
+    closeExportModal();
+  }
+});
+
+// Tab switching
+tabBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tabName = btn.dataset.tab;
+    switchTab(tabName);
+  });
+});
+
+// Export button event listeners
+exportJsonBtn.addEventListener("click", () => {
+  const content = JSON.stringify(classData, null, 2);
+  downloadFile(content, `${classData.name}.json`, "application/json");
+});
+
+exportTomlBtn.addEventListener("click", () => {
+  const content = convertToTOML(classData);
+  downloadFile(content, `${classData.name}.toml`, "application/toml");
+});
+
+exportYamlBtn.addEventListener("click", () => {
+  const content = convertToYAML(classData);
+  downloadFile(content, `${classData.name}.yaml`, "application/yaml");
+});
+
+exportMarkdownBtn.addEventListener("click", () => {
+  const content = convertToMarkdown(classData);
+  downloadFile(content, `${classData.name}.md`, "text/markdown");
+});
+
+// Copy button event listeners
+copyJsonBtn.addEventListener("click", async () => {
+  const content = JSON.stringify(classData, null, 2);
+  const success = await copyToClipboard(content);
+  showCopyFeedback(success, "JSON");
+});
+
+copyTomlBtn.addEventListener("click", async () => {
+  const content = convertToTOML(classData);
+  const success = await copyToClipboard(content);
+  showCopyFeedback(success, "TOML");
+});
+
+copyYamlBtn.addEventListener("click", async () => {
+  const content = convertToYAML(classData);
+  const success = await copyToClipboard(content);
+  showCopyFeedback(success, "YAML");
+});
+
+copyMarkdownBtn.addEventListener("click", async () => {
+  const content = convertToMarkdown(classData);
+  const success = await copyToClipboard(content);
+  showCopyFeedback(success, "Markdown");
+});
+
+copyPdfBtn.addEventListener("click", async () => {
+  const content = convertToMarkdown(classData);
+  const success = await copyToClipboard(content);
+  showCopyFeedback(success, "Markdown (for PDF)");
+});
+
+copyImageBtn.addEventListener("click", async () => {
+  const canvas = createImageCanvas();
+  const success = await copyImageToClipboard(canvas);
+  showCopyFeedback(success, "Image");
+});
+
+exportPdfBtn.addEventListener("click", async () => {
+  try {
+    showCopyFeedback(true, "Generating PDF...");
+
+    // Build the HTML content as a string
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${escapeHtml(classData.name)}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+              margin: 20px;
+              color: #000;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+              border-bottom: 2px solid #333;
+              padding-bottom: 10px;
+            }
+            .group-title {
+              font-size: 14px;
+              font-weight: bold;
+              margin: 15px 0 5px 0;
+              color: #333;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 15px;
+            }
+            th, td {
+              border: 1px solid #666;
+              padding: 4px;
+              text-align: left;
+              font-size: 10px;
+            }
+            th {
+              background-color: #f0f0f0;
+              font-weight: bold;
+            }
+            .no-students {
+              font-style: italic;
+              color: #666;
+              margin: 10px 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>${escapeHtml(classData.name)}</h1>
+            <p>Generated: ${new Date().toLocaleString()}</p>
+          </div>
+
+          ${classData.groups
+            .map(
+              (group) => `
+            <div class="group-title">${escapeHtml(group.name)} (${
+                group.students.length
+              } students)</div>
+            ${
+              group.students.length > 0
+                ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Full Name</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${group.students
+                    .map(
+                      (student) => `
+                    <tr>
+                      <td>${escapeHtml(student.fullName)}</td>
+                      <td>${escapeHtml(student.userName)}</td>
+                      <td>${escapeHtml(student.email)}</td>
+                    </tr>
+                  `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            `
+                : '<p class="no-students">No students in this group.</p>'
+            }
+          `
+            )
+            .join("")}
+        </body>
+      </html>
+    `;
+
+    // PDF options
+    const opt = {
+      margin: 0.5,
+      filename: `${classData.name}.pdf`,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
+    };
+
+    // Generate the PDF directly from HTML string
+    await html2pdf().set(opt).from(htmlContent).save();
+
+    showCopyFeedback(true, "PDF downloaded successfully!");
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    showCopyFeedback(false, "Failed to generate PDF");
+  }
+});
+
+exportImageBtn.addEventListener("click", async () => {
+  const selectedFormat = document.querySelector(
+    'input[name="imageFormat"]:checked'
+  ).value;
+
+  // Check if the browser supports the selected format for canvas
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  // Test which formats are supported by trying to export a tiny canvas
+  const supportedFormats = {};
+
+  // Test common formats
+  const testFormats = [
+    { ext: "png", mime: "image/png" },
+    { ext: "jpeg", mime: "image/jpeg" },
+    { ext: "webp", mime: "image/webp" },
+    { ext: "avif", mime: "image/avif" },
+  ];
+
+  for (const format of testFormats) {
+    try {
+      // Create a tiny test canvas
+      canvas.width = 1;
+      canvas.height = 1;
+      ctx.fillStyle = "red";
+      ctx.fillRect(0, 0, 1, 1);
+
+      await new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob && blob.size > 0) {
+            supportedFormats[format.ext] = format.mime;
+          }
+          resolve();
+        }, format.mime);
+      });
+    } catch (e) {
+      // Format not supported
+      console.log(`Format ${format.ext} not supported`);
+    }
+  }
+
+  const requestedMime =
+    selectedFormat === "jpg" ? "image/jpeg" : `image/${selectedFormat}`;
+  const supportedMime = supportedFormats[selectedFormat];
+
+  if (!supportedMime) {
+    showCopyFeedback(
+      false,
+      `${selectedFormat.toUpperCase()} format not supported by this browser`
+    );
+    return;
+  }
+
+  // Create the actual image canvas
+  const imageCanvas = createImageCanvas();
+
+  // Export the image
+  imageCanvas.toBlob(
+    (blob) => {
+      if (!blob) {
+        showCopyFeedback(false, "Failed to create image");
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${classData.name}.${selectedFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    requestedMime,
+    0.9
+  );
 });
 
 function checkUserNameReuse(name, groupsArray) {
