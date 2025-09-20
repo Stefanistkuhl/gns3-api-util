@@ -23,12 +23,26 @@ const userDataErrorP = document.getElementById("userDataError");
 const addGroupBtn = document.getElementById("addGroupBtn");
 const addStudentBtn = document.getElementById("addStudentBtn");
 const generateJSONBtn = document.getElementById("generateJSONBtn");
-const saveJSONBtn = document.getElementById("saveJSONBtn");
+const exportBtn = document.getElementById("exportBtn");
 const clearJSONBtn = document.getElementById("clearJSONBtn");
 const themeToggle = document.getElementById("themeToggle");
 const groupsList = document.getElementById("groupsList");
 const groupCount = document.getElementById("groupCount");
 const body = document.body;
+
+// Export Modal Elements
+const exportModal = document.getElementById("exportModal");
+const closeModal = document.getElementById("closeModal");
+const tabBtns = document.querySelectorAll(".tab-btn");
+const tabPanes = document.querySelectorAll(".tab-pane");
+
+// Export Buttons
+const exportJsonBtn = document.getElementById("exportJsonBtn");
+const exportTomlBtn = document.getElementById("exportTomlBtn");
+const exportYamlBtn = document.getElementById("exportYamlBtn");
+const exportMarkdownBtn = document.getElementById("exportMarkdownBtn");
+const exportPdfBtn = document.getElementById("exportPdfBtn");
+const exportImageBtn = document.getElementById("exportImageBtn");
 
 // Application state
 let classData = {
@@ -268,15 +282,9 @@ addStudentBtn.addEventListener("click", () => {
   }
 });
 
-saveJSONBtn.addEventListener("click", () => {
+exportBtn.addEventListener("click", () => {
   if (!classData.name) return;
-  const blob = new Blob([JSON.stringify(classData, null, 2)], {
-    type: "application/json",
-  });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${classData.name}.json`;
-  link.click();
+  openExportModal();
 });
 
 generateJSONBtn.addEventListener("click", async () => {
@@ -299,7 +307,7 @@ function updateButtonStates() {
   // Enable/disable buttons based on state
   addStudentBtn.disabled = !selectedGroup;
   generateJSONBtn.disabled = !hasGroups || !classData.name;
-  saveJSONBtn.disabled = !hasGroups || !classData.name;
+  exportBtn.disabled = !hasGroups || !classData.name;
   clearJSONBtn.disabled = !hasGroups && !classData.name;
 }
 
@@ -780,29 +788,245 @@ clearJSONBtn.addEventListener("click", async () => {
   userDataErrorP.style.display = "none";
 });
 
-async function sendData(payload) {
-	const url = `http://localhost:${SERVER_PORT}/data`;
-  const options = {
-    method: "POST",
-    body: payload,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  };
+// Modal and Tab Functions
+function openExportModal() {
+  updateExportPreviews();
+  exportModal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
 
-  try {
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      throw new Error(`Response status: ${response.status} `);
-    }
+function closeExportModal() {
+  exportModal.classList.remove('show');
+  document.body.style.overflow = '';
+}
 
-    const json = await response.json();
-    return json;
-  } catch (error) {
-    console.error(error.message);
-    throw error;
+function switchTab(tabName) {
+  // Remove active class from all tabs and panes
+  tabBtns.forEach(btn => btn.classList.remove('active'));
+  tabPanes.forEach(pane => pane.classList.remove('active'));
+
+  // Add active class to selected tab and pane
+  const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+  const activeTabPane = document.getElementById(tabName);
+
+  if (activeTabBtn && activeTabPane) {
+    activeTabBtn.classList.add('active');
+    activeTabPane.classList.add('active');
   }
 }
+
+// Export Functions
+function updateExportPreviews() {
+  const jsonPreview = document.getElementById('jsonPreview');
+  const tomlPreview = document.getElementById('tomlPreview');
+  const yamlPreview = document.getElementById('yamlPreview');
+  const markdownPreview = document.getElementById('markdownPreview');
+
+  if (jsonPreview) {
+    jsonPreview.textContent = JSON.stringify(classData, null, 2);
+  }
+
+  if (tomlPreview) {
+    tomlPreview.textContent = convertToTOML(classData);
+  }
+
+  if (yamlPreview) {
+    yamlPreview.textContent = convertToYAML(classData);
+  }
+
+  if (markdownPreview) {
+    markdownPreview.textContent = convertToMarkdown(classData);
+  }
+}
+
+function convertToTOML(data) {
+  let toml = `[${data.name}]\n`;
+  data.groups.forEach((group, index) => {
+    toml += `[[${data.name}.groups]]\n`;
+    toml += `name = "${group.name}"\n`;
+    toml += `students = [\n`;
+    group.students.forEach(student => {
+      toml += `  { fullName = "${student.fullName}", userName = "${student.userName}", email = "${student.email}" },\n`;
+    });
+    toml += `]\n\n`;
+  });
+  return toml;
+}
+
+function convertToYAML(data) {
+  let yaml = `${data.name}:\n`;
+  yaml += `  groups:\n`;
+  data.groups.forEach(group => {
+    yaml += `    - name: "${group.name}"\n`;
+    yaml += `      students:\n`;
+    group.students.forEach(student => {
+      yaml += `        - fullName: "${student.fullName}"\n`;
+      yaml += `          userName: "${student.userName}"\n`;
+      yaml += `          email: "${student.email}"\n`;
+    });
+  });
+  return yaml;
+}
+
+function convertToMarkdown(data) {
+  let markdown = `# ${data.name}\n\n`;
+  data.groups.forEach(group => {
+    markdown += `## ${group.name}\n\n`;
+    if (group.students.length > 0) {
+      markdown += `| Full Name | Username | Email |\n`;
+      markdown += `| --- | --- | --- |\n`;
+      group.students.forEach(student => {
+        markdown += `| ${student.fullName} | ${student.userName} | ${student.email} |\n`;
+      });
+      markdown += `\n`;
+    } else {
+      markdown += `No students in this group.\n\n`;
+    }
+  });
+  return markdown;
+}
+
+// Download Functions
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// Event Listeners for Modal
+closeModal.addEventListener('click', closeExportModal);
+
+exportModal.addEventListener('click', (e) => {
+  if (e.target === exportModal) {
+    closeExportModal();
+  }
+});
+
+// Tab switching
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabName = btn.dataset.tab;
+    switchTab(tabName);
+  });
+});
+
+// Export button event listeners
+exportJsonBtn.addEventListener('click', () => {
+  const content = JSON.stringify(classData, null, 2);
+  downloadFile(content, `${classData.name}.json`, 'application/json');
+});
+
+exportTomlBtn.addEventListener('click', () => {
+  const content = convertToTOML(classData);
+  downloadFile(content, `${classData.name}.toml`, 'application/toml');
+});
+
+exportYamlBtn.addEventListener('click', () => {
+  const content = convertToYAML(classData);
+  downloadFile(content, `${classData.name}.yaml`, 'application/yaml');
+});
+
+exportMarkdownBtn.addEventListener('click', () => {
+  const content = convertToMarkdown(classData);
+  downloadFile(content, `${classData.name}.md`, 'text/markdown');
+});
+
+exportPdfBtn.addEventListener('click', () => {
+  // For PDF export, we'll use a simple approach with print styles
+  // In a real application, you might use jsPDF or similar library
+  const printWindow = window.open('', '_blank');
+  const html = `
+    <html>
+      <head>
+        <title>${classData.name}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; }
+          h2 { color: #666; margin-top: 30px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+        </style>
+      </head>
+      <body>
+        <h1>${classData.name}</h1>
+        ${classData.groups.map(group => `
+          <h2>${group.name}</h2>
+          ${group.students.length > 0 ? `
+            <table>
+              <tr><th>Full Name</th><th>Username</th><th>Email</th></tr>
+              ${group.students.map(student => `
+                <tr>
+                  <td>${student.fullName}</td>
+                  <td>${student.userName}</td>
+                  <td>${student.email}</td>
+                </tr>
+              `).join('')}
+            </table>
+          ` : '<p>No students in this group.</p>'}
+        `).join('')}
+      </body>
+    </html>
+  `;
+
+  printWindow.document.write(convertToMarkdown(classData));
+  printWindow.document.close();
+  printWindow.print();
+});
+
+exportImageBtn.addEventListener('click', () => {
+  const selectedFormat = document.querySelector('input[name="imageFormat"]:checked').value;
+
+  // For image export, we'll create a simple text-based representation
+  // In a real application, you might use html2canvas or similar library
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  // Set canvas size
+  canvas.width = 800;
+  canvas.height = 600;
+
+  // Fill background
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--color-surface');
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Add text
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--color-text');
+  ctx.font = '20px Arial';
+  ctx.fillText(`${classData.name} - Export`, 20, 40);
+
+  let yPosition = 80;
+  classData.groups.forEach(group => {
+    ctx.font = '16px Arial';
+    ctx.fillText(group.name, 20, yPosition);
+    yPosition += 30;
+
+    group.students.forEach(student => {
+      ctx.font = '14px Arial';
+      ctx.fillText(`${student.fullName} (${student.userName}) - ${student.email}`, 40, yPosition);
+      yPosition += 25;
+    });
+    yPosition += 20;
+  });
+
+  // Download the canvas as image
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${classData.name}.${selectedFormat}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, `image/${selectedFormat}`, 0.9);
+});
 
 function checkUserNameReuse(name, groupsArray) {
   for (const group of groupsArray) {
