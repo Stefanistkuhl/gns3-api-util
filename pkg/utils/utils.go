@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -18,7 +19,9 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/api/endpoints"
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/errorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/pathUtils"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/pretty"
 	"golang.org/x/text/cases"
@@ -130,20 +133,20 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 	body, status, err := CallClient(cfg, cmdName, args, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
-			fmt.Printf("%v Authentication failed. Please check your username and password.\n", colorUtils.Error("Error:"))
+			fmt.Printf("%v Authentication failed. Please check your username and password.\n", messageUtils.ErrorMsg("Authentication failed"))
 			return
 		}
-		fmt.Printf("%v %v\n", colorUtils.Error("Error:"), err)
+		fmt.Printf("%v %v\n", messageUtils.ErrorMsg("API error"), err)
 		return
 	}
 	if status == 204 {
 		fmt.Printf("%v Command '%s' executed successfully (no content returned)\n",
-			colorUtils.Success("Success:"), cmdName)
+			messageUtils.SuccessMsg("Command executed successfully"), cmdName)
 		return
 	}
 	if len(body) == 0 {
 		fmt.Printf("%v Command '%s' executed successfully (empty response)\n",
-			colorUtils.Success("Success:"), cmdName)
+			messageUtils.SuccessMsg("Command executed successfully"), cmdName)
 		return
 	}
 	if cfg.Raw {
@@ -180,7 +183,7 @@ func PrintKV(body []byte) {
 			PrintSeperator()
 			if elem.IsObject() {
 				elem.ForEach(func(key, value gjson.Result) bool {
-					fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+					fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
 					return true
 				})
 			} else {
@@ -192,7 +195,7 @@ func PrintKV(body []byte) {
 	} else if result.IsObject() {
 		PrintSeperator()
 		result.ForEach(func(key, value gjson.Result) bool {
-			fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+			fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
 			return true
 		})
 		PrintSeperator()
@@ -229,14 +232,14 @@ func PrintKVWithContext(body []byte, contextType, contextField, contextLabel str
 			// Print grouped results
 			for contextKey, items := range contextGroups {
 				if contextLabel != "" {
-					fmt.Printf("\n%s %s\n", colorUtils.Bold(contextLabel), colorUtils.Highlight(contextKey))
+					fmt.Printf("\n%s %s\n", messageUtils.Bold(contextLabel), messageUtils.Highlight(contextKey))
 				}
 				fmt.Println(strings.Repeat("-", 40))
 
 				for _, elem := range items {
 					if elem.IsObject() {
 						elem.ForEach(func(key, value gjson.Result) bool {
-							fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+							fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
 							return true
 						})
 					} else {
@@ -250,7 +253,7 @@ func PrintKVWithContext(body []byte, contextType, contextField, contextLabel str
 				PrintSeperator()
 				if elem.IsObject() {
 					elem.ForEach(func(key, value gjson.Result) bool {
-						fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+						fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
 						return true
 					})
 				} else {
@@ -263,7 +266,7 @@ func PrintKVWithContext(body []byte, contextType, contextField, contextLabel str
 	} else if result.IsObject() {
 		PrintSeperator()
 		result.ForEach(func(key, value gjson.Result) bool {
-			fmt.Printf("  %s: %s\n", colorUtils.Highlight(key.String()), value.Raw)
+			fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
 			return true
 		})
 		PrintSeperator()
@@ -281,27 +284,27 @@ func PrintKVWithResourceContext(body []byte, resourceType, contextLabel string) 
 }
 
 func PrintSeperator() {
-	fmt.Println(colorUtils.Seperator(strings.Repeat("-", 69)))
+	fmt.Println(messageUtils.Seperator(strings.Repeat("-", 69)))
 }
 
 func ExecuteAndPrintWithBody(cfg config.GlobalOptions, cmdName string, args []string, body any) {
 	respBody, status, err := CallClient(cfg, cmdName, args, body)
 	if err != nil {
 		if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
-			fmt.Printf("%v Authentication failed. Please check your username and password.\n", colorUtils.Error("Error:"))
+			fmt.Printf("%v Authentication failed. Please check your username and password.\n", messageUtils.ErrorMsg("Authentication failed"))
 			return
 		}
-		fmt.Printf("%v %v\n", colorUtils.Error("Error:"), err)
+		fmt.Printf("%v %v\n", messageUtils.ErrorMsg("API error"), err)
 		return
 	}
 	if status == 204 {
 		fmt.Printf("%v Command '%s' executed successfully (no content returned)\n",
-			colorUtils.Success("Success:"), cmdName)
+			messageUtils.SuccessMsg("Command executed successfully"), cmdName)
 		return
 	}
 	if len(respBody) == 0 {
 		fmt.Printf("%v Command '%s' executed successfully (empty response)\n",
-			colorUtils.Success("Success:"), cmdName)
+			messageUtils.SuccessMsg("Command executed successfully"), cmdName)
 		return
 	}
 	result := pretty.Pretty(respBody)
@@ -374,7 +377,7 @@ func ResolveID(cfg config.GlobalOptions, subcommand string, name string, args []
 		}
 	}
 
-	return "", fmt.Errorf("failed to resolve the name %s to a valid id", colorUtils.Bold(name))
+	return "", fmt.Errorf("failed to resolve the name %s to a valid id", messageUtils.Bold(name))
 }
 
 func GetResourceWithContext(cfg config.GlobalOptions, commandName string, resourceIDs []string, contextType, contextLabel string) (map[string][]byte, error) {
@@ -425,7 +428,7 @@ func PrintResourceWithContext(resourceData map[string][]byte, contextLabel strin
 		}
 
 		if contextLabel != "" {
-			fmt.Printf("\n%s %s\n", colorUtils.Bold(contextLabel), colorUtils.Highlight(contextKey))
+			fmt.Printf("\n%s %s\n", messageUtils.Bold(contextLabel), messageUtils.Highlight(contextKey))
 			fmt.Println(strings.Repeat("-", 40))
 		}
 
@@ -489,26 +492,26 @@ func getSortedKeys(m map[string][]byte) []string {
 	return keys
 }
 
-//go:embed static/*
+//go:embed static_wrong/*
 var staticFiles embed.FS
 
 func GetEmbeddedHTML() []byte {
-	data, _ := staticFiles.ReadFile("static/index.html")
+	data, _ := staticFiles.ReadFile("static_wrong/index.html")
 	return data
 }
 
 func GetEmbeddedCSS() []byte {
-	data, _ := staticFiles.ReadFile("static/style.css")
+	data, _ := staticFiles.ReadFile("static_wrong/style.css")
 	return data
 }
 
 func GetEmbeddedJS() []byte {
-	data, _ := staticFiles.ReadFile("static/script.js")
+	data, _ := staticFiles.ReadFile("static_wrong/script.js")
 	return data
 }
 
 func GetEmbeddedFavicon() []byte {
-	data, _ := staticFiles.ReadFile("static/favicon.ico")
+	data, _ := staticFiles.ReadFile("static_wrong/favicon.ico")
 	return data
 }
 
@@ -646,4 +649,31 @@ func ConfirmPrompt(msg string, defaultYes bool) bool {
 	default:
 		return defaultYes
 	}
+}
+
+func GetUserInKeyFileForUrl(cfg config.GlobalOptions) (string, error) {
+	var keys []pathUtils.GNS3Key
+	var getKeyErr error
+	if cfg.KeyFile != "" {
+		keys, getKeyErr = pathUtils.LoadGNS3KeysFile(cfg.KeyFile)
+		if getKeyErr != nil {
+			return "", errorUtils.WrapError(getKeyErr, "failed to load keys")
+		}
+	} else {
+		path, getPathErr := pathUtils.GetGNS3Dir()
+		if getPathErr != nil {
+			return "", errorUtils.WrapError(getPathErr, "failed to get the gns3 dir")
+		}
+		keys, getKeyErr = pathUtils.LoadGNS3KeysFile(filepath.Join(path, "gns3key"))
+		if getKeyErr != nil {
+			return "", errorUtils.WrapError(getKeyErr, "failed to load keys")
+		}
+	}
+	for _, key := range keys {
+		if key.ServerURL == cfg.Server {
+			return key.User, nil
+		}
+	}
+
+	return "", fmt.Errorf("failed to get a matching entry in key file for the url %s", cfg.Server)
 }

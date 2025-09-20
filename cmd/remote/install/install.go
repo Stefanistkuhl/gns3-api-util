@@ -10,7 +10,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/ssh"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/ssl"
 )
 
@@ -95,45 +95,45 @@ func NewInstallHttpsCmd() *cobra.Command {
 
 			hostname, sshPort := ssl.ParseServerURLForSSH(cfg.Server, port)
 
-			fmt.Printf("%s %s\n", colorUtils.Bold("🔧"), colorUtils.Bold("GNS3 SSL Installation"))
-			fmt.Printf("%s\n", colorUtils.Seperator(strings.Repeat("─", 50)))
+			fmt.Printf("%s %s\n", messageUtils.Bold("🔧"), messageUtils.Bold("GNS3 SSL Installation"))
+			fmt.Printf("%s\n", messageUtils.Seperator(strings.Repeat("─", 50)))
 			fmt.Println()
 
-			fmt.Printf("%s Connecting to remote server...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Connecting to remote server...\n", messageUtils.InfoMsg("Connecting to remote server"))
 			sshClient, err := ssh.ConnectWithKeyOrPassword(hostname, user, sshPort, privateKeyPath, verbose)
 			if err != nil {
-				fmt.Printf("%s Failed to connect via SSH: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Failed to connect via SSH: %v\n", messageUtils.ErrorMsg("Failed to connect via SSH"), err)
 				return
 			}
 			defer sshClient.Close()
-			fmt.Printf("%s Connected successfully\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Connected successfully\n", messageUtils.SuccessMsg("Connected successfully"))
 
-			fmt.Printf("%s Checking user privileges...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Checking user privileges...\n", messageUtils.InfoMsg("Checking user privileges"))
 			if err := sshClient.CheckPrivileges(); err != nil {
-				fmt.Printf("%s Privilege check failed: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Privilege check failed: %v\n", messageUtils.ErrorMsg("Privilege check failed"), err)
 				return
 			}
-			fmt.Printf("%s Privileges verified\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Privileges verified\n", messageUtils.SuccessMsg("Privileges verified"))
 
-			fmt.Printf("%s Preparing SSL installation script...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Preparing SSL installation script...\n", messageUtils.InfoMsg("Preparing SSL installation script"))
 			scriptText := ssl.GetEmbeddedScript()
 			modifiedScript := ssl.EditScriptWithFlags(scriptText, sslArgs)
-			fmt.Printf("%s Script prepared\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Script prepared\n", messageUtils.SuccessMsg("Script prepared"))
 
-			fmt.Printf("%s Installing Caddy reverse proxy...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Installing Caddy reverse proxy...\n", messageUtils.InfoMsg("Installing Caddy reverse proxy"))
 			success, err := sshClient.ExecuteScript(modifiedScript, "/tmp/setup_https.sh")
 			if err != nil {
-				fmt.Printf("%s Failed to execute SSL installation script: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Failed to execute SSL installation script: %v\n", messageUtils.ErrorMsg("Failed to execute SSL installation script"), err)
 				return
 			}
 
 			if success {
-				fmt.Printf("%s Caddy reverse proxy installed successfully\n", colorUtils.Success("✓"))
+				fmt.Printf("%s Caddy reverse proxy installed successfully\n", messageUtils.SuccessMsg("Caddy reverse proxy installed successfully"))
 
-				fmt.Printf("%s Saving installation state...\n", colorUtils.Info("→"))
+				fmt.Printf("%s Saving installation state...\n", messageUtils.InfoMsg("Saving installation state"))
 				stateManager, err := ssl.NewStateManager()
 				if err != nil {
-					fmt.Printf("%s Warning: failed to create state manager: %v\n", colorUtils.Warning("⚠"), err)
+					fmt.Printf("%s failed to create state manager: %v\n", messageUtils.WarningMsg("failed to create state manager"), err)
 				} else {
 					state := ssl.ServerState{
 						ServerHost:       hostname,
@@ -149,19 +149,19 @@ func NewInstallHttpsCmd() *cobra.Command {
 					}
 
 					if err := stateManager.SaveState(hostname, state); err != nil {
-						fmt.Printf("%s Warning: failed to save state: %v\n", colorUtils.Warning("⚠"), err)
+						fmt.Printf("%s failed to save state: %v\n", messageUtils.WarningMsg("failed to save state"), err)
 					} else {
-						fmt.Printf("%s State saved for server %s\n", colorUtils.Success("✓"), hostname)
+						fmt.Printf("%s State saved for server %s\n", messageUtils.SuccessMsg("State saved for server"), hostname)
 					}
 				}
 
-				fmt.Printf("\n%s Successfully installed Caddy reverse proxy on port %d\n", colorUtils.Success("✓"), reverseProxyPort)
+				fmt.Printf("\n%s Successfully installed Caddy reverse proxy on port %d\n", messageUtils.SuccessMsg("Successfully installed Caddy reverse proxy"), reverseProxyPort)
 				if firewallBlock {
-					fmt.Printf("%s Port %d is now blocked from all external access (including Tailscale/VPN)\n", colorUtils.Info("ℹ"), gns3Port)
+					fmt.Printf("%s Port %d is now blocked from all external access (including Tailscale/VPN)\n", messageUtils.InfoMsg("Port blocked from external access"), gns3Port)
 				}
-				fmt.Printf("%s GNS3 server is now accessible via HTTPS on port %d\n", colorUtils.Info("ℹ"), reverseProxyPort)
+				fmt.Printf("%s GNS3 server is now accessible via HTTPS on port %d\n", messageUtils.InfoMsg("GNS3 server accessible via HTTPS"), reverseProxyPort)
 			} else {
-				fmt.Printf("%s SSL installation script failed\n", colorUtils.Error("✗"))
+				fmt.Printf("%s SSL installation script failed\n", messageUtils.ErrorMsg("SSL installation script failed"))
 				return
 			}
 		},

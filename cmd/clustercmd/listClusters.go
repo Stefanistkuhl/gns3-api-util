@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewLsClusterCmd() *cobra.Command {
@@ -19,7 +19,7 @@ func NewLsClusterCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			data, openErr := db.InitIfNeeded()
 			if openErr != nil {
-				fmt.Printf("%s %s", colorUtils.Error("Error:"), openErr)
+				fmt.Printf("%s %s", messageUtils.ErrorMsg("Error"), openErr)
 				return
 			}
 			clusters, fetchErr := db.GetClusters(data)
@@ -28,7 +28,7 @@ func NewLsClusterCmd() *cobra.Command {
 					fmt.Printf("No clusters found")
 					return
 				}
-				fmt.Printf("%s %s", colorUtils.Error("Error:"), fetchErr)
+				fmt.Printf("%s %s", messageUtils.ErrorMsg("Error"), fetchErr)
 				return
 			}
 			raw, _ := cmd.InheritedFlags().GetBool("raw")
@@ -36,7 +36,7 @@ func NewLsClusterCmd() *cobra.Command {
 			if raw {
 				mar, err := json.Marshal(clusters)
 				if err != nil {
-					fmt.Printf("%s failed to marshall the results %s", colorUtils.Error("Error:"), err)
+					fmt.Printf("%s failed to marshall the results %s", messageUtils.ErrorMsg("Error"), err)
 				}
 				if noColor {
 					utils.PrintJsonUgly(mar)

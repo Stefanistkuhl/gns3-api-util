@@ -12,7 +12,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 type AddNodeOptions struct {
@@ -53,7 +53,7 @@ func RunAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.Nod
 
 func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error) {
 	if len(opts.Servers) == 0 {
-		fmt.Println(colorUtils.Info("No servers provided, entering interactive mode..."))
+		fmt.Println(messageUtils.InfoMsg("No servers provided, entering interactive mode..."))
 		// TODO: implement Bubble Tea picker thing
 		return nil, nil
 	}
@@ -103,7 +103,7 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 
 	dbConn, err := db.InitIfNeeded()
 	if err != nil {
-		fmt.Printf("%s failed to init db: %v\n", colorUtils.Error("Error:"), err)
+		fmt.Printf("%s failed to init db: %v\n", messageUtils.ErrorMsg("Error"), err)
 		os.Exit(1)
 	}
 	defer dbConn.Close()
@@ -119,10 +119,10 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 	)
 	if fetchErr != nil {
 		if fetchErr == sql.ErrNoRows || len(clusters) == 0 {
-			fmt.Printf("%s cluster %s not found\n", colorUtils.Error("Error:"), clusterName)
+			fmt.Printf("%s cluster %s not found\n", messageUtils.ErrorMsg("Error"), clusterName)
 			os.Exit(1)
 		}
-		fmt.Printf("%s failed to query cluster: %v\n", colorUtils.Error("Error:"), fetchErr)
+		fmt.Printf("%s failed to query cluster: %v\n", messageUtils.ErrorMsg("Error"), fetchErr)
 		os.Exit(1)
 	}
 
@@ -136,11 +136,11 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 	}
 
 	if opts.Weight < 0 || opts.Weight > 10 {
-		fmt.Printf("%s --weight must be between 0 and 10\n", colorUtils.Error("Error:"))
+		fmt.Printf("%s --weight must be between 0 and 10\n", messageUtils.ErrorMsg("Error"))
 		os.Exit(1)
 	}
 	if opts.MaxGroups < 0 {
-		fmt.Printf("%s --max-groups must be > 0\n", colorUtils.Error("Error:"))
+		fmt.Printf("%s --max-groups must be > 0\n", messageUtils.ErrorMsg("Error"))
 		os.Exit(1)
 	}
 }

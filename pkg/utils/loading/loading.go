@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 type LoadingModel struct {
@@ -116,14 +116,14 @@ func (m LoadingModel) View() string {
 func (m LoadingModel) renderLoading() string {
 	var sb strings.Builder
 
-	sb.WriteString(colorUtils.Bold("🔧 GNS3 SSL Installation\n"))
-	sb.WriteString(colorUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
+	sb.WriteString(messageUtils.Bold("🔧 GNS3 SSL Installation\n"))
+	sb.WriteString(messageUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
 
 	spinner := spinnerStyle.Render(string(spinnerChars[m.spinner]))
 	sb.WriteString(fmt.Sprintf("%s %s\n\n", spinner, m.message))
 
 	if len(m.steps) > 0 {
-		sb.WriteString(colorUtils.Info("Steps:\n"))
+		sb.WriteString(messageUtils.InfoMsg("Steps:\n"))
 		for i, step := range m.steps {
 			var stepText string
 			if i < m.currentStep {
@@ -138,7 +138,7 @@ func (m LoadingModel) renderLoading() string {
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(colorUtils.Seperator("Press Ctrl+C to cancel"))
+	sb.WriteString(messageUtils.Seperator("Press Ctrl+C to cancel"))
 
 	return sb.String()
 }
@@ -146,20 +146,20 @@ func (m LoadingModel) renderLoading() string {
 func (m LoadingModel) renderSuccess() string {
 	var sb strings.Builder
 
-	sb.WriteString(colorUtils.Bold("🎉 GNS3 SSL Installation Complete!\n"))
-	sb.WriteString(colorUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
+	sb.WriteString(messageUtils.Bold("🎉 GNS3 SSL Installation Complete!\n"))
+	sb.WriteString(messageUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
 
 	sb.WriteString(successStyle.Render("✓ ") + "All steps completed successfully\n\n")
 
 	if len(m.steps) > 0 {
-		sb.WriteString(colorUtils.Info("Completed steps:\n"))
+		sb.WriteString(messageUtils.InfoMsg("Completed steps:\n"))
 		for _, step := range m.steps {
 			sb.WriteString("  " + completedStepStyle.Render("✓ "+step) + "\n")
 		}
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(colorUtils.Success("Your GNS3 server is now accessible via HTTPS! 🚀\n"))
+	sb.WriteString(messageUtils.SuccessMsg("Your GNS3 server is now accessible via HTTPS! 🚀\n"))
 
 	return sb.String()
 }
@@ -167,17 +167,17 @@ func (m LoadingModel) renderSuccess() string {
 func (m LoadingModel) renderError() string {
 	var sb strings.Builder
 
-	sb.WriteString(colorUtils.Bold("❌ GNS3 SSL Installation Failed\n"))
-	sb.WriteString(colorUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
+	sb.WriteString(messageUtils.Bold("❌ GNS3 SSL Installation Failed\n"))
+	sb.WriteString(messageUtils.Seperator(strings.Repeat("─", 50)) + "\n\n")
 
 	sb.WriteString(errorStyle.Render("✗ ") + "Installation failed\n\n")
 
 	if m.errorMsg != "" {
-		sb.WriteString(colorUtils.Error("Error: ") + m.errorMsg + "\n\n")
+		sb.WriteString(messageUtils.ErrorMsg("Error: ") + m.errorMsg + "\n\n")
 	}
 
 	if len(m.steps) > 0 && m.currentStep > 0 {
-		sb.WriteString(colorUtils.Info("Completed steps:\n"))
+		sb.WriteString(messageUtils.InfoMsg("Completed steps:\n"))
 		for i, step := range m.steps {
 			if i < m.currentStep {
 				sb.WriteString("  " + completedStepStyle.Render("✓ "+step) + "\n")
@@ -190,7 +190,7 @@ func (m LoadingModel) renderError() string {
 		sb.WriteString("\n")
 	}
 
-	sb.WriteString(colorUtils.Warning("Please check the error message above and try again.\n"))
+	sb.WriteString(messageUtils.WarningMsg("Please check the error message above and try again.\n"))
 
 	return sb.String()
 }

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func StartInteractiveServer(host string, port int) (schemas.Class, error) {
@@ -34,9 +34,9 @@ func StartInteractiveServer(host string, port int) (schemas.Class, error) {
 	}()
 
 	url := fmt.Sprintf("http://%s:%d", host, port)
-	fmt.Printf("%v Opening interactive class creation interface at %v\n",
-		colorUtils.Info("Info:"),
-		colorUtils.Highlight(url))
+	fmt.Printf("%v at %v\n",
+		messageUtils.InfoMsg("Opening interactive class creation interface"),
+		messageUtils.Highlight(url))
 
 	classData = <-classDataChan
 

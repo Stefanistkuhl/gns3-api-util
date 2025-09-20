@@ -18,7 +18,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewProjectCmdGroup() *cobra.Command {
@@ -206,7 +206,7 @@ func NewProjectLoadCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 201 {
-				fmt.Printf("%s Project loaded successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Project loaded successfully\n", messageUtils.SuccessMsg("Project loaded successfully"))
 			} else {
 				fmt.Printf("Failed to load project with status %d", resp.StatusCode)
 			}
@@ -265,7 +265,7 @@ func NewProjectCloseCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Project closed successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Project closed successfully\n", messageUtils.SuccessMsg("Project closed successfully"))
 			} else {
 				fmt.Printf("Failed to close project with status %d", resp.StatusCode)
 			}
@@ -347,7 +347,7 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 201 {
-				fmt.Printf("%s: Project imported successfully\n", colorUtils.Success("Success"))
+				fmt.Printf("%s: Project imported successfully\n", messageUtils.SuccessMsg("Success"))
 			} else {
 				return fmt.Errorf("failed to import project with status %d", resp.StatusCode)
 			}
@@ -410,7 +410,7 @@ func NewProjectLockCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Project locked successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Project locked successfully\n", messageUtils.SuccessMsg("Project locked successfully"))
 			} else {
 				fmt.Printf("Failed to lock project with status %d", resp.StatusCode)
 			}
@@ -469,7 +469,7 @@ func NewProjectOpenCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Project opened successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Project opened successfully\n", messageUtils.SuccessMsg("Project opened successfully"))
 			} else {
 				fmt.Printf("Failed to open project with status %d", resp.StatusCode)
 			}
@@ -528,7 +528,7 @@ func NewProjectUnlockCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Project unlocked successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Project unlocked successfully\n", messageUtils.SuccessMsg("Project unlocked successfully"))
 			} else {
 				fmt.Printf("Failed to unlock project with status %d", resp.StatusCode)
 			}
@@ -588,7 +588,7 @@ func NewProjectWriteFileCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 201 {
-				fmt.Printf("%s File written to project successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s File written to project successfully\n", messageUtils.SuccessMsg("File written to project successfully"))
 			} else {
 				fmt.Printf("Failed to write file to project with status %d", resp.StatusCode)
 			}
@@ -653,7 +653,7 @@ func NewProjectStartCaptureCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 201 {
-				fmt.Printf("%s Packet capture started successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Packet capture started successfully\n", messageUtils.SuccessMsg("Packet capture started successfully"))
 			} else {
 				fmt.Printf("Failed to start packet capture with status %d", resp.StatusCode)
 			}

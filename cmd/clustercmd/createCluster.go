@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 var name string
@@ -27,7 +27,7 @@ func NewCreateClusterCmd() *cobra.Command {
 			case nil, db.ErrNoDb:
 				data, openErr := db.InitIfNeeded()
 				if openErr != nil {
-					fmt.Printf("%s failed to open db: %v\n", colorUtils.Error("Error:"), openErr)
+					fmt.Printf("%s failed to open db: %v\n", messageUtils.ErrorMsg("Error"), openErr)
 					return
 				}
 				defer data.Close()
@@ -37,7 +37,7 @@ func NewCreateClusterCmd() *cobra.Command {
 					"INSERT INTO clusters (name, description) VALUES (?, ?)",
 					name, desc,
 				); insertErr != nil {
-					fmt.Printf("%s inserting data into the db: %v\n", colorUtils.Error("Error:"), insertErr)
+					fmt.Printf("%s inserting data into the db: %v\n", messageUtils.ErrorMsg("Error"), insertErr)
 					return
 				}
 
@@ -46,7 +46,7 @@ func NewCreateClusterCmd() *cobra.Command {
 					if cfgErr == cluster.NoConfigErr {
 						cfg = cluster.NewConfig()
 					} else {
-						fmt.Printf("%s failed to load config: %v\n", colorUtils.Error("Error:"), cfgErr)
+						fmt.Printf("%s failed to load config: %v\n", messageUtils.ErrorMsg("Error"), cfgErr)
 						return
 					}
 				}
@@ -56,15 +56,15 @@ func NewCreateClusterCmd() *cobra.Command {
 					Description: desc,
 				})
 				if writeErr := cluster.WriteClusterConfig(cfg); writeErr != nil {
-					fmt.Printf("%s failed to write to config file: %v\n", colorUtils.Error("Error:"), writeErr)
+					fmt.Printf("%s failed to write to config file: %v\n", messageUtils.ErrorMsg("Error"), writeErr)
 					return
 				}
 
-				fmt.Printf("%s created new empty cluster %s\n", colorUtils.Success("Success:"), name)
+				fmt.Printf("%s created new empty cluster %s\n", messageUtils.SuccessMsg("Success"), name)
 				return
 
 			default:
-				fmt.Printf("%s failed to check cluster existence: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s failed to check cluster existence: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 		},

@@ -9,7 +9,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewAuthStatusCmd() *cobra.Command {
@@ -40,7 +40,7 @@ func NewAuthStatusCmd() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Error unmarshaling JSON: %v", err)
 			}
-			fmt.Printf("%s logged in as user %s", colorUtils.Success("Success:"), colorUtils.Bold(*user.Username))
+			fmt.Printf("%s logged in as user %s", messageUtils.SuccessMsg("Logged in as user"), messageUtils.Bold(*user.Username))
 		},
 	}
 	return cmd

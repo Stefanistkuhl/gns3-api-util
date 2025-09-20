@@ -12,7 +12,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/api/endpoints"
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/pathUtils"
 )
 
@@ -52,7 +52,7 @@ func TryKeys(keys []pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, error)
 			}
 		}
 	}
-	return nil, fmt.Errorf("No working API-Key found for the server %s. Please use the %s command to authenticate.", colorUtils.Bold(cfg.Server), colorUtils.Bold("auth login"))
+	return nil, fmt.Errorf("No working API-Key found for the server %s. Please use the %s command to authenticate.", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
 }
 
 func normalizeURL(url string) string {
@@ -191,5 +191,5 @@ func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
 			return key.AccessToken, nil
 		}
 	}
-	return "", fmt.Errorf("Could not find find a matching access token for the server %s, please use the %s command to login to the server.", cfg.Server, colorUtils.Bold("auth login"))
+	return "", fmt.Errorf("Could not find find a matching access token for the server %s, please use the %s command to login to the server.", cfg.Server, messageUtils.Bold("auth login"))
 }

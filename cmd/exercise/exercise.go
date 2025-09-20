@@ -14,6 +14,8 @@ func NewExerciseCmdGroup() *cobra.Command {
 	exerciseCmd.AddCommand(
 		NewExerciseCreateCmd(),
 		NewExerciseDeleteCmd(),
+		NewExerciseLsCmd(),
+		NewExerciseInfoCmd(),
 	)
 
 	return exerciseCmd

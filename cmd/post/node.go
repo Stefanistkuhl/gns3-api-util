@@ -8,7 +8,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewNodeCmdGroup() *cobra.Command {
@@ -87,7 +87,7 @@ func NewNodeDuplicateCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 201 {
-				fmt.Printf("%s Node duplicated successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Node duplicated successfully\n", messageUtils.SuccessMsg("Node duplicated successfully"))
 			} else {
 				fmt.Printf("Failed to duplicate node with status %d", resp.StatusCode)
 			}
@@ -152,7 +152,7 @@ func NewNodeConsoleResetCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Node console reset successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Node console reset successfully\n", messageUtils.SuccessMsg("Node console reset successfully"))
 			} else {
 				fmt.Printf("Failed to reset node console with status %d", resp.StatusCode)
 			}
@@ -217,7 +217,7 @@ func NewNodeIsolateCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Node isolated successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Node isolated successfully\n", messageUtils.SuccessMsg("Node isolated successfully"))
 			} else {
 				fmt.Printf("Failed to isolate node with status %d", resp.StatusCode)
 			}
@@ -282,7 +282,7 @@ func NewNodeUnisolateCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Node unisolated successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Node unisolated successfully\n", messageUtils.SuccessMsg("Node unisolated successfully"))
 			} else {
 				fmt.Printf("Failed to unisolate node with status %d", resp.StatusCode)
 			}
@@ -341,7 +341,7 @@ func NewReloadNodesCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Nodes reloaded successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Nodes reloaded successfully\n", messageUtils.SuccessMsg("Nodes reloaded successfully"))
 			} else {
 				fmt.Printf("Failed to reload nodes with status %d", resp.StatusCode)
 			}
@@ -400,7 +400,7 @@ func NewStartNodesCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Nodes started successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Nodes started successfully\n", messageUtils.SuccessMsg("Nodes started successfully"))
 			} else {
 				fmt.Printf("Failed to start nodes with status %d", resp.StatusCode)
 			}
@@ -459,7 +459,7 @@ func NewStopNodesCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Nodes stopped successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Nodes stopped successfully\n", messageUtils.SuccessMsg("Nodes stopped successfully"))
 			} else {
 				fmt.Printf("Failed to stop nodes with status %d", resp.StatusCode)
 			}
@@ -518,7 +518,7 @@ func NewSuspendNodesCmd() *cobra.Command {
 			defer resp.Body.Close()
 
 			if resp.StatusCode == 204 {
-				fmt.Printf("%s Nodes suspended successfully\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s Nodes suspended successfully\n", messageUtils.SuccessMsg("Nodes suspended successfully"))
 			} else {
 				fmt.Printf("Failed to suspend nodes with status %d", resp.StatusCode)
 			}

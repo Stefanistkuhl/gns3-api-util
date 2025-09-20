@@ -10,7 +10,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 	"github.com/tidwall/gjson"
 )
 
@@ -62,13 +62,13 @@ gns3util -s https://controller:3080 user change-password my-user -p "newpassword
 			if useFuzzy {
 				rawData, _, err := utils.CallClient(cfg, "getUsers", nil, nil)
 				if err != nil {
-					fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+					fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
 					return
 				}
 
 				result := gjson.ParseBytes(rawData)
 				if !result.IsArray() {
-					fmt.Printf("%s Expected array response, got %s\n", colorUtils.Error("Error:"), result.Type)
+					fmt.Printf("%s Expected array response, got %s\n", messageUtils.ErrorMsg("Error"), result.Type)
 					return
 				}
 
@@ -118,15 +118,15 @@ gns3util -s https://controller:3080 user change-password my-user -p "newpassword
 
 			if passwordFlag != "" {
 				if !utils.ValidatePassword(passwordFlag) {
-					fmt.Printf("%s Password must be at least 8 characters with at least 1 number and 1 lowercase letter\n", colorUtils.Error("Error:"))
+					fmt.Printf("%s Password must be at least 8 characters with at least 1 number and 1 lowercase letter\n", messageUtils.ErrorMsg("Error"))
 					return
 				}
 				newPassword = passwordFlag
 			} else {
-				fmt.Printf("Changing password for user: %s\n", colorUtils.Bold(username))
+				fmt.Printf("Changing password for user: %s\n", messageUtils.Bold(username))
 				newPassword, err = utils.GetPasswordFromInput()
 				if err != nil {
-					fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+					fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
 					return
 				}
 			}
@@ -137,13 +137,13 @@ gns3util -s https://controller:3080 user change-password my-user -p "newpassword
 
 			data, err := json.Marshal(userUpdate)
 			if err != nil {
-				fmt.Printf("%s Failed to marshal user update: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s Failed to marshal user update: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 
 			var payload map[string]any
 			if err := json.Unmarshal(data, &payload); err != nil {
-				fmt.Printf("%s Failed to prepare payload: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s Failed to prepare payload: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 

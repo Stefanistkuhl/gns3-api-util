@@ -11,7 +11,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 var username string
@@ -47,7 +47,7 @@ func NewAuthLoginCmd() *cobra.Command {
 			if username == "" || password == "" {
 				interactiveUsername, interactivePassword, err := utils.GetLoginCredentials()
 				if err != nil {
-					fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+					fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
 					return
 				}
 
@@ -60,7 +60,7 @@ func NewAuthLoginCmd() *cobra.Command {
 			}
 
 			if username == "" || password == "" {
-				fmt.Printf("%s Username and password are required\n", colorUtils.Error("Error:"))
+				fmt.Printf("%s Username and password are required\n", messageUtils.ErrorMsg("Error"))
 				return
 			}
 
@@ -71,40 +71,40 @@ func NewAuthLoginCmd() *cobra.Command {
 
 			data, err := json.Marshal(credentials)
 			if err != nil {
-				fmt.Printf("%s Failed to marshal credentials: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s Failed to marshal credentials: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 
 			var payload map[string]any
 			if err := json.Unmarshal(data, &payload); err != nil {
-				fmt.Printf("%s Failed to prepare payload: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s Failed to prepare payload: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 			body, status, err := utils.CallClient(cfg, "userAuthenticate", []string{}, payload)
 			if err != nil {
 				if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
-					fmt.Printf("%v Authentication failed. Please check your username and password.\n", colorUtils.Error("Error:"))
+					fmt.Printf("%v Authentication failed. Please check your username and password.\n", messageUtils.ErrorMsg("Error"))
 					return
 				}
-				fmt.Printf("%v %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%v %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
 
 			if status == 200 {
-				fmt.Printf("%v Successfully logged in as %s\n", colorUtils.Success("Success:"), colorUtils.Bold(username))
+				fmt.Printf("%v Successfully logged in as %s\n", messageUtils.SuccessMsg("Success"), messageUtils.Bold(username))
 				var token schemas.Token
 				marshallErr := json.Unmarshal(body, &token)
 				if marshallErr != nil {
-					fmt.Printf("%v failed to unmarshall response: %s", colorUtils.Error("Error:"), marshallErr)
+					fmt.Printf("%v failed to unmarshall response: %s", messageUtils.ErrorMsg("Error"), marshallErr)
 					return
 				}
 				writeErr := authentication.SaveAuthData(cfg, token, credentials.Username)
 				if writeErr != nil {
-					fmt.Printf("%v failed to write authentication data to the keyfile: %s", colorUtils.Error("Error:"), writeErr)
+					fmt.Printf("%v failed to write authentication data to the keyfile: %s", messageUtils.ErrorMsg("Error"), writeErr)
 					return
 				}
 			} else {
-				fmt.Printf("%v Authentication failed (status: %d)\n", colorUtils.Error("Error:"), status)
+				fmt.Printf("%v Authentication failed (status: %d)\n", messageUtils.ErrorMsg("Error"), status)
 			}
 
 		},

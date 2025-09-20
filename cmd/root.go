@@ -41,8 +41,23 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		if err := validateRequiresServer(); err != nil {
-			return err
+		skipServer := false
+		if f := cmd.Flags().Lookup("cluster"); f != nil {
+			if v, _ := cmd.Flags().GetString("cluster"); v != "" {
+				skipServer = true
+			}
+		}
+		if !skipServer {
+			if f := cmd.InheritedFlags().Lookup("cluster"); f != nil {
+				if v, _ := cmd.InheritedFlags().GetString("cluster"); v != "" {
+					skipServer = true
+				}
+			}
+		}
+		if !skipServer {
+			if err := validateRequiresServer(); err != nil {
+				return err
+			}
 		}
 
 		opts := config.GlobalOptions{
@@ -102,6 +117,7 @@ func init() {
 	rootCmd.AddCommand(NewRemoteCmdGroup())
 
 	rootCmd.AddCommand(NewClusterCmdGroup())
+	rootCmd.AddCommand(NewShareCmdGroup())
 }
 
 func Execute() {

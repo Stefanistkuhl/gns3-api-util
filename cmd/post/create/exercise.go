@@ -10,7 +10,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewCreateExerciseCmd() *cobra.Command {
@@ -72,15 +72,15 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 
 	classGroups := findClassGroups(groups, className)
 	if len(classGroups) == 0 {
-		return fmt.Errorf("no groups found for class %s", colorUtils.Bold(className))
+		return fmt.Errorf("no groups found for class %s", messageUtils.Bold(className))
 	}
 
 	fmt.Printf("%v Found %d groups for class %v:\n",
-		colorUtils.Info("Info:"),
+		messageUtils.InfoMsg("Found groups for class"),
 		len(classGroups),
-		colorUtils.Bold(className))
+		messageUtils.Bold(className))
 	for _, group := range classGroups {
-		fmt.Printf("  - %v\n", colorUtils.Highlight(group.Name))
+		fmt.Printf("  - %v\n", messageUtils.Highlight(group.Name))
 	}
 
 	if confirm {
@@ -103,11 +103,11 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(existingExercises) > 0 {
-		fmt.Printf("%v Warning: Some groups already have exercises:\n", colorUtils.Warning("Warning:"))
+		fmt.Printf("%v Warning: Some groups already have exercises:\n", messageUtils.WarningMsg("Some groups already have exercises"))
 		for _, groupName := range existingExercises {
-			fmt.Printf("  - %v\n", colorUtils.Bold(groupName))
+			fmt.Printf("  - %v\n", messageUtils.Bold(groupName))
 		}
-		fmt.Printf("%v Skipping groups that already have exercises\n", colorUtils.Info("Info:"))
+		fmt.Printf("%v Skipping groups that already have exercises\n", messageUtils.InfoMsg("Skipping groups that already have exercises"))
 	}
 
 	successCount := 0
@@ -132,23 +132,23 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 
 		if err := createProjectForGroup(cfg, projectName, groupID, roleID); err != nil {
 			fmt.Printf("%v Failed to create project for group %s: %v\n",
-				colorUtils.Error("Error:"),
-				colorUtils.Bold(groupName),
+				messageUtils.ErrorMsg("Failed to create project for group"),
+				messageUtils.Bold(groupName),
 				err)
 			continue
 		}
 
 		successCount++
 		fmt.Printf("%v Created project %s for group %s\n",
-			colorUtils.Success("Success:"),
-			colorUtils.Bold(projectName),
-			colorUtils.Highlight(groupName))
+			messageUtils.SuccessMsg("Created project"),
+			messageUtils.Bold(projectName),
+			messageUtils.Highlight(groupName))
 	}
 
 	fmt.Printf("\n%v Created %d projects for exercise '%s'\n",
-		colorUtils.Success("Success:"),
+		messageUtils.SuccessMsg("Created projects for exercise"),
 		successCount,
-		colorUtils.Bold(exerciseName))
+		messageUtils.Bold(exerciseName))
 
 	return nil
 }

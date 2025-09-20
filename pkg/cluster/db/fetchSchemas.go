@@ -36,3 +36,47 @@ type ClusterAndNodes struct {
 	Cluster ClusterName
 	Nodes   []NodeDataAll
 }
+
+type NodeAndGroupIds struct {
+	Assignments []AssignmentIds
+}
+
+type AssignmentIds struct {
+	NodeID   int
+	GroupIDs []int
+}
+
+type InsertedClassData struct {
+	ClassID  int
+	GroupIDs map[string]int
+	UserIDs  []int
+}
+type UserData struct {
+	Username  string
+	FullName  string
+	Email     string
+	Password  string
+	GroupName string
+}
+
+type GroupData struct {
+	Name     string
+	Students []UserData
+}
+
+type NodeGroupsForClass struct {
+	NodeURL string
+	Groups  []GroupData
+}
+
+type ExerciseItem struct {
+	Name        string
+	ProjectUUID string
+	GroupName   string
+	State       string
+}
+
+type NodeExercisesForClass struct {
+	NodeURL   string
+	Exercises []ExerciseItem
+}

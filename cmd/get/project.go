@@ -11,7 +11,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewGetProjectsCmd() *cobra.Command {
@@ -194,7 +194,7 @@ func NewGetProjectExportCmd() *cobra.Command {
 				return
 			}
 
-			fmt.Printf("%s Project exported successfully to %s", colorUtils.Success("Success:"), colorUtils.Bold(outputFile))
+			fmt.Printf("%s Project exported successfully to %s", messageUtils.SuccessMsg("Project exported successfully"), messageUtils.Bold(outputFile))
 		},
 	}
 
@@ -313,7 +313,7 @@ func NewGetProjectFileCmd() *cobra.Command {
 				return
 			}
 
-			fmt.Printf("%s Project file downloaded successfully to %s", colorUtils.Success("Success:"), colorUtils.Bold(outputFile))
+			fmt.Printf("%s Project file downloaded successfully to %s", messageUtils.SuccessMsg("Project file downloaded successfully"), messageUtils.Bold(outputFile))
 		},
 	}
 
@@ -396,7 +396,7 @@ func NewGetNodeFileCmd() *cobra.Command {
 				return
 			}
 
-			fmt.Printf("%s Node file downloaded successfully to %s", colorUtils.Success("Success:"), colorUtils.Bold(outputFile))
+			fmt.Printf("%s Node file downloaded successfully to %s", messageUtils.SuccessMsg("Node file downloaded successfully"), messageUtils.Bold(outputFile))
 		},
 	}
 
@@ -478,7 +478,7 @@ func NewStreamPcapCmd() *cobra.Command {
 				return
 			}
 
-			fmt.Printf("%s PCAP file streamed successfully to %s", colorUtils.Success("Success:"), colorUtils.Bold(outputFile))
+			fmt.Printf("%s PCAP file streamed successfully to %s", messageUtils.SuccessMsg("PCAP file streamed successfully"), messageUtils.Bold(outputFile))
 		},
 	}
 

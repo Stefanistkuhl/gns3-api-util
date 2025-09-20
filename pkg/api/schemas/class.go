@@ -14,6 +14,7 @@ type Group struct {
 
 type Class struct {
 	Name   string  `json:"name" validate:"required"`
+	Desc   string  `json:"description" validate:"omitempty"`
 	Groups []Group `json:"groups" validate:"required"`
 }
 

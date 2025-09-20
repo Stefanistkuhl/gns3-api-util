@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewAddNodeCmd() *cobra.Command {
@@ -19,29 +19,32 @@ func NewAddNodeCmd() *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
 			if len(opts.Servers) == 0 {
-				fmt.Println(colorUtils.Info("No servers provided, will enter interactive mode."))
+				fmt.Println(messageUtils.InfoMsg("No servers provided, will enter interactive mode."))
 			}
 			if len(opts.Servers) > 1 {
 				fmt.Printf("%s add-node only supports a single --server. Use add-nodes for multiple.\n",
-					colorUtils.Error("Error:"))
+					messageUtils.ErrorMsg("Error"))
 				os.Exit(1)
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
-				fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
 				os.Exit(1)
 			}
 			if nodes == nil {
 				return
 			}
 
-			if err := db.InsertNodes(opts.ClusterID, nodes); err != nil {
-				fmt.Printf("%s failed to insert node: %v\n", colorUtils.Error("Error:"), err)
+			insertedNodes, err := db.InsertNodes(opts.ClusterID, nodes)
+			if err != nil {
+				fmt.Printf("%s failed to insert node: %v\n", messageUtils.ErrorMsg("Error"), err)
 				os.Exit(1)
 			}
-			fmt.Printf("Inserted node into cluster %d: %+v\n", opts.ClusterID, nodes[0])
+			for _, node := range insertedNodes {
+				fmt.Printf("Inserted node %s:%d with ID: %d\n", node.Host, node.Port, node.ID)
+			}
 		},
 	}
 	addCommonFlags(cmd, opts)
@@ -57,29 +60,32 @@ func NewAddNodesCmd() *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
 			if len(opts.Servers) == 0 {
-				fmt.Println(colorUtils.Info("No servers provided, will enter interactive mode."))
+				fmt.Println(messageUtils.InfoMsg("No servers provided, will enter interactive mode."))
 			}
 			if len(opts.Servers) == 1 {
 				fmt.Printf("%s add-nodes requires at least 2 --server entries. Use add-node for one.\n",
-					colorUtils.Error("Error:"))
+					messageUtils.ErrorMsg("Error"))
 				os.Exit(1)
 			}
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
-				fmt.Printf("%s %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
 				os.Exit(1)
 			}
 			if nodes == nil {
 				return
 			}
 
-			if err := db.InsertNodes(opts.ClusterID, nodes); err != nil {
-				fmt.Printf("%s DB insert error: %v\n", colorUtils.Error("Error:"), err)
+			insertedNodes, err := db.InsertNodes(opts.ClusterID, nodes)
+			if err != nil {
+				fmt.Printf("%s DB insert error: %v\n", messageUtils.ErrorMsg("Error"), err)
 				os.Exit(1)
 			}
-			fmt.Printf("Inserted %d nodes into cluster %d\n", len(nodes), opts.ClusterID)
+			for _, node := range insertedNodes {
+				fmt.Printf("Inserted node %s:%d with ID: %d\n", node.Host, node.Port, node.ID)
+			}
 		},
 	}
 	addCommonFlags(cmd, opts)

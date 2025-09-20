@@ -7,11 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
+	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/class"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewExerciseDeleteCmd() *cobra.Command {
@@ -25,7 +26,7 @@ func NewExerciseDeleteCmd() *cobra.Command {
 - Delete exercises for specific class and group combinations`,
 		Example: `
   # Delete an exercise interactively using fuzzy finder
-  gns3util -s http://server:3080 exercise delete
+  gns3util -s http://server:3080 exercise delete --select-exercise
 
   # Delete a specific exercise by name
   gns3util -s http://server:3080 exercise delete --name "MyExercise"
@@ -34,32 +35,158 @@ func NewExerciseDeleteCmd() *cobra.Command {
   gns3util -s http://server:3080 exercise delete --non-interactive "MyExercise"
 
   # Delete all exercises for a class
-  gns3util -s http://server:3080 exercise delete --set-class "MyClass"
+  gns3util -s http://server:3080 exercise delete --class "MyClass"
 
   # Delete exercises for a specific class and group
-  gns3util -s http://server:3080 exercise delete --set-class "MyClass" --set-group "Group1"
+  gns3util -s http://server:3080 exercise delete --class "MyClass" --group "Group1"
 
-  # Delete all exercises
+  # Delete all exercises (use with caution!)
   gns3util -s http://server:3080 exercise delete --all
 
   # Delete without confirmation
   gns3util -s http://server:3080 exercise delete --name "MyExercise" --no-confirm
+
+  # Delete multiple exercises using fuzzy finder with multi-select
+  gns3util -s http://server:3080 exercise delete --select-exercise --multi
+
+  # Delete exercises for a specific class (interactive selection)
+  gns3util -s http://server:3080 exercise delete --select-class
+
+  # Delete exercises for a specific class and group (interactive selection)
+  gns3util -s http://server:3080 exercise delete --select-class --select-group
 		`,
 		RunE: runDeleteExercise,
 	}
 
 	deleteExerciseCmd.Flags().String("name", "", "Name of the exercise to delete")
 	deleteExerciseCmd.Flags().String("non-interactive", "", "Run the command non-interactively with specified exercise name")
-	deleteExerciseCmd.Flags().String("set-class", "", "Set the class from which to delete the exercise")
-	deleteExerciseCmd.Flags().String("set-group", "", "Set the group from which to delete the exercise")
-	deleteExerciseCmd.Flags().Bool("select-class", false, "Select class interactively")
-	deleteExerciseCmd.Flags().Bool("select-group", false, "Select group interactively")
-	deleteExerciseCmd.Flags().Bool("all", false, "Delete all exercises")
-	deleteExerciseCmd.Flags().Bool("multi", false, "Enable multi-select mode for fuzzy finder")
+	deleteExerciseCmd.Flags().String("class", "", "Class name for the exercise")
+	deleteExerciseCmd.Flags().String("group", "", "Group name for the exercise")
+	deleteExerciseCmd.Flags().Bool("select-exercise", false, "Select exercise interactively from a list")
+	deleteExerciseCmd.Flags().Bool("select-class", false, "Select class interactively from a list")
+	deleteExerciseCmd.Flags().Bool("select-group", false, "Select group interactively from a list")
+	deleteExerciseCmd.Flags().Bool("all", false, "Delete all exercises (use with caution!)")
+	deleteExerciseCmd.Flags().Bool("multi", false, "Enable multi-select mode for fuzzy finder (only for exercise selection)")
 	deleteExerciseCmd.Flags().Bool("confirm", true, "Require confirmation before deletion")
 	deleteExerciseCmd.Flags().Bool("no-confirm", false, "Skip confirmation prompt")
+	deleteExerciseCmd.Flags().StringP("cluster", "c", "", "Cluster name")
 
 	return deleteExerciseCmd
+}
+
+func deleteExerciseInCluster(cfg config.GlobalOptions, clusterName, exerciseName, className, groupName string, confirm bool) error {
+	if confirm {
+		msg := fmt.Sprintf("Delete exercise '%s' across cluster '%s'?", exerciseName, clusterName)
+		if className != "" {
+			msg = fmt.Sprintf("Delete exercise '%s' for class '%s' across cluster '%s'?", exerciseName, className, clusterName)
+		}
+		if groupName != "" {
+			msg = fmt.Sprintf("Delete exercise '%s' for class '%s' group '%s' across cluster '%s'?", exerciseName, className, groupName, clusterName)
+		}
+		if !utils.ConfirmPrompt(msg, false) {
+			fmt.Printf("Deletion of exercise %v cancelled\n", messageUtils.Bold(exerciseName))
+			return nil
+		}
+	}
+
+	conn, err := db.InitIfNeeded()
+	if err != nil {
+		return fmt.Errorf("failed to init db: %w", err)
+	}
+	defer conn.Close()
+
+	clusters, err := db.GetClusters(conn)
+	if err != nil {
+		return fmt.Errorf("failed to get clusters: %w", err)
+	}
+	clusterID := 0
+	for _, c := range clusters {
+		if strings.EqualFold(strings.TrimSpace(c.Name), strings.TrimSpace(clusterName)) {
+			clusterID = c.Id
+			break
+		}
+	}
+	if clusterID == 0 {
+		return fmt.Errorf("cluster not found: %s", clusterName)
+	}
+
+	nodes, err := db.GetNodes(conn)
+	if err != nil {
+		return fmt.Errorf("failed to get nodes: %w", err)
+	}
+
+	for _, n := range nodes {
+		if n.ClusterID != clusterID {
+			continue
+		}
+		nodeCfg := cfg
+		nodeCfg.Server = fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port)
+		if err := deleteExerciseWithConfirmation(nodeCfg, exerciseName, className, groupName, false); err != nil {
+			fmt.Printf("%v Failed to delete exercise %v on %s: %v\n", messageUtils.ErrorMsg("Failed to delete exercise"), messageUtils.Bold(exerciseName), nodeCfg.Server, err)
+		} else {
+			fmt.Printf("%v Deleted exercise %v on %s\n", messageUtils.SuccessMsg("Deleted exercise"), messageUtils.Bold(exerciseName), nodeCfg.Server)
+		}
+	}
+	return nil
+}
+
+func getAllExerciseNamesFromCluster(cfg config.GlobalOptions, clusterName string) ([]string, error) {
+	conn, err := db.InitIfNeeded()
+	if err != nil {
+		return nil, fmt.Errorf("failed to init db: %w", err)
+	}
+	defer conn.Close()
+	clusters, err := db.GetClusters(conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clusters: %w", err)
+	}
+	clusterID := 0
+	for _, c := range clusters {
+		if strings.EqualFold(strings.TrimSpace(c.Name), strings.TrimSpace(clusterName)) {
+			clusterID = c.Id
+			break
+		}
+	}
+	if clusterID == 0 {
+		return nil, fmt.Errorf("cluster not found: %s", clusterName)
+	}
+	nodes, err := db.GetNodes(conn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nodes: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	var out []string
+	for _, n := range nodes {
+		if n.ClusterID != clusterID {
+			continue
+		}
+		nodeCfg := cfg
+		nodeCfg.Server = fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port)
+		names, err := getAllExerciseNames(nodeCfg)
+		if err != nil {
+			continue
+		}
+		for _, nm := range names {
+			if !seen[nm] {
+				seen[nm] = true
+				out = append(out, nm)
+			}
+		}
+	}
+	return out, nil
+}
+
+func selectExercisesWithFuzzyFromCluster(cfg config.GlobalOptions, clusterName string, multi bool) ([]string, error) {
+	names, err := getAllExerciseNamesFromCluster(cfg, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, fmt.Errorf("no exercises found")
+	}
+	finder := fuzzy.NewFuzzyFinder(names, multi)
+	return finder, nil
 }
 
 func runDeleteExercise(cmd *cobra.Command, args []string) error {
@@ -70,19 +197,22 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 
 	exerciseName, _ := cmd.Flags().GetString("name")
 	nonInteractive, _ := cmd.Flags().GetString("non-interactive")
-	setClass, _ := cmd.Flags().GetString("set-class")
-	setGroup, _ := cmd.Flags().GetString("set-group")
+	className, _ := cmd.Flags().GetString("class")
+	groupName, _ := cmd.Flags().GetString("group")
+	selectExercise, _ := cmd.Flags().GetBool("select-exercise")
 	selectClass, _ := cmd.Flags().GetBool("select-class")
 	selectGroup, _ := cmd.Flags().GetBool("select-group")
 	deleteAll, _ := cmd.Flags().GetBool("all")
 	multi, _ := cmd.Flags().GetBool("multi")
 	confirm, _ := cmd.Flags().GetBool("confirm")
 	noConfirm, _ := cmd.Flags().GetBool("no-confirm")
+	clusterName, _ := cmd.Flags().GetString("cluster")
 
 	if noConfirm {
 		confirm = false
 	}
 
+	// Validate flag combinations
 	if exerciseName != "" && nonInteractive != "" {
 		return fmt.Errorf("cannot specify both --name and --non-interactive")
 	}
@@ -92,26 +222,28 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 	if nonInteractive != "" && deleteAll {
 		return fmt.Errorf("cannot specify both --non-interactive and --all")
 	}
-	if nonInteractive != "" && setClass != "" {
-		return fmt.Errorf("cannot specify both --non-interactive and --set-class")
+	if nonInteractive != "" && (className != "" || groupName != "") {
+		return fmt.Errorf("cannot specify both --non-interactive and class/group flags")
 	}
-	if nonInteractive != "" && setGroup != "" {
-		return fmt.Errorf("cannot specify both --non-interactive and --set-group")
+
+	if selectClass || selectGroup {
+		if className != "" || groupName != "" {
+			return fmt.Errorf("cannot specify both selection flags and explicit class/group")
+		}
+
+		// TODO: Implement interactive class/group selection
+		return fmt.Errorf("interactive class/group selection not yet implemented")
+	}
+
+	if selectExercise {
+		if exerciseName != "" || nonInteractive != "" {
+			return fmt.Errorf("cannot specify both selection and explicit exercise name")
+		}
+
 	}
 
 	if nonInteractive != "" {
-		if setClass == "" && setGroup != "" {
-			return fmt.Errorf("in non-interactive mode, --set-class and --set-group must both be provided with string values")
-		}
-	}
-
-	if nonInteractive == "" && !deleteAll {
-		if !selectClass && selectGroup {
-			return fmt.Errorf("in interactive mode, --select-class and --select-group must both be set")
-		}
-		if (selectClass || selectGroup) && multi {
-			return fmt.Errorf("in interactive mode when either --select-class or --select-group are set, multi mode is not supported")
-		}
+		exerciseName = nonInteractive
 	}
 
 	var targetExerciseName string
@@ -122,61 +254,110 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 	}
 
 	if targetExerciseName != "" {
-		if err := deleteExerciseWithConfirmation(cfg, targetExerciseName, setClass, setGroup, confirm); err != nil {
-			return fmt.Errorf("failed to delete exercise: %w", err)
+		if clusterName != "" {
+			if err := deleteExerciseInCluster(cfg, clusterName, targetExerciseName, className, groupName, confirm); err != nil {
+				return fmt.Errorf("failed to delete exercise: %w", err)
+			}
+		} else {
+			if err := deleteExerciseWithConfirmation(cfg, targetExerciseName, className, groupName, confirm); err != nil {
+				return fmt.Errorf("failed to delete exercise: %w", err)
+			}
 		}
 	} else if deleteAll {
-		exerciseNames, err := getAllExerciseNames(cfg)
+		var exerciseNames []string
+		var err error
+		if clusterName != "" {
+			exerciseNames, err = getAllExerciseNamesFromCluster(cfg, clusterName)
+		} else {
+			exerciseNames, err = getAllExerciseNames(cfg)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to get exercise names: %w", err)
 		}
 
 		if len(exerciseNames) == 0 {
-			fmt.Printf("%v No exercises found to delete\n", colorUtils.Info("Info:"))
+			fmt.Printf("%v No exercises found to delete\n", messageUtils.InfoMsg("No exercises found to delete"))
 			return nil
 		}
 
 		if confirm {
-			fmt.Printf("%v Found %d exercises to delete:\n", colorUtils.Warning("Warning:"), len(exerciseNames))
+			fmt.Printf("%v Found %d exercises to delete:\n", messageUtils.WarningMsg("Found exercises to delete"), len(exerciseNames))
 			for _, name := range exerciseNames {
-				fmt.Printf("  - %v\n", colorUtils.Bold(name))
+				fmt.Printf("  - %v\n", messageUtils.Bold(name))
 			}
 
-			if !confirmAction("Are you sure you want to delete ALL exercises?") {
+			if !utils.ConfirmPrompt("Are you sure you want to delete ALL exercises?", false) {
 				fmt.Println("Deletion cancelled.")
 				return nil
 			}
 		}
 
-		for _, name := range exerciseNames {
-			if err := deleteExerciseWithConfirmation(cfg, name, "", "", false); err != nil {
-				fmt.Printf("%v Failed to delete exercise %v: %v\n",
-					colorUtils.Error("Error:"),
-					colorUtils.Bold(name),
+		dbConn, err := db.InitIfNeeded()
+		if err != nil {
+			fmt.Printf("%v Failed to initialize database: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				err)
+		} else {
+			defer dbConn.Close()
+
+			_, err = dbConn.Exec(`DELETE FROM exercises`)
+			if err != nil {
+				fmt.Printf("%v Failed to clean up exercise database entries: %v\n",
+					messageUtils.WarningMsg("Warning"),
 					err)
+			} else {
+				fmt.Printf("%v Deleted all exercise database entries\n",
+					messageUtils.SuccessMsg("Cleaned up database"))
 			}
 		}
-	} else if setClass != "" {
-		if err := deleteAllExercisesForClassWithConfirmation(cfg, setClass, confirm); err != nil {
+
+		for _, name := range exerciseNames {
+			var derr error
+			if clusterName != "" {
+				derr = deleteExerciseInCluster(cfg, clusterName, name, className, groupName, false)
+			} else {
+				derr = deleteExerciseWithConfirmation(cfg, name, className, groupName, false)
+			}
+			if derr != nil {
+				fmt.Printf("%v Failed to delete exercise %v: %v\n",
+					messageUtils.ErrorMsg("Failed to delete exercise"),
+					messageUtils.Bold(name),
+					derr)
+			}
+		}
+	} else if className != "" {
+		if err := deleteAllExercisesForClassWithConfirmation(cfg, className, confirm); err != nil {
 			return fmt.Errorf("failed to delete exercises for class: %w", err)
 		}
 	} else {
-		exerciseNames, err := selectExercisesWithFuzzy(cfg, multi)
+		var exerciseNames []string
+		var err error
+		if clusterName != "" {
+			exerciseNames, err = selectExercisesWithFuzzyFromCluster(cfg, clusterName, multi)
+		} else {
+			exerciseNames, err = selectExercisesWithFuzzy(cfg, multi)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to select exercises: %w", err)
 		}
 
 		if len(exerciseNames) == 0 {
-			fmt.Printf("%v No exercises selected for deletion\n", colorUtils.Info("Info:"))
+			fmt.Printf("%v No exercises selected for deletion\n", messageUtils.InfoMsg("No exercises selected for deletion"))
 			return nil
 		}
 
 		for _, name := range exerciseNames {
-			if err := deleteExerciseWithConfirmation(cfg, name, "", "", confirm); err != nil {
+			var derr error
+			if clusterName != "" {
+				derr = deleteExerciseInCluster(cfg, clusterName, name, className, groupName, confirm)
+			} else {
+				derr = deleteExerciseWithConfirmation(cfg, name, className, groupName, confirm)
+			}
+			if derr != nil {
 				fmt.Printf("%v Failed to delete exercise %v: %v\n",
-					colorUtils.Error("Error:"),
-					colorUtils.Bold(name),
-					err)
+					messageUtils.ErrorMsg("Failed to delete exercise"),
+					messageUtils.Bold(name),
+					derr)
 			}
 		}
 	}
@@ -261,8 +442,8 @@ func deleteExerciseWithConfirmation(cfg config.GlobalOptions, exerciseName, clas
 			message = fmt.Sprintf("Delete exercise '%s' for class '%s' group '%s'?", exerciseName, className, groupName)
 		}
 
-		if !confirmAction(message) {
-			fmt.Printf("Deletion of exercise %v cancelled\n", colorUtils.Bold(exerciseName))
+		if !utils.ConfirmPrompt(message, false) {
+			fmt.Printf("Deletion of exercise %v cancelled\n", messageUtils.Bold(exerciseName))
 			return nil
 		}
 	}
@@ -272,9 +453,19 @@ func deleteExerciseWithConfirmation(cfg config.GlobalOptions, exerciseName, clas
 
 func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, className string, confirm bool) error {
 	if confirm {
-		if !confirmAction(fmt.Sprintf("Delete all exercises for class '%s'?", className)) {
-			fmt.Printf("Deletion of exercises for class %v cancelled\n", colorUtils.Bold(className))
+		if !utils.ConfirmPrompt(fmt.Sprintf("Delete all exercises for class '%s'?", className), false) {
+			fmt.Println("Deletion cancelled.")
 			return nil
+		}
+	}
+
+	dbConn, err := db.InitIfNeeded()
+	if err == nil {
+		defer dbConn.Close()
+		_, err = dbConn.Exec(`DELETE FROM exercises WHERE class = ?`, className)
+		if err != nil {
+			fmt.Printf("%v Failed to delete exercises for class %s from database: %v\n",
+				messageUtils.WarningMsg("Warning"), className, err)
 		}
 	}
 

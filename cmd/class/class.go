@@ -12,8 +12,9 @@ func NewClassCmdGroup() *cobra.Command {
 	}
 
 	classCmd.AddCommand(
-		NewClassCreateCmd(),
+		NewCreateClassCmd(),
 		NewClassDeleteCmd(),
+		NewClassLsCmd(),
 	)
 
 	return classCmd

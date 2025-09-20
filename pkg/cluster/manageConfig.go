@@ -9,14 +9,14 @@ import (
 
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
 func ApplyConfig(cfg Config) error {
 	conn, openErr := db.InitIfNeeded()
 	if openErr != nil {
-		return fmt.Errorf("%s %v", colorUtils.Error("DB open error:"), openErr)
+		return fmt.Errorf("DB open error: %v", openErr)
 	}
+
 	defer conn.Close()
 
 	var create db.CreateClustersAndNodes
@@ -42,7 +42,7 @@ func ApplyConfig(cfg Config) error {
 			if utils.ValidateAndTestUrl(fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port)) {
 				createCluster.Nodes = append(createCluster.Nodes, n)
 			} else {
-				return fmt.Errorf("%s cant connect to: %s", colorUtils.Error("Error:"), fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port))
+				return fmt.Errorf("cant connect to: %s", fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port))
 			}
 
 		}
@@ -50,11 +50,104 @@ func ApplyConfig(cfg Config) error {
 	}
 	createNeeded, err := BuildCreateDelta(create, conn)
 	if err != nil {
-		return fmt.Errorf("%s failed to get the diff of the existing elements in the db and config %s", colorUtils.Error("Error:"), err)
+		return fmt.Errorf("failed to get the diff of the existing elements in the db and config: %w", err)
 	}
 	createErr := CreateClusterAndNodes(createNeeded, conn)
 	if createErr != nil {
 		return createErr
+	}
+
+	if err := UpdateClustersAndNodes(cfg, conn); err != nil {
+		return fmt.Errorf("update existing: %w", err)
+	}
+
+	return nil
+}
+
+func UpdateClustersAndNodes(cfg Config, conn *sql.DB) error {
+	dbClusters, err := db.GetClusters(conn)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("load clusters: %w", err)
+	}
+	dbNodes, err := db.GetNodes(conn)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("load nodes: %w", err)
+	}
+
+	cByName := make(map[string]db.ClusterName, len(dbClusters))
+	for _, c := range dbClusters {
+		cByName[normName(c.Name)] = c
+	}
+
+	// Map (cluster_id, host:port) -> db node
+	type key struct {
+		ClusterID int
+		HostPort  string
+	}
+	nByKey := make(map[key]db.NodeDataAll, len(dbNodes))
+	for _, n := range dbNodes {
+		nByKey[key{ClusterID: n.ClusterID, HostPort: nodeKey(n.Host, n.Port)}] = n
+	}
+
+	for _, cl := range cfg.Clusters {
+		nname := normName(cl.Name)
+		dbc, ok := cByName[nname]
+		if !ok {
+			continue
+		}
+		curDesc := ""
+		if dbc.Desc.Valid {
+			curDesc = strings.TrimSpace(dbc.Desc.String)
+		}
+		newDesc := strings.TrimSpace(cl.Description)
+		if curDesc != newDesc {
+			_, err := db.UpdateRows(conn,
+				"UPDATE clusters SET description = ? WHERE cluster_id = ?",
+				func() sql.NullString {
+					if newDesc == "" {
+						return sql.NullString{Valid: false}
+					}
+					return sql.NullString{String: newDesc, Valid: true}
+				}(),
+				dbc.Id,
+			)
+			if err != nil {
+				return fmt.Errorf("update cluster desc %s: %w", cl.Name, err)
+			}
+		}
+
+		for _, nn := range cl.Nodes {
+			hostPort := nodeKey(nn.Host, nn.Port)
+			dbn, ok := nByKey[key{ClusterID: dbc.Id, HostPort: hostPort}]
+			if !ok {
+				continue
+			}
+
+			proto := strings.ToLower(strings.TrimSpace(nn.Protocol))
+			if proto == "" {
+				proto = strings.ToLower(strings.TrimSpace(cfg.Settings.DefaultProtocol))
+			}
+			maxGroups := nn.MaxGroups
+			if maxGroups == 0 {
+				maxGroups = cfg.Settings.DefaultMaxGroups
+			}
+			user := strings.TrimSpace(nn.User)
+
+			needProto := proto != strings.ToLower(strings.TrimSpace(dbn.Protocol))
+			needWeight := nn.Weight != dbn.Weight
+			needMax := maxGroups != dbn.MaxGroups
+			needUser := user != strings.TrimSpace(dbn.User)
+
+			if needProto || needWeight || needMax || needUser {
+				_, err := db.UpdateRows(conn, `
+UPDATE nodes SET protocol = ?, auth_user = ?, weight = ?, max_groups = ?
+WHERE cluster_id = ? AND host = ? AND port = ?
+`, proto, user, nn.Weight, maxGroups, dbc.Id, dbn.Host, dbn.Port)
+				if err != nil {
+					return fmt.Errorf("update node %s in cluster %s: %w", hostPort, cl.Name, err)
+				}
+			}
+		}
 	}
 
 	return nil
@@ -174,7 +267,7 @@ func BuildCreateDelta(create db.CreateClustersAndNodes, conn *sql.DB) (db.Create
 func SyncConfigWithDb(cfg Config) (Config, bool, error) {
 	conn, openErr := db.InitIfNeeded()
 	if openErr != nil {
-		return cfg, false, fmt.Errorf("%s %v", colorUtils.Error("DB open error:"), openErr)
+		return cfg, false, fmt.Errorf("DB open error: %v", openErr)
 	}
 	defer conn.Close()
 
@@ -202,7 +295,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 	conn, openErr := db.InitIfNeeded()
 	if openErr != nil {
 		if verbose {
-			fmt.Printf("%s %v\n", colorUtils.Error("DB open error:"), openErr)
+			fmt.Printf("DB open error: %v\n", openErr)
 		}
 		return false, fmt.Errorf("db open error: %w", openErr)
 	}
@@ -214,7 +307,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 			return len(cfg.Clusters) == 0, nil
 		}
 		if verbose {
-			fmt.Printf("%s %v\n", colorUtils.Error("Error fetching clusters:"), err)
+			fmt.Printf("Error fetching clusters: %v\n", err)
 		}
 		return false, fmt.Errorf("error fetching clusters: %w", err)
 	}
@@ -224,7 +317,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 		if err == sql.ErrNoRows {
 		} else {
 			if verbose {
-				fmt.Printf("%s %v\n", colorUtils.Error("Error fetching nodes:"), err)
+				fmt.Printf("Error fetching nodes: %v\n", err)
 			}
 			return false, fmt.Errorf("error fetching nodes: %w", err)
 		}
@@ -238,8 +331,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 	for name := range cfgView {
 		if _, found := dbView[name]; !found {
 			if verbose {
-				fmt.Printf("%s cluster %q exists in config but not in DB\n",
-					colorUtils.Error("Mismatch:"), name)
+				fmt.Printf("Mismatch: cluster %q exists in config but not in DB\n", name)
 			}
 			inSync = false
 		}
@@ -247,8 +339,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 	for name := range dbView {
 		if _, found := cfgView[name]; !found {
 			if verbose {
-				fmt.Printf("%s cluster %q exists in DB but not in config\n",
-					colorUtils.Error("Mismatch:"), name)
+				fmt.Printf("Mismatch: cluster %q exists in DB but not in config\n", name)
 			}
 			inSync = false
 		}
@@ -267,8 +358,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 		}
 		if cfgDesc != dbDesc {
 			if verbose {
-				fmt.Printf("%s cluster %q description differs. cfg=%q db=%q\n",
-					colorUtils.Error("Mismatch:"), name, cfgDesc, dbDesc)
+				fmt.Printf("Mismatch: cluster %q description differs. cfg=%q db=%q\n", name, cfgDesc, dbDesc)
 			}
 			inSync = false
 		}
@@ -276,8 +366,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 		for key := range cv.Nodes {
 			if _, f := dv.Nodes[key]; !f {
 				if verbose {
-					fmt.Printf("%s cluster %q node %s exists in config but not in DB\n",
-						colorUtils.Error("Mismatch:"), name, key)
+					fmt.Printf("Mismatch: cluster %q node %s exists in config but not in DB\n", name, key)
 				}
 				inSync = false
 			}
@@ -285,8 +374,7 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 		for key := range dv.Nodes {
 			if _, f := cv.Nodes[key]; !f {
 				if verbose {
-					fmt.Printf("%s cluster %q node %s exists in DB but not in config\n",
-						colorUtils.Error("Mismatch:"), name, key)
+					fmt.Printf("Mismatch: cluster %q node %s exists in DB but not in config\n", name, key)
 				}
 				inSync = false
 			}
@@ -303,15 +391,13 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 			}
 			if !equalStr(cn.Protocol, dbProto) {
 				if verbose {
-					fmt.Printf("%s cluster %q node %s protocol differs. cfg=%q db(effective)=%q\n",
-						colorUtils.Error("Mismatch:"), name, key, cn.Protocol, dbProto)
+					fmt.Printf("Mismatch: cluster %q node %s protocol differs. cfg=%q db(effective)=%q\n", name, key, cn.Protocol, dbProto)
 				}
 				inSync = false
 			}
 			if cn.Weight != dn.Weight {
 				if verbose {
-					fmt.Printf("%s cluster %q node %s weight differs. cfg=%d db=%d\n",
-						colorUtils.Error("Mismatch:"), name, key, cn.Weight, dn.Weight)
+					fmt.Printf("Mismatch: cluster %q node %s weight differs. cfg=%d db=%d\n", name, key, cn.Weight, dn.Weight)
 				}
 				inSync = false
 			}
@@ -321,8 +407,13 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 			}
 			if cn.MaxGroups != dbMax {
 				if verbose {
-					fmt.Printf("%s cluster %q node %s max_groups differs. cfg=%d db(effective)=%d\n",
-						colorUtils.Error("Mismatch:"), name, key, cn.MaxGroups, dbMax)
+					fmt.Printf("Mismatch: cluster %q node %s max_groups differs. cfg=%d db(effective)=%d\n", name, key, cn.MaxGroups, dbMax)
+				}
+				inSync = false
+			}
+			if !equalStr(cn.User, dn.User) {
+				if verbose {
+					fmt.Printf("Mismatch: cluster %q node %s user differs. cfg=%q db=%q\n", name, key, cn.User, dn.User)
 				}
 				inSync = false
 			}
@@ -362,13 +453,14 @@ func MergeConfigWithDb(
 			}
 			key := nodeKey(n.Host, n.Port)
 			if _, exists := cv.Nodes[key]; exists {
-				changed = true // drop duplicate
+				changed = true
 				continue
 			}
 			cv.Nodes[key] = cfgNode{
 				Protocol:  strings.ToLower(proto),
 				Weight:    n.Weight,
 				MaxGroups: maxGroups,
+				User:      n.User,
 			}
 		}
 		cfgView[nname] = cv
@@ -416,6 +508,7 @@ func MergeConfigWithDb(
 				}
 				return n.MaxGroups
 			}(),
+			User: n.User,
 		}
 		if existing, exists := cv.Nodes[key]; !exists {
 			cv.Nodes[key] = dbNodeValue
@@ -423,7 +516,8 @@ func MergeConfigWithDb(
 			changed = true
 		} else if !equalStr(existing.Protocol, dbNodeValue.Protocol) ||
 			existing.Weight != dbNodeValue.Weight ||
-			existing.MaxGroups != dbNodeValue.MaxGroups {
+			existing.MaxGroups != dbNodeValue.MaxGroups ||
+			existing.User != dbNodeValue.User {
 			cv.Nodes[key] = dbNodeValue
 			cfgView[nname] = cv
 			changed = true
@@ -467,6 +561,7 @@ func MergeConfigWithDb(
 				Protocol:  nn.Protocol,
 				Weight:    nn.Weight,
 				MaxGroups: nn.MaxGroups,
+				User:      nn.User,
 			})
 		}
 		rebuilt.Clusters = append(rebuilt.Clusters, cl)
@@ -484,6 +579,7 @@ type dbNode struct {
 	Protocol  string
 	Weight    int
 	MaxGroups int
+	User      string
 }
 
 type cfgClusterView struct {
@@ -495,6 +591,7 @@ type cfgNode struct {
 	Protocol  string
 	Weight    int
 	MaxGroups int
+	User      string
 }
 
 func buildDbView(clusters []db.ClusterName, nodes []db.NodeDataAll) map[string]dbClusterView {
@@ -526,6 +623,7 @@ func buildDbView(clusters []db.ClusterName, nodes []db.NodeDataAll) map[string]d
 			Protocol:  strings.ToLower(n.Protocol),
 			Weight:    n.Weight,
 			MaxGroups: n.MaxGroups,
+			User:      n.User,
 		}
 		res[name] = entry
 	}
@@ -566,6 +664,7 @@ func buildCfgView(cfg Config) map[string]cfgClusterView {
 					Protocol:  strings.ToLower(proto),
 					Weight:    n.Weight,
 					MaxGroups: maxGroups,
+					User:      n.User,
 				}
 			}
 		}

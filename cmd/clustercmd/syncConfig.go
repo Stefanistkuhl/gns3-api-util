@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 func NewSyncClusterConfigCmdGroup() *cobra.Command {
@@ -25,7 +25,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 				if errors.Is(err, cluster.NoConfigErr) {
 					missing = true
 				} else {
-					fmt.Printf("%s failed to load config: %v\n", colorUtils.Error("Error:"), err)
+					fmt.Printf("%s failed to load config: %v\n", messageUtils.ErrorMsg("Error"), err)
 					return
 				}
 			}
@@ -34,7 +34,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 				if !noConfirm {
 					confirmed := utils.ConfirmPrompt(
 						fmt.Sprintf("%s no cluster config found. Generate one from the database now?",
-							colorUtils.Warning("Warning:")),
+							messageUtils.WarningMsg("Warning")),
 						false,
 					)
 					if !confirmed {
@@ -45,21 +45,21 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 
 				cfgGen, changed, genErr := cluster.EnsureConfigSyncedFromDB()
 				if genErr != nil {
-					fmt.Printf("%s failed to generate config from DB: %v\n", colorUtils.Error("Error:"), genErr)
+					fmt.Printf("%s failed to generate config from DB: %v\n", messageUtils.ErrorMsg("Error"), genErr)
 					return
 				}
 				if changed {
 					if err := cluster.WriteClusterConfig(cfgGen); err != nil {
-						fmt.Printf("%s failed to write generated config: %v\n", colorUtils.Error("Error:"), err)
+						fmt.Printf("%s failed to write generated config: %v\n", messageUtils.ErrorMsg("Error"), err)
 						return
 					}
 				}
-				fmt.Printf("%s generated cluster config from the database.\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s generated cluster config from the database.\n", messageUtils.SuccessMsg("Success"))
 				cfgLoaded = cfgGen
 			} else {
 				cfgEnsured, _, ensureErr := cluster.EnsureConfigSyncedFromDB()
 				if ensureErr != nil {
-					fmt.Printf("%s failed ensuring config: %v\n", colorUtils.Error("Error:"), ensureErr)
+					fmt.Printf("%s failed ensuring config: %v\n", messageUtils.ErrorMsg("Error"), ensureErr)
 					return
 				}
 				cfgLoaded = cfgEnsured
@@ -67,7 +67,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 
 			inSync, checkErr := cluster.CheckConfigWithDb(cfgLoaded, verbose)
 			if checkErr != nil {
-				fmt.Printf("%s %v\n", colorUtils.Error("Error checking config:"), checkErr)
+				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error checking config"), checkErr)
 				return
 			}
 
@@ -79,7 +79,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 			if !noConfirm {
 				if !utils.ConfirmPrompt(
 					fmt.Sprintf("%s out of sync. Sync config with the Database?",
-						colorUtils.Warning("Warning:")),
+						messageUtils.WarningMsg("Warning")),
 					false,
 				) {
 					return
@@ -88,18 +88,18 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 
 			cfgNew, changed, syncErr := cluster.SyncConfigWithDb(cfgLoaded)
 			if syncErr != nil {
-				fmt.Printf("%s %v\n", colorUtils.Error("Error syncing config:"), syncErr)
+				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error syncing config"), syncErr)
 				return
 			}
 			if !changed {
-				fmt.Printf("%s nothing to sync.\n", colorUtils.Success("Success:"))
+				fmt.Printf("%s nothing to sync.\n", messageUtils.SuccessMsg("Success"))
 				return
 			}
 			if err := cluster.WriteClusterConfig(cfgNew); err != nil {
-				fmt.Printf("%s failed to write to the config file: %v\n", colorUtils.Error("Error:"), err)
+				fmt.Printf("%s failed to write to the config file: %v\n", messageUtils.ErrorMsg("Error"), err)
 				return
 			}
-			fmt.Printf("%s synced config with the Database.\n", colorUtils.Success("Success:"))
+			fmt.Printf("%s synced config with the Database.\n", messageUtils.SuccessMsg("Success"))
 		},
 	}
 	cmd.Flags().BoolVarP(&noConfirm, "no-confirm", "n", false, "Run the command without asking for confirmations.")

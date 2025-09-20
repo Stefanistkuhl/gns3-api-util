@@ -2,21 +2,32 @@ package class
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
+	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
+
+type NodeAndGroups struct {
+	NodeID    int
+	NumGroups int
+}
+
+var ErrInsufficientCapacity = errors.New("not enough capacity for all groups")
 
 func LoadClassFromFile(filePath string) (schemas.Class, error) {
 	var classData schemas.Class
 
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return classData, fmt.Errorf("file does not exist: %s", colorUtils.Bold(filePath))
+		return classData, fmt.Errorf("file does not exist: %s", messageUtils.Bold(filePath))
 	}
 
 	file, err := os.Open(filePath)
@@ -43,105 +54,148 @@ func LoadClassFromFile(filePath string) (schemas.Class, error) {
 	}
 
 	fmt.Printf("%v Loaded class %v with %d groups\n",
-		colorUtils.Info("Info:"),
-		colorUtils.Bold(classData.Name),
+		messageUtils.InfoMsgf("Loaded class %s with %d groups", classData.Name, len(classData.Groups)),
+		messageUtils.Bold(classData.Name),
 		len(classData.Groups))
 
 	return classData, nil
 }
 
-func CreateClass(cfg config.GlobalOptions, classData schemas.Class) (bool, error) {
-	classGroupData := schemas.UserGroupCreate{
-		Name: &classData.Name,
-	}
+func CreateClass(cfg config.GlobalOptions, clusterID int, classData schemas.Class, insertedNodes []db.NodeDataAll) (bool, error) {
 
-	classGroupBody, status, err := utils.CallClient(cfg, "createGroup", []string{}, classGroupData)
+	conn, err := db.InitIfNeeded()
 	if err != nil {
-		return false, fmt.Errorf("failed to create class group: %w", err)
+		return false, fmt.Errorf("failed to init db: %w", err)
+	}
+	defer conn.Close()
+
+	assignedPerNode := make(map[int]int)
+	rows, qerr := conn.Query(`
+SELECT ga.node_id, COUNT(*)
+FROM group_assignments ga
+JOIN nodes n ON n.node_id = ga.node_id
+WHERE n.cluster_id = ?
+GROUP BY ga.node_id;
+`, clusterID)
+	if qerr == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var nodeID, cnt int
+			if err := rows.Scan(&nodeID, &cnt); err == nil {
+				assignedPerNode[nodeID] = cnt
+			}
+		}
+		_ = rows.Err()
 	}
 
-	if status != 201 {
-		return false, fmt.Errorf("failed to create class group: status %d", status)
+	nodesAdjusted := make([]db.NodeDataAll, 0, len(insertedNodes))
+	availableGroups := 0
+	for _, node := range insertedNodes {
+		used := assignedPerNode[node.ID]
+		remaining := max(0, node.MaxGroups-used)
+		n := node
+		n.MaxGroups = remaining
+		nodesAdjusted = append(nodesAdjusted, n)
+		availableGroups += remaining
+	}
+	totalGroups := len(classData.Groups)
+
+	overCapacity := availableGroups < totalGroups
+	allowOverAssign := false
+	if overCapacity {
+		warning := fmt.Sprintf(
+			"not enough groups for class %s: available %d, needed %d. Allow assigning ABOVE MaxGroups based on weights?",
+			messageUtils.Bold(classData.Name),
+			availableGroups,
+			totalGroups,
+		)
+		allowOverAssign = utils.ConfirmPrompt(warning, false)
+		if !allowOverAssign {
+			return false, fmt.Errorf("not enough groups available for class %s", messageUtils.Bold(classData.Name))
+		}
 	}
 
-	var classGroupResponse schemas.UserGroupResponse
-	if err := json.Unmarshal(classGroupBody, &classGroupResponse); err != nil {
-		return false, fmt.Errorf("failed to parse class group response: %w", err)
+	getClassErr := db.CheckIfClassExists(conn, clusterID, classData.Name)
+	if getClassErr != nil {
+		if getClassErr == db.ErrClassExists {
+			return false, fmt.Errorf("the class %s already exists", messageUtils.Bold(classData.Name))
+		} else {
+			return false, fmt.Errorf("failed to check if the class %s exists %w", messageUtils.Bold(classData.Name), getClassErr)
+		}
 	}
 
-	classGroupName := classGroupResponse.Name
+	insertedData, addDbErr := db.InsertClassIntoDB(conn, clusterID, classData)
+	if addDbErr != nil {
+		return false, fmt.Errorf("failed to add class to db: %w", addDbErr)
+	}
 
-	fmt.Printf("%v Created class group %v\n",
-		colorUtils.Success("Success:"),
-		colorUtils.Bold(classGroupName))
+	dist, err := distributeGroupsWithMode(
+		func() []db.NodeDataAll {
+			if allowOverAssign {
+				return insertedNodes
+			}
+			return nodesAdjusted
+		}(),
+		classData,
+		!allowOverAssign,
+	)
+	if err != nil {
+		return false, fmt.Errorf("distribution failed: %w", err)
+	}
 
-	for _, group := range classData.Groups {
-		studentGroupData := schemas.UserGroupCreate{
-			Name: &group.Name,
+	groupIDVals := make([]int, 0, len(insertedData.GroupIDs))
+	for _, v := range insertedData.GroupIDs {
+		groupIDVals = append(groupIDVals, v)
+	}
+	sort.Ints(groupIDVals)
+
+	var assignments []db.AssignmentIds
+	offset := 0
+	for _, g := range dist {
+		a := db.AssignmentIds{NodeID: g.NodeID}
+		end := offset + g.NumGroups
+		end = min(end, len(groupIDVals))
+		a.GroupIDs = append(a.GroupIDs, groupIDVals[offset:end]...)
+		assignments = append(assignments, a)
+		offset = end
+	}
+
+	if err := db.AssignGroupsToNode(conn, db.NodeAndGroupIds{Assignments: assignments}); err != nil {
+		return false, fmt.Errorf("failed to assign groups to nodes: %w", err)
+	}
+
+	plans, err := db.GetNodeGroupNamesForClass(conn, clusterID, classData.Name)
+	if err != nil {
+		return false, fmt.Errorf("failed to get node group names: %w", err)
+	}
+
+	emailByGroupUser := make(map[string]map[string]string)
+	for _, g := range classData.Groups {
+		if _, ok := emailByGroupUser[g.Name]; !ok {
+			emailByGroupUser[g.Name] = make(map[string]string)
 		}
-
-		studentGroupBody, status, err := utils.CallClient(cfg, "createGroup", []string{}, studentGroupData)
-		if err != nil {
-			return false, fmt.Errorf("failed to create student group %s: %w", group.Name, err)
-		}
-
-		if status != 201 {
-			return false, fmt.Errorf("failed to create student group %s: status %d", group.Name, status)
-		}
-
-		var studentGroupResponse schemas.UserGroupResponse
-		if err := json.Unmarshal(studentGroupBody, &studentGroupResponse); err != nil {
-			return false, fmt.Errorf("failed to parse student group response: %w", err)
-		}
-
-		studentGroupName := studentGroupResponse.Name
-
-		fmt.Printf("%v Created student group %v\n",
-			colorUtils.Success("Success:"),
-			colorUtils.Bold(studentGroupName))
-
-		for _, student := range group.Students {
-
-			userData := schemas.UserCreate{
-				Username: &student.UserName,
-				Password: &student.Password,
-				Email:    student.Email,
-				FullName: student.FullName,
-				IsActive: true,
-			}
-
-			userBody, status, err := utils.CallClient(cfg, "createUser", []string{}, userData)
-			if err != nil {
-				return false, fmt.Errorf("failed to create user %s: %w", student.UserName, err)
-			}
-
-			if status != 201 {
-				return false, fmt.Errorf("failed to create user %s: status %d", student.UserName, status)
-			}
-
-			var userResponse schemas.UserResponse
-			if err := json.Unmarshal(userBody, &userResponse); err != nil {
-				return false, fmt.Errorf("failed to parse user response: %w", err)
-			}
-
-			userID := userResponse.UserID.String()
-			username := userResponse.Username
-
-			fmt.Printf("%v Created user %v\n",
-				colorUtils.Success("Success:"),
-				colorUtils.Bold(username))
-
-			classGroupID := classGroupResponse.UserGroupID.String()
-			studentGroupID := studentGroupResponse.UserGroupID.String()
-
-			if err := addUserToGroup(cfg, userID, classGroupID); err != nil {
-				return false, fmt.Errorf("failed to add user %s to class group: %w", username, err)
-			}
-
-			if err := addUserToGroup(cfg, userID, studentGroupID); err != nil {
-				return false, fmt.Errorf("failed to add user %s to student group: %w", username, err)
+		for _, s := range g.Students {
+			if s.Email != nil && *s.Email != "" {
+				emailByGroupUser[g.Name][s.UserName] = *s.Email
 			}
 		}
+	}
+	for pi := range plans {
+		for gi := range plans[pi].Groups {
+			grpName := plans[pi].Groups[gi].Name
+			for si := range plans[pi].Groups[gi].Students {
+				u := &plans[pi].Groups[gi].Students[si]
+				if u.Email == "" {
+					if em, ok := emailByGroupUser[grpName][u.Username]; ok {
+						u.Email = em
+					}
+				}
+			}
+		}
+	}
+
+	if err := runPlans(cfg, classData, plans); err != nil {
+		return false, fmt.Errorf("failed to run plans: %w", err)
 	}
 
 	return true, nil
@@ -161,6 +215,85 @@ func addUserToGroup(cfg config.GlobalOptions, userID, groupID string) error {
 }
 
 func DeleteClass(cfg config.GlobalOptions, className string) error {
+	clusterID, err := getClusterIDForServer(cfg)
+
+	var dbDeleted bool
+	if err == nil && clusterID != 0 {
+		dbConn, dbErr := db.InitIfNeeded()
+		if dbErr == nil {
+			defer dbConn.Close()
+
+			if dbErr = deleteClassFromDB(clusterID, className); dbErr == nil {
+				dbDeleted = true
+				fmt.Printf("%v Deleted class %v from database\n",
+					messageUtils.SuccessMsg("Success"),
+					messageUtils.Bold(className))
+			} else {
+				fmt.Printf("%v Failed to delete class %v from database: %v\n",
+					messageUtils.WarningMsg("Warning"),
+					messageUtils.Bold(className),
+					dbErr)
+			}
+
+			nodes, nerr := db.GetNodes(dbConn)
+			if nerr == nil {
+				var nodeServers []string
+				for _, n := range nodes {
+					if n.ClusterID == clusterID {
+						nodeServers = append(nodeServers, fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port))
+					}
+				}
+
+				if len(nodeServers) > 0 {
+					var wg sync.WaitGroup
+					errCh := make(chan error, len(nodeServers))
+
+					for _, srv := range nodeServers {
+						wg.Add(1)
+						go func(server string) {
+							defer wg.Done()
+							nodeCfg := cfg
+							nodeCfg.Server = server
+							if err := deleteClassFromAPI(nodeCfg, className); err != nil {
+								errCh <- fmt.Errorf("%s: %w", server, err)
+							}
+						}(srv)
+					}
+
+					wg.Wait()
+					close(errCh)
+
+					var apiErrors []error
+					for e := range errCh {
+						if e != nil {
+							apiErrors = append(apiErrors, e)
+						}
+					}
+
+					if dbDeleted && len(apiErrors) == 0 {
+						return nil
+					}
+
+					if len(apiErrors) > 0 {
+						return fmt.Errorf("failed to delete from some nodes: %v", apiErrors)
+					}
+
+					return nil
+				}
+			}
+		}
+	}
+
+	if !dbDeleted {
+		fmt.Printf("%v Falling back to direct API deletion for class %v\n",
+			messageUtils.InfoMsg("Info"),
+			messageUtils.Bold(className))
+	}
+
+	return deleteClassFromAPI(cfg, className)
+}
+
+func deleteClassFromAPI(cfg config.GlobalOptions, className string) error {
 	groupsBody, status, err := utils.CallClient(cfg, "getGroups", []string{}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get groups: %w", err)
@@ -177,14 +310,14 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 	classGroups, studentGroups := findClassAndStudentGroups(groups, className)
 
 	if len(classGroups) == 0 && len(studentGroups) == 0 {
-		return fmt.Errorf("no groups found for class %s", colorUtils.Bold(className))
+		return fmt.Errorf("no groups found for class %s", messageUtils.Bold(className))
 	}
 
 	fmt.Printf("%v Found %d class groups and %d student groups for class %v\n",
-		colorUtils.Info("Info:"),
+		messageUtils.InfoMsg("Found groups for class"),
 		len(classGroups),
 		len(studentGroups),
-		colorUtils.Bold(className))
+		messageUtils.Bold(className))
 
 	allGroupsToDelete := append(studentGroups, classGroups...)
 
@@ -196,9 +329,9 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 
 		members, err := getGroupMembers(cfg, groupID)
 		if err != nil {
-			fmt.Printf("%v Warning: failed to get members for group %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(groupName),
+			fmt.Printf("%v failed to get members for group %v: %v\n",
+				messageUtils.WarningMsgf("failed to get members for group %s", groupName),
+				messageUtils.Bold(groupName),
 				err)
 		} else {
 			for _, member := range members {
@@ -211,14 +344,14 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 
 	for userID, username := range allUsersToDelete {
 		if err := deleteUser(cfg, userID); err != nil {
-			fmt.Printf("%v Warning: failed to delete user %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(username),
+			fmt.Printf("%v failed to delete user %v: %v\n",
+				messageUtils.WarningMsgf("failed to delete user %s", username),
+				messageUtils.Bold(username),
 				err)
 		} else {
 			fmt.Printf("%v Deleted user %v\n",
-				colorUtils.Success("Success:"),
-				colorUtils.Bold(username))
+				messageUtils.SuccessMsg("Deleted user"),
+				messageUtils.Bold(username))
 		}
 	}
 
@@ -227,14 +360,14 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 		groupName := group.Name
 
 		if err := deleteGroup(cfg, groupID); err != nil {
-			fmt.Printf("%v Warning: failed to delete student group %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(groupName),
+			fmt.Printf("%v failed to delete student group %v: %v\n",
+				messageUtils.WarningMsgf("failed to delete student group %s", groupName),
+				messageUtils.Bold(groupName),
 				err)
 		} else {
 			fmt.Printf("%v Deleted student group %v\n",
-				colorUtils.Success("Success:"),
-				colorUtils.Bold(groupName))
+				messageUtils.SuccessMsg("Deleted student group"),
+				messageUtils.Bold(groupName))
 		}
 	}
 
@@ -243,14 +376,14 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 		groupName := group.Name
 
 		if err := deleteGroup(cfg, groupID); err != nil {
-			fmt.Printf("%v Warning: failed to delete class group %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(groupName),
+			fmt.Printf("%v failed to delete class group %v: %v\n",
+				messageUtils.WarningMsgf("failed to delete class group %s", groupName),
+				messageUtils.Bold(groupName),
 				err)
 		} else {
 			fmt.Printf("%v Deleted class group %v\n",
-				colorUtils.Success("Success:"),
-				colorUtils.Bold(groupName))
+				messageUtils.SuccessMsg("Deleted class group"),
+				messageUtils.Bold(groupName))
 		}
 	}
 
@@ -300,112 +433,352 @@ func deleteUser(cfg config.GlobalOptions, userID string) error {
 	return nil
 }
 
-func deleteGroup(cfg config.GlobalOptions, groupID string) error {
-	_, status, err := utils.CallClient(cfg, "deleteGroup", []string{groupID}, nil)
-	if err != nil {
-		return fmt.Errorf("failed to delete group: %w", err)
-	}
-	if status != 200 && status != 204 {
-		return fmt.Errorf("failed to delete group: status %d", status)
-	}
-	return nil
-}
-
 func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) error {
-	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+	dbConn, err := db.InitIfNeeded()
 	if err != nil {
-		return fmt.Errorf("failed to get projects: %w", err)
-	}
-	if status != 200 {
-		return fmt.Errorf("failed to get projects: status %d", status)
-	}
-
-	var projects []schemas.ProjectResponse
-	if err := json.Unmarshal(projectsBody, &projects); err != nil {
-		return fmt.Errorf("failed to parse projects response: %w", err)
+		fmt.Printf("%v Failed to initialize database: %v\n",
+			messageUtils.WarningMsg("Warning"),
+			err)
+	} else {
+		defer dbConn.Close()
 	}
 
-	var exerciseProjects []schemas.ProjectResponse
-	for _, project := range projects {
-		parts := strings.Split(project.Name, "-")
-		if len(parts) >= 4 && parts[1] == exerciseName {
-			exerciseProjects = append(exerciseProjects, project)
+	projects, err := getProjectsForExercise(cfg, exerciseName, className, groupName)
+	if err != nil {
+		return fmt.Errorf("failed to get projects for exercise: %w", err)
+	}
+
+	if len(projects) == 0 {
+		fmt.Println(exerciseName)
+		if dbConn != nil {
+			_, err := dbConn.Exec(`
+				DELETE FROM exercises 
+				WHERE name = ?`,
+				exerciseName)
+			if err != nil {
+				fmt.Printf("%v Failed to clean up database entries: %v\n",
+					messageUtils.WarningMsg("Warning"),
+					err)
+			}
 		}
-	}
-
-	if len(exerciseProjects) == 0 {
-		return fmt.Errorf("exercise %s not found", colorUtils.Bold(exerciseName))
+		return fmt.Errorf("exercise %s not found", messageUtils.Bold(exerciseName))
 	}
 
 	fmt.Printf("%v Found %d projects for exercise %v\n",
-		colorUtils.Info("Info:"),
-		len(exerciseProjects),
-		colorUtils.Bold(exerciseName))
+		messageUtils.InfoMsg("Found projects for exercise"),
+		len(projects),
+		messageUtils.Bold(exerciseName))
 
-	for _, project := range exerciseProjects {
+	for _, project := range projects {
 		projectID := project.ProjectID
 		projectName := project.Name
 
 		if err := closeProject(cfg, projectID); err != nil {
-			fmt.Printf("%v Warning: failed to close project %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(projectName),
+			fmt.Printf("%v Failed to close project %s: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				projectName,
 				err)
 		}
 
 		pools, err := getPoolsForExercise(cfg, exerciseName, className, groupName)
 		if err != nil {
-			fmt.Printf("%v Warning: failed to get pools for exercise %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(exerciseName),
+			fmt.Printf("%v Failed to get pools for exercise %s: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				exerciseName,
 				err)
 		} else {
 			for _, pool := range pools {
-				poolID := pool.ResourcePoolID
-				if err := deleteACLsForPool(cfg, poolID); err != nil {
-					fmt.Printf("%v Warning: failed to delete ACLs for pool %v: %v\n",
-						colorUtils.Warning("Warning:"),
-						colorUtils.Bold(poolID),
+				if err := deleteACLsForPool(cfg, pool.ResourcePoolID); err != nil {
+					fmt.Printf("%v Failed to delete ACLs for pool %s: %v\n",
+						messageUtils.WarningMsg("Warning"),
+						pool.Name,
 						err)
 				}
-			}
 
-			for _, pool := range pools {
-				poolID := pool.ResourcePoolID
-				poolName := pool.Name
-				if err := deletePool(cfg, poolID); err != nil {
-					fmt.Printf("%v Warning: failed to delete pool %v: %v\n",
-						colorUtils.Warning("Warning:"),
-						colorUtils.Bold(poolName),
+				if err := deletePool(cfg, pool.ResourcePoolID); err != nil {
+					fmt.Printf("%v Failed to delete pool %s: %v\n",
+						messageUtils.WarningMsg("Warning"),
+						pool.Name,
 						err)
 				} else {
-					fmt.Printf("%v Deleted pool %v\n",
-						colorUtils.Success("Success:"),
-						colorUtils.Bold(poolName))
+					fmt.Printf("%v Deleted pool %s\n",
+						messageUtils.SuccessMsg("Success"),
+						messageUtils.Bold(pool.Name))
 				}
 			}
 		}
 
 		if err := deleteProject(cfg, projectID); err != nil {
-			fmt.Printf("%v Warning: failed to delete project %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(projectName),
+			fmt.Printf("%v Failed to delete project %s: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				projectName,
 				err)
 		} else {
-			fmt.Printf("%v Deleted project %v\n",
-				colorUtils.Success("Success:"),
-				colorUtils.Bold(projectName))
+			fmt.Printf("%v Deleted project %s\n",
+				messageUtils.SuccessMsg("Success"),
+				messageUtils.Bold(projectName))
+		}
+
+		if dbConn != nil {
+			_, err := dbConn.Exec(`
+				DELETE FROM exercises 
+				WHERE project_uuid = ?`,
+				projectID)
+			if err != nil {
+				fmt.Printf("%v Failed to delete database entry for project %s: %v\n",
+					messageUtils.WarningMsg("Warning"),
+					projectID,
+					err)
+			}
 		}
 	}
 
-	fmt.Printf("%v Deleted exercise %v\n",
-		colorUtils.Success("Success:"),
-		colorUtils.Bold(exerciseName))
+	if dbConn != nil {
+		_, err := dbConn.Exec(`
+			DELETE FROM exercises 
+			WHERE name = ?`,
+			exerciseName)
+		if err != nil {
+			fmt.Printf("%v Failed to clean up exercise database entries: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				err)
+		}
+	}
+
+	fmt.Printf("%v Successfully deleted exercise %s\n",
+		messageUtils.SuccessMsg("Success"),
+		messageUtils.Bold(exerciseName))
 
 	return nil
 }
 
+func getProjectsForExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) ([]schemas.ProjectResponse, error) {
+	if exerciseName == "" {
+		return nil, fmt.Errorf("exercise name cannot be empty")
+	}
+
+	dbConn, err := db.InitIfNeeded()
+	if err != nil {
+		fmt.Printf("%v Failed to initialize database (will try API): %v\n",
+			messageUtils.WarningMsg("Warning"), err)
+	} else {
+		defer dbConn.Close()
+
+		query := `
+			SELECT e.project_uuid, e.name, c.name as class_name, g.name as group_name
+			FROM exercises e
+			JOIN groups g ON e.group_id = g.group_id
+			JOIN classes c ON g.class_id = c.class_id
+			WHERE e.name = ?
+		`
+		args := []any{exerciseName}
+
+		if className != "" {
+			query += " AND c.name = ?"
+			args = append(args, className)
+		}
+
+		if groupName != "" {
+			query += " AND g.name = ?"
+			args = append(args, groupName)
+		}
+
+		rows, err := dbConn.Query(query, args...)
+		if err != nil {
+			fmt.Printf("%v Database query failed (will try API): %v\n",
+				messageUtils.WarningMsg("Warning"), err)
+		} else {
+			defer rows.Close()
+
+			validProjects := make(map[string]struct{})
+			var scanErrors []error
+
+			for rows.Next() {
+				var projectUUID, name, dbClassName, dbGroupName string
+				if err := rows.Scan(&projectUUID, &name, &dbClassName, &dbGroupName); err != nil {
+					scanErrors = append(scanErrors, fmt.Errorf("failed to scan project: %w", err))
+					continue
+				}
+
+				validProjects[projectUUID] = struct{}{}
+			}
+
+			for _, scanErr := range scanErrors {
+				fmt.Printf("%v %v\n", messageUtils.WarningMsg("Warning"), scanErr)
+			}
+
+			if len(validProjects) > 0 {
+				projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get projects from API: %w", err)
+				}
+				if status != 200 {
+					return nil, fmt.Errorf("unexpected status code %d when getting projects", status)
+				}
+
+				var allProjects []schemas.ProjectResponse
+				if err := json.Unmarshal(projectsBody, &allProjects); err != nil {
+					return nil, fmt.Errorf("failed to parse projects response: %w", err)
+				}
+
+				var matchingProjects []schemas.ProjectResponse
+				for _, project := range allProjects {
+					for shortUUID := range validProjects {
+						if strings.Contains(project.Name, shortUUID) {
+							matchingProjects = append(matchingProjects, project)
+							break
+						}
+					}
+				}
+
+				if len(matchingProjects) > 0 {
+					fmt.Printf("%v Found %d projects in database for exercise %s\n",
+						messageUtils.InfoMsg("Info"),
+						len(matchingProjects), messageUtils.Bold(exerciseName))
+					return matchingProjects, nil
+				}
+			}
+		}
+	}
+
+	fmt.Printf("%v Querying API for projects matching %s-%s-*\n",
+		messageUtils.InfoMsg("Info"),
+		messageUtils.Bold(className),
+		messageUtils.Bold(exerciseName))
+
+	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get projects from API: %w", err)
+	}
+	if status != 200 {
+		return nil, fmt.Errorf("unexpected status code %d when getting projects", status)
+	}
+
+	var allProjects []schemas.ProjectResponse
+	if err := json.Unmarshal(projectsBody, &allProjects); err != nil {
+		return nil, fmt.Errorf("failed to parse projects response: %w", err)
+	}
+
+	var matchingProjects []schemas.ProjectResponse
+
+	for _, project := range allProjects {
+		parts := strings.Split(project.Name, "-")
+		if len(parts) < 2 {
+			continue
+		}
+
+		if className != "" && (len(parts) < 2 || parts[0] != className) {
+			continue
+		}
+
+		if parts[1] != exerciseName {
+			continue
+		}
+
+		if groupName != "" && (len(parts) < 3 || parts[2] != groupName) {
+			continue
+		}
+
+		matchingProjects = append(matchingProjects, project)
+	}
+
+	fmt.Printf("%v Found %d matching projects in API\n",
+		messageUtils.InfoMsg("Info"),
+		len(matchingProjects))
+
+	return matchingProjects, nil
+}
+
 func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) error {
+	dbConn, err := db.InitIfNeeded()
+	if err != nil {
+		fmt.Printf("%v Failed to initialize database: %v\n",
+			messageUtils.WarningMsg("Warning"),
+			err)
+	} else {
+		defer dbConn.Close()
+	}
+
+	clusterID, err := getClusterIDForServer(cfg)
+	var nodeServers []string
+	if err == nil && clusterID != 0 {
+		nodes, nerr := db.GetNodes(dbConn)
+		if nerr == nil {
+			for _, n := range nodes {
+				if n.ClusterID == clusterID {
+					nodeServers = append(nodeServers, fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port))
+				}
+			}
+		}
+	}
+
+	if len(nodeServers) == 0 {
+		return deleteAllExercisesForClassOnNode(cfg, className)
+	}
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, len(nodeServers))
+	for _, srv := range nodeServers {
+		wg.Add(1)
+		go func(server string) {
+			defer wg.Done()
+			nodeCfg := cfg
+			nodeCfg.Server = server
+			if e := deleteAllExercisesForClassOnNode(nodeCfg, className); e != nil {
+				errCh <- fmt.Errorf("%s: %w", server, e)
+			}
+		}(srv)
+	}
+
+	go func() {
+		if dbConn != nil {
+			_, err := dbConn.Exec(`
+				DELETE FROM exercises 
+				WHERE class_name = ?`,
+				className)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to delete exercises for class %s from database: %w", className, err)
+			} else {
+				fmt.Printf("%v Deleted database records for exercises in class %v\n",
+					messageUtils.SuccessMsg("Deleted database records"),
+					messageUtils.Bold(className))
+			}
+		}
+	}()
+
+	wg.Wait()
+	close(errCh)
+	for e := range errCh {
+		if e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
+func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string) error {
+	dbConn, err := db.InitIfNeeded()
+	if err == nil {
+		defer dbConn.Close()
+		_, err = dbConn.Exec(`
+			DELETE FROM exercises 
+			WHERE class = ?`,
+			className)
+		if err != nil {
+			fmt.Printf("%v Failed to delete exercises for class %s from database: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				className, err)
+		} else {
+			fmt.Printf("%v Deleted database records for exercises in class %v\n",
+				messageUtils.SuccessMsg("Success"),
+				messageUtils.Bold(className))
+		}
+	} else {
+		fmt.Printf("%v Failed to initialize database: %v\n",
+			messageUtils.WarningMsg("Warning"),
+			err)
+	}
+
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get projects: %w", err)
@@ -424,7 +797,7 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 
 	for _, project := range projects {
 		parts := strings.Split(project.Name, "-")
-		if len(parts) >= 4 && parts[0] == className {
+		if len(parts) >= 2 && parts[0] == className {
 			exerciseName := parts[1]
 			if !seenExercises[exerciseName] {
 				classExercises = append(classExercises, exerciseName)
@@ -434,24 +807,42 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 	}
 
 	if len(classExercises) == 0 {
-		fmt.Printf("%v No exercises found for class %v\n",
-			colorUtils.Info("Info:"),
-			colorUtils.Bold(className))
+		fmt.Printf("%v No exercises found for class %v on %s\n",
+			messageUtils.InfoMsg("No exercises found for class"),
+			messageUtils.Bold(className), cfg.Server)
 		return nil
 	}
 
-	fmt.Printf("%v Found %d exercises for class %v\n",
-		colorUtils.Info("Info:"),
+	fmt.Printf("%v Found %d exercises for class %v on %s\n",
+		messageUtils.InfoMsgf("Found %d exercises for class", len(classExercises)),
 		len(classExercises),
-		colorUtils.Bold(className))
+		messageUtils.Bold(className), cfg.Server)
 
+	deleted := 0
+	errors := 0
 	for _, exerciseName := range classExercises {
 		if err := DeleteExercise(cfg, exerciseName, className, ""); err != nil {
-			fmt.Printf("%v Warning: failed to delete exercise %v: %v\n",
-				colorUtils.Warning("Warning:"),
-				colorUtils.Bold(exerciseName),
+			fmt.Printf("%v Failed to delete exercise %v on %s: %v\n",
+				messageUtils.ErrorMsg("Error"),
+				messageUtils.Bold(exerciseName),
+				cfg.Server,
 				err)
+			errors++
+		} else {
+			deleted++
 		}
+	}
+
+	if deleted > 0 {
+		fmt.Printf("%v Successfully deleted %d/%d exercises for class %s\n",
+			messageUtils.SuccessMsg("Success"),
+			deleted,
+			len(classExercises),
+			messageUtils.Bold(className))
+	}
+
+	if errors > 0 {
+		return fmt.Errorf("encountered %d errors while deleting exercises", errors)
 	}
 
 	return nil
@@ -460,8 +851,31 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 func closeProject(cfg config.GlobalOptions, projectID string) error {
 	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil {
+		if strings.Contains(err.Error(), "UUID") || strings.Contains(err.Error(), "uuid_parsing") {
+			projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+			if err != nil {
+				return fmt.Errorf("failed to get projects: %w", err)
+			}
+
+			var projects []schemas.ProjectResponse
+			if err := json.Unmarshal(projectsBody, &projects); err != nil {
+				return fmt.Errorf("failed to parse projects response: %w", err)
+			}
+
+			for _, p := range projects {
+				if p.Name == projectID {
+					_, status, err = utils.CallClient(cfg, "closeProject", []string{p.ProjectID}, nil)
+					if err != nil && status != 404 {
+						return fmt.Errorf("failed to close project %s: %w", p.ProjectID, err)
+					}
+					return nil
+				}
+			}
+			return fmt.Errorf("project with name '%s' not found", projectID)
+		}
 		return fmt.Errorf("failed to close project: %w", err)
 	}
+
 	if status != 200 && status != 204 {
 		return fmt.Errorf("failed to close project: status %d", status)
 	}
@@ -469,6 +883,7 @@ func closeProject(cfg config.GlobalOptions, projectID string) error {
 }
 
 func getPoolsForExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) ([]schemas.ResourcePoolResponse, error) {
+	_ = groupName
 	poolsBody, status, err := utils.CallClient(cfg, "getPools", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pools: %w", err)
@@ -520,21 +935,65 @@ func deleteACLsForPool(cfg config.GlobalOptions, poolID string) error {
 }
 
 func deletePool(cfg config.GlobalOptions, poolID string) error {
-	_, status, err := utils.CallClient(cfg, "deletePool", []string{poolID}, nil)
+	_, status, err := utils.CallClient(cfg, "deleteResourcePool", []string{poolID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete pool: %w", err)
 	}
-	if status != 200 && status != 204 {
-		return fmt.Errorf("failed to delete pool: status %d", status)
+	if status != 204 && status != 404 {
+		return fmt.Errorf("unexpected status code: %d", status)
+	}
+	return nil
+}
+
+func deleteGroup(cfg config.GlobalOptions, groupID string) error {
+	_, status, err := utils.CallClient(cfg, "deleteGroup", []string{groupID}, nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete group: %w", err)
+	}
+	if status != 204 && status != 404 {
+		return fmt.Errorf("unexpected status code: %d", status)
 	}
 	return nil
 }
 
 func deleteProject(cfg config.GlobalOptions, projectID string) error {
-	_, status, err := utils.CallClient(cfg, "deleteProject", []string{projectID}, nil)
+	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
+	if err != nil && status != 404 {
+		return fmt.Errorf("failed to close project: %w", err)
+	}
+
+	_, status, err = utils.CallClient(cfg, "deleteProject", []string{projectID}, nil)
 	if err != nil {
+		if strings.Contains(err.Error(), "UUID") || strings.Contains(err.Error(), "uuid_parsing") {
+			projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+			if err != nil {
+				return fmt.Errorf("failed to get projects: %w", err)
+			}
+
+			var projects []schemas.ProjectResponse
+			if err := json.Unmarshal(projectsBody, &projects); err != nil {
+				return fmt.Errorf("failed to parse projects response: %w", err)
+			}
+
+			for _, p := range projects {
+				if p.Name == projectID {
+					_, status, err = utils.CallClient(cfg, "closeProject", []string{p.ProjectID}, nil)
+					if err != nil && status != 404 {
+						return fmt.Errorf("failed to close project %s: %w", p.ProjectID, err)
+					}
+
+					_, status, err = utils.CallClient(cfg, "deleteProject", []string{p.ProjectID}, nil)
+					if err != nil {
+						return fmt.Errorf("failed to delete project %s: %w", p.ProjectID, err)
+					}
+					return nil
+				}
+			}
+			return fmt.Errorf("project with name '%s' not found", projectID)
+		}
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
+
 	if status != 200 && status != 204 {
 		return fmt.Errorf("failed to delete project: status %d", status)
 	}
@@ -549,5 +1008,380 @@ func deleteACL(cfg config.GlobalOptions, aclID string) error {
 	if status != 200 && status != 204 {
 		return fmt.Errorf("failed to delete ACL: status %d", status)
 	}
+	return nil
+}
+
+func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
+	if cfg.Server == "" {
+		return 0, fmt.Errorf("no server configured")
+	}
+
+	urlObj := utils.ValidateUrlWithReturn(cfg.Server)
+	clusterName := fmt.Sprintf("%s%s", urlObj.Hostname(), "_single_node_cluster")
+
+	conn, err := db.InitIfNeeded()
+	if err != nil {
+		return 0, fmt.Errorf("failed to init db: %w", err)
+	}
+	defer conn.Close()
+
+	clusters, err := db.GetClusters(conn)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get clusters: %w", err)
+	}
+
+	for _, cluster := range clusters {
+		if cluster.Name == clusterName {
+			return cluster.Id, nil
+		}
+	}
+
+	return 0, fmt.Errorf("cluster not found")
+}
+
+func deleteClassFromDB(clusterID int, className string) error {
+	conn, err := db.InitIfNeeded()
+	if err != nil {
+		return fmt.Errorf("failed to init db: %w", err)
+	}
+	defer conn.Close()
+
+	return db.DeleteClassFromDB(conn, clusterID, className)
+}
+
+func distributeGroupsWithMode(nodes []db.NodeDataAll, classData schemas.Class, respectCaps bool) ([]NodeAndGroups, error) {
+	totalGroups := len(classData.Groups)
+
+	totalWeight := 0
+	for _, n := range nodes {
+		w := max(n.Weight, 0)
+		totalWeight += w
+	}
+
+	type share struct {
+		nodeID    int
+		max       int
+		weight    int
+		assigned  int
+		remainder int
+	}
+
+	shares := make([]share, len(nodes))
+
+	if respectCaps {
+		totalCap := 0
+		for _, n := range nodes {
+			totalCap += n.MaxGroups
+		}
+		if totalGroups > totalCap {
+			return nil, fmt.Errorf("not enough capacity for all groups")
+		}
+	}
+
+	if totalWeight == 0 {
+		per := 0
+		if len(nodes) > 0 {
+			per = totalGroups / len(nodes)
+		}
+		assignedTotal := 0
+		for i, n := range nodes {
+			assign := per
+			if respectCaps {
+				assign = min(assign, n.MaxGroups)
+			}
+			shares[i] = share{
+				nodeID:    n.ID,
+				max:       n.MaxGroups,
+				weight:    0,
+				assigned:  assign,
+				remainder: 0,
+			}
+			assignedTotal += assign
+		}
+		remaining := totalGroups - assignedTotal
+		for remaining > 0 {
+			progress := false
+			for i := range shares {
+				if remaining == 0 {
+					break
+				}
+				if !respectCaps || shares[i].assigned < shares[i].max {
+					shares[i].assigned++
+					remaining--
+					progress = true
+				}
+			}
+			if !progress {
+				break
+			}
+		}
+	} else {
+		assignedTotal := 0
+		for i, n := range nodes {
+			w := n.Weight
+			w = max(w, 0)
+			num := w * totalGroups
+			base := num / totalWeight
+			rem := num % totalWeight
+			if respectCaps && base > n.MaxGroups {
+				base = n.MaxGroups
+			}
+			shares[i] = share{
+				nodeID:    n.ID,
+				max:       n.MaxGroups,
+				weight:    w,
+				assigned:  base,
+				remainder: rem,
+			}
+			assignedTotal += base
+		}
+
+		remaining := totalGroups - assignedTotal
+		for remaining > 0 {
+			sort.SliceStable(shares, func(i, j int) bool {
+				if shares[i].remainder != shares[j].remainder {
+					return shares[i].remainder > shares[j].remainder
+				}
+				freeI := shares[i].max - shares[i].assigned
+				freeJ := shares[j].max - shares[j].assigned
+				if !respectCaps {
+					freeI, freeJ = 1<<30, 1<<30
+				}
+				if freeI != freeJ {
+					return freeI > freeJ
+				}
+				return shares[i].nodeID < shares[j].nodeID
+			})
+			progress := false
+			for k := range shares {
+				if remaining == 0 {
+					break
+				}
+				if !respectCaps || shares[k].assigned < shares[k].max {
+					shares[k].assigned++
+					remaining--
+					progress = true
+					break
+				}
+			}
+			if !progress {
+				break
+			}
+		}
+	}
+
+	result := make([]NodeAndGroups, 0, len(shares))
+	for _, s := range shares {
+		result = append(result, NodeAndGroups{
+			NodeID:    s.nodeID,
+			NumGroups: s.assigned,
+		})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].NodeID < result[j].NodeID })
+	return result, nil
+}
+
+func runPlans(cfg config.GlobalOptions, classData schemas.Class, plans []db.NodeGroupsForClass) error {
+
+	// 1. create class group on all nodes
+
+	if len(plans) == 0 {
+		return nil
+	}
+
+	classGroupData := schemas.UserGroupCreate{
+		Name: &classData.Name,
+	}
+
+	var wg sync.WaitGroup
+
+	errChan := make(chan error, len(plans))
+	for _, plan := range plans {
+		wg.Add(1)
+		go func(plan db.NodeGroupsForClass) {
+			defer wg.Done()
+			nodeCfg := cfg
+			nodeCfg.Server = plan.NodeURL
+
+			classGroupBody, status, err := utils.CallClient(nodeCfg, "createGroup", []string{}, classGroupData)
+			if err != nil {
+				errChan <- fmt.Errorf("failed to create class group: %w", err)
+				return
+			}
+
+			if status != 201 {
+				errChan <- fmt.Errorf("failed to create class group: status %d", status)
+				return
+			}
+
+			var classGroupResponse schemas.UserGroupResponse
+			if err := json.Unmarshal(classGroupBody, &classGroupResponse); err != nil {
+				errChan <- fmt.Errorf("failed to parse class group response: %w", err)
+				return
+			}
+
+			classGroupName := classGroupResponse.Name
+
+			fmt.Printf("%v Created class group %v\n",
+				messageUtils.SuccessMsg("Created class group"),
+				messageUtils.Bold(classGroupName))
+
+		}(plan)
+	}
+	wg.Wait()
+	close(errChan)
+	for err := range errChan {
+		if err != nil {
+			return err
+		}
+	}
+
+	// 2. create student groups on the nodes
+
+	var wg2 sync.WaitGroup
+
+	errchan2 := make(chan error, len(plans))
+	for _, plan := range plans {
+		wg2.Add(1)
+		go func(plan db.NodeGroupsForClass) {
+			defer wg2.Done()
+			nodeCfg := cfg
+			nodeCfg.Server = plan.NodeURL
+			for _, group := range plan.Groups {
+				if group.Name == classData.Name {
+					continue
+				}
+				sgData := schemas.UserGroupCreate{
+					Name: &group.Name,
+				}
+				studentGroupBody, status, err := utils.CallClient(nodeCfg, "createGroup", []string{}, sgData)
+				if err != nil {
+					errchan2 <- fmt.Errorf("failed to create student group %s: %w", group.Name, err)
+					return
+				}
+
+				if status != 201 {
+					errchan2 <- fmt.Errorf("failed to create student group %s: status %d", group.Name, status)
+					return
+				}
+
+				var studentGroupResponse schemas.UserGroupResponse
+				if err := json.Unmarshal(studentGroupBody, &studentGroupResponse); err != nil {
+					errchan2 <- fmt.Errorf("failed to parse student group response: %w", err)
+					return
+				}
+
+				studentGroupName := studentGroupResponse.Name
+
+				fmt.Printf("%v Created student group %v\n",
+					messageUtils.SuccessMsg("Created student group"),
+					messageUtils.Bold(studentGroupName))
+
+			}
+		}(plan)
+
+	}
+	wg2.Wait()
+	close(errchan2)
+	for err := range errchan2 {
+		if err != nil {
+			return err
+		}
+	}
+
+	// 3. create users and add them to groups concurrently
+
+	var wg3 sync.WaitGroup
+
+	errchan3 := make(chan error, len(plans))
+	for _, plan := range plans {
+		wg3.Add(1)
+		go func(plan db.NodeGroupsForClass) {
+			defer wg3.Done()
+			nodeCfg := cfg
+			nodeCfg.Server = plan.NodeURL
+
+			// Create users and add them to groups
+			for _, group := range plan.Groups {
+				for _, user := range group.Students {
+					userData := schemas.UserCreate{
+						Username: &user.Username,
+						Password: &user.Password,
+						Email:    &user.Email,
+						FullName: &user.FullName,
+					}
+
+					userBody, status, err := utils.CallClient(nodeCfg, "createUser", []string{}, userData)
+					if err != nil {
+						errchan3 <- fmt.Errorf("failed to create user %s: %w", user.Username, err)
+						return
+					}
+
+					if status != 201 {
+						errchan3 <- fmt.Errorf("failed to create user %s: status %d", user.Username, status)
+						return
+					}
+
+					var userResponse schemas.UserResponse
+					if err := json.Unmarshal(userBody, &userResponse); err != nil {
+						errchan3 <- fmt.Errorf("failed to parse user response: %w", err)
+						return
+					}
+
+					userID := userResponse.UserID.String()
+					username := userResponse.Username
+
+					fmt.Printf("%v Created user %v\n",
+						messageUtils.SuccessMsg("Created user"),
+						messageUtils.Bold(username))
+
+					// Get group IDs for class and student groups
+					groupsBody, status, err := utils.CallClient(nodeCfg, "getGroups", []string{}, nil)
+					if err != nil {
+						errchan3 <- fmt.Errorf("failed to get groups: %w", err)
+						return
+					}
+					if status != 200 {
+						errchan3 <- fmt.Errorf("failed to get groups: status %d", status)
+						return
+					}
+
+					var groups []schemas.UserGroupResponse
+					if err := json.Unmarshal(groupsBody, &groups); err != nil {
+						errchan3 <- fmt.Errorf("failed to parse groups response: %w", err)
+						return
+					}
+
+					var classGroupID, studentGroupID string
+					for _, group := range groups {
+						switch group.Name {
+						case classData.Name:
+							classGroupID = group.UserGroupID.String()
+						case user.GroupName:
+							studentGroupID = group.UserGroupID.String()
+						}
+					}
+
+					if err := addUserToGroup(nodeCfg, userID, classGroupID); err != nil {
+						errchan3 <- fmt.Errorf("failed to add user %s to class group: %w", username, err)
+						return
+					}
+
+					if err := addUserToGroup(nodeCfg, userID, studentGroupID); err != nil {
+						errchan3 <- fmt.Errorf("failed to add user %s to student group: %w", username, err)
+						return
+					}
+				}
+			}
+		}(plan)
+	}
+	wg3.Wait()
+	close(errchan3)
+	for err := range errchan3 {
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
 	"github.com/stefanistkuhl/gns3util/pkg/ssh"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/ssl"
 )
 
@@ -127,7 +127,7 @@ will be automatically loaded and command line flags will be ignored.`,
 
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
-				fmt.Printf("%s Failed to get global options: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Failed to get global options: %v\n", messageUtils.ErrorMsg("Failed to get global options"), err)
 				return
 			}
 
@@ -140,7 +140,7 @@ will be automatically loaded and command line flags will be ignored.`,
 			if err == nil {
 				if localState, err := stateManager.LoadState(hostname); err == nil {
 					state = localState
-					fmt.Printf("%s Loaded state from local machine\n", colorUtils.Success("✓"))
+					fmt.Printf("%s Loaded state from local machine\n", messageUtils.SuccessMsg("Loaded state from local machine"))
 				}
 			}
 
@@ -164,76 +164,76 @@ will be automatically loaded and command line flags will be ignored.`,
 				sslArgs.GNS3Port = state.GNS3Port
 				sslArgs.Subject = "/CN=localhost" // Default subject
 				fmt.Printf("%s Using saved configuration: RP=%d, GNS3=%d, Firewall=%t\n",
-					colorUtils.Info("ℹ"), state.ReverseProxyPort, state.GNS3Port, state.FirewallBlock)
+					messageUtils.InfoMsg("Using saved configuration"), state.ReverseProxyPort, state.GNS3Port, state.FirewallBlock)
 			} else {
 				// If no state found, show warning and use default values
-				fmt.Printf("%s No state found, using command line flags or defaults\n", colorUtils.Warning("⚠"))
+				fmt.Printf("%s No state found, using command line flags or defaults\n", messageUtils.WarningMsg("No state found"))
 				if sslArgs.ReverseProxyPort == 443 && sslArgs.GNS3Port == 3080 && !sslArgs.FirewallBlock {
-					fmt.Printf("%s Using default values: RP=443, GNS3=3080, Firewall=false\n", colorUtils.Info("ℹ"))
+					fmt.Printf("%s Using default values: RP=443, GNS3=3080, Firewall=false\n", messageUtils.InfoMsg("Using default values"))
 				}
 			}
 
 			// Validate arguments
 			if err := ssl.ValidateInstallSSLInput(sslArgs); err != nil {
-				fmt.Printf("%s Validation error: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Validation error: %v\n", messageUtils.ErrorMsg("Validation error"), err)
 				return
 			}
 
 			// Show uninstall header
-			fmt.Printf("%s %s\n", colorUtils.Bold("🗑️"), colorUtils.Bold("GNS3 SSL Uninstallation"))
-			fmt.Printf("%s\n", colorUtils.Seperator(strings.Repeat("─", 50)))
+			fmt.Printf("%s %s\n", messageUtils.Bold("🗑️"), messageUtils.Bold("GNS3 SSL Uninstallation"))
+			fmt.Printf("%s\n", messageUtils.Seperator(strings.Repeat("─", 50)))
 			fmt.Println()
 
 			// Step 1: Connect via SSH
-			fmt.Printf("%s Connecting to remote server...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Connecting to remote server...\n", messageUtils.InfoMsg("Connecting to remote server"))
 			sshClient, err := ssh.ConnectWithKeyOrPassword(hostname, user, sshPort, privateKeyPath, verbose)
 			if err != nil {
-				fmt.Printf("%s Failed to connect via SSH: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Failed to connect via SSH: %v\n", messageUtils.ErrorMsg("Failed to connect via SSH"), err)
 				return
 			}
 			defer sshClient.Close()
-			fmt.Printf("%s Connected successfully\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Connected successfully\n", messageUtils.SuccessMsg("Connected successfully"))
 
 			// Step 2: Check privileges
-			fmt.Printf("%s Checking user privileges...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Checking user privileges...\n", messageUtils.InfoMsg("Checking user privileges"))
 			if err := sshClient.CheckPrivileges(); err != nil {
-				fmt.Printf("%s Privilege check failed: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Privilege check failed: %v\n", messageUtils.ErrorMsg("Privilege check failed"), err)
 				return
 			}
-			fmt.Printf("%s Privileges verified\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Privileges verified\n", messageUtils.SuccessMsg("Privileges verified"))
 
 			// Step 3: Prepare uninstall script
-			fmt.Printf("%s Preparing SSL uninstall script...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Preparing SSL uninstall script...\n", messageUtils.InfoMsg("Preparing SSL uninstall script"))
 			script := ssl.GetUninstallScript()
 			editedScript := ssl.EditUninstallScriptWithFlags(script, sslArgs)
-			fmt.Printf("%s Script prepared\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Script prepared\n", messageUtils.SuccessMsg("Script prepared"))
 
 			// Step 4: Execute uninstall
-			fmt.Printf("%s Uninstalling Caddy reverse proxy...\n", colorUtils.Info("→"))
+			fmt.Printf("%s Uninstalling Caddy reverse proxy...\n", messageUtils.InfoMsg("Uninstalling Caddy reverse proxy"))
 			success, err := sshClient.ExecuteScript(editedScript, "/tmp/gns3_ssl_uninstall.sh")
 			if err != nil {
-				fmt.Printf("%s Failed to execute uninstall script: %v\n", colorUtils.Error("✗"), err)
+				fmt.Printf("%s Failed to execute uninstall script: %v\n", messageUtils.ErrorMsg("Failed to execute uninstall script"), err)
 				return
 			}
 
 			if !success {
-				fmt.Printf("%s Uninstall script failed\n", colorUtils.Error("✗"))
+				fmt.Printf("%s Uninstall script failed\n", messageUtils.ErrorMsg("Uninstall script failed"))
 				return
 			}
-			fmt.Printf("%s Uninstall completed\n", colorUtils.Success("✓"))
+			fmt.Printf("%s Uninstall completed\n", messageUtils.SuccessMsg("Uninstall completed"))
 
 			// Clean up local state
 			if stateManager != nil {
 				if err := stateManager.DeleteState(hostname); err != nil {
-					fmt.Printf("%s Warning: failed to delete local state: %v\n", colorUtils.Warning("⚠"), err)
+					fmt.Printf("%s Warning: failed to delete local state: %v\n", messageUtils.WarningMsg("Warning: failed to delete local state"), err)
 				} else {
-					fmt.Printf("%s Local state cleaned up\n", colorUtils.Success("✓"))
+					fmt.Printf("%s Local state cleaned up\n", messageUtils.SuccessMsg("Local state cleaned up"))
 				}
 			}
 
 			// Show success message
-			fmt.Printf("\n%s Successfully uninstalled Caddy reverse proxy\n", colorUtils.Success("✓"))
-			fmt.Printf("%s GNS3 server is now accessible on port %d\n", colorUtils.Info("ℹ"), sslArgs.GNS3Port)
+			fmt.Printf("\n%s Successfully uninstalled Caddy reverse proxy\n", messageUtils.SuccessMsg("Successfully uninstalled Caddy reverse proxy"))
+			fmt.Printf("%s GNS3 server is now accessible on port %d\n", messageUtils.InfoMsg("GNS3 server is now accessible"), sslArgs.GNS3Port)
 		},
 	}
 
