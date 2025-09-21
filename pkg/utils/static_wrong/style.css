@@ -350,8 +350,8 @@ select.form-control {
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #38d9a9;
-  border-color: #38d9a9;
+  background-color: #2dae87;
+  border-color: #2dae87;
   transform: translateY(-1px);
 }
 
@@ -895,13 +895,26 @@ body.dark-mode .theme-toggle .moon-icon {
   word-wrap: break-word;
 }
 
-.export-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--color-border);
-  flex-wrap: wrap;
+/* Export button hover effects */
+.export-actions .btn-primary:hover:not(:disabled) {
+  background-color: #3a8bc8;
+  border-color: #3a8bc8;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.export-actions .btn-outline:hover:not(:disabled) {
+  background-color: var(--color-surface-alt);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Second button hover effect */
+.action-btns :nth-child(2):hover:not(:disabled) {
+  background-color: #2dae5d;
+  border-color: #2dae5d;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 /* Image Format Selector */
