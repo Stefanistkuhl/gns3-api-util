@@ -483,89 +483,8 @@ function renderGroups() {
     groupsList.appendChild(groupElement);
   });
 
-  // Event delegation for dynamic elements
-  groupsList.addEventListener("click", (e) => {
-    // Handle edit group button
-    const editGroupBtn = e.target.closest(".edit-group-btn");
-    if (editGroupBtn) {
-      e.stopPropagation();
-      handleEditGroup(e);
-      return;
-    }
-
-    // Handle delete group button
-    const deleteGroupBtn = e.target.closest(".delete-group-btn");
-    if (deleteGroupBtn) {
-      e.stopPropagation();
-      handleDeleteGroup(e);
-      return;
-    }
-
-    // Handle edit student button
-    const editStudentBtn = e.target.closest(".edit-student-btn");
-    if (editStudentBtn) {
-      e.stopPropagation();
-      // Close any open edit forms first
-      const existingForm = document.querySelector(".student-item + .edit-form");
-      if (existingForm) {
-        const existingStudentItem = existingForm.previousElementSibling;
-        if (
-          existingStudentItem &&
-          existingStudentItem.classList.contains("student-item")
-        ) {
-          existingStudentItem.style.display = "";
-          existingForm.remove();
-        }
-      }
-      handleEditStudent(e);
-      return;
-    }
-
-    // Handle delete student button
-    const deleteStudentBtn = e.target.closest(".delete-student-btn");
-    if (deleteStudentBtn) {
-      e.stopPropagation();
-      handleDeleteStudent(e);
-      return;
-    }
-
-    // Handle save group button
-    const saveGroupBtn = e.target.closest(".save-group-btn");
-    if (saveGroupBtn) {
-      e.stopPropagation();
-      const form = e.target.closest(".edit-form");
-      const groupCard = e.target.closest(".group-card");
-      const groupIndex = parseInt(groupCard.dataset.groupIndex);
-      const group = classData.groups[groupIndex];
-      const newName =
-        form.querySelector(".edit-group-name")?.value.trim() || "";
-
-      if (newName && newName !== group.name) {
-        group.name = newName;
-        renderGroups();
-        updateGroupSelect();
-      } else {
-        const groupHeader = groupCard.querySelector(".group-header");
-        if (groupHeader) groupHeader.style.display = "";
-        form.remove();
-      }
-      return;
-    }
-
-    // Handle cancel group edit button
-    const cancelGroupBtn = e.target.closest(".cancel-edit-group");
-    if (cancelGroupBtn) {
-      e.stopPropagation();
-      const form = e.target.closest(".edit-form");
-      const groupCard = e.target.closest(".group-card");
-      if (!form || !groupCard) return;
-
-      const groupHeader = groupCard.querySelector(".group-header");
-      if (groupHeader) groupHeader.style.display = "";
-      form.remove();
-      return;
-    }
-  });
+  // Update group count
+  updateGroupCount();
 }
 
 function handleEditGroup(e) {
@@ -698,6 +617,12 @@ function handleEditStudent(e) {
           student.email
         )}" />
       </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="text" class="form-control edit-student-password" value="${escapeHtml(
+          student.password
+        )}" />
+      </div>
     </div>
     <div class="form-actions">
       <button type="button" class="btn btn-outline cancel-edit-student">
@@ -733,11 +658,15 @@ function handleEditStudent(e) {
         .querySelector(".edit-student-username")
         .value.trim();
       const email = form.querySelector(".edit-student-email").value.trim();
+      const password = form
+        .querySelector(".edit-student-password")
+        .value.trim();
 
       if (fullName && userName && email) {
         student.fullName = fullName;
         student.userName = userName;
         student.email = email;
+        student.password = password;
         renderGroups();
       } else {
         studentItem.style.display = "";
@@ -853,47 +782,73 @@ function updateExportPreviews() {
 }
 
 function convertToTOML(data) {
-  let toml = `[${data.name}]\n`;
+  let toml = `[${data.name}]
+`;
   data.groups.forEach((group, index) => {
-    toml += `[[${data.name}.groups]]\n`;
-    toml += `name = "${group.name}"\n`;
-    toml += `students = [\n`;
+    toml += `[[${data.name}.groups]]
+`;
+    toml += `name = "${group.name}"
+`;
+    toml += `students = [
+`;
     group.students.forEach((student) => {
-      toml += `  { fullName = "${student.fullName}", userName = "${student.userName}", email = "${student.email}" },\n`;
+      toml += `  { fullName = "${student.fullName}", userName = "${student.userName}", password = "${student.password}", email = "${student.email}" },
+`;
     });
-    toml += `]\n\n`;
+    toml += `]
+
+`;
   });
   return toml;
 }
 
 function convertToYAML(data) {
-  let yaml = `${data.name}:\n`;
-  yaml += `  groups:\n`;
+  let yaml = `${data.name}:
+`;
+  yaml += `  groups:
+`;
   data.groups.forEach((group) => {
-    yaml += `    - name: "${group.name}"\n`;
-    yaml += `      students:\n`;
+    yaml += `    - name: "${group.name}"
+`;
+    yaml += `      students:
+`;
     group.students.forEach((student) => {
-      yaml += `        - fullName: "${student.fullName}"\n`;
-      yaml += `          userName: "${student.userName}"\n`;
-      yaml += `          email: "${student.email}"\n`;
+      yaml += `        - fullName: "${student.fullName}"
+`;
+      yaml += `          userName: "${student.userName}"
+`;
+      yaml += `          password: "${student.password}"
+`;
+      yaml += `          email: "${student.email}"
+`;
     });
   });
   return yaml;
 }
 
 function convertToMarkdown(data) {
-  let markdown = `# ${data.name}\n\n`;
+  let markdown = `# ${data.name}
+
+`;
   data.groups.forEach((group) => {
-    markdown += `## ${group.name}\n\n`;
+    markdown += `## ${group.name}
+
+`;
     if (group.students.length > 0) {
-      markdown += `| Full Name | Username | Email |\n`;
-      markdown += `| --- | --- | --- |\n`;
+      markdown += `| Full Name | Username | Password | Email |
+`;
+      markdown += `| --- | --- | --- | --- |
+`;
       group.students.forEach((student) => {
-        markdown += `| ${student.fullName} | ${student.userName} | ${student.email} |\n`;
+        markdown += `| ${student.fullName} | ${student.userName} | ${student.password} | ${student.email} |
+`;
       });
-      markdown += `\n`;
+      markdown += `
+`;
     } else {
-      markdown += `No students in this group.\n\n`;
+      markdown += `No students in this group.
+
+`;
     }
   });
   return markdown;
@@ -1032,7 +987,7 @@ function createImageCanvas() {
     group.students.forEach((student) => {
       ctx.font = "14px Arial";
       ctx.fillText(
-        `${student.fullName} (${student.userName}) - ${student.email}`,
+        `${student.fullName} (${student.userName}) - ${student.email} - Password: ${student.password}`,
         40,
         yPosition
       );
@@ -1058,18 +1013,20 @@ function setEditedContent(format, content) {
 
 function getCurrentClassData() {
   // Check if any format has been edited, starting with JSON since it's the most reliable
-  for (const format of ['json', 'toml', 'yaml', 'markdown']) {
+  for (const format of ["json", "toml", "yaml", "markdown"]) {
     const editedContent = getEditedContent(format);
     if (editedContent) {
       // Try to parse the edited content back to classData format
       try {
-        if (format === 'json') {
+        if (format === "json") {
           return JSON.parse(editedContent);
         } else {
           // For non-JSON formats, we need to convert back to classData
           // For now, we'll just use the original classData and rely on the user
           // editing the specific format they want. This is a limitation of the current approach.
-          console.warn(`Edited content found in ${format} format, but cannot convert back to classData format`);
+          console.warn(
+            `Edited content found in ${format} format, but cannot convert back to classData format`
+          );
           break;
         }
       } catch (error) {
@@ -1234,6 +1191,7 @@ exportPdfBtn.addEventListener("click", async () => {
                   <tr>
                     <th>Full Name</th>
                     <th>Username</th>
+                    <th>Password</th>
                     <th>Email</th>
                   </tr>
                 </thead>
@@ -1244,6 +1202,7 @@ exportPdfBtn.addEventListener("click", async () => {
                     <tr>
                       <td>${escapeHtml(student.fullName)}</td>
                       <td>${escapeHtml(student.userName)}</td>
+                      <td>${escapeHtml(student.password)}</td>
                       <td>${escapeHtml(student.email)}</td>
                     </tr>
                   `
