@@ -1,12 +1,7 @@
-package share
+package sharecmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
-	"github.com/stefanistkuhl/gns3util/pkg/config"
-	"github.com/stefanistkuhl/gns3util/pkg/utils"
 )
 
 func NewDevicesCmd() *cobra.Command {

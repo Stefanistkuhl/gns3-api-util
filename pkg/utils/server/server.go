@@ -3,11 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-
 	"github.com/stefanistkuhl/gns3util/pkg/api/schemas"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
+	"net/http"
 )
 
 func StartInteractiveServer(host string, port int) (schemas.Class, error) {

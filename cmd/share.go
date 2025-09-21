@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/stefanistkuhl/gns3util/cmd/share"
+	"github.com/stefanistkuhl/gns3util/cmd/sharecmd"
 )
 
 func NewShareCmdGroup() *cobra.Command {
@@ -10,11 +10,17 @@ func NewShareCmdGroup() *cobra.Command {
 		Use:   "share",
 		Short: "share operations",
 		Long:  `Share your configuration in the lan with other users.`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if server == "" {
+
+			}
+			return nil
+		},
 	}
-	shareCmd.AddCommand(share.NewDevicesCmd())
-	shareCmd.AddCommand(share.NewDiscoverCmd())
-	shareCmd.AddCommand(share.NewReceiveCmd())
-	shareCmd.AddCommand(share.NewSendCmd())
+	shareCmd.AddCommand(sharecmd.NewDevicesCmd())
+	shareCmd.AddCommand(sharecmd.NewDiscoverCmd())
+	shareCmd.AddCommand(sharecmd.NewReceiveCmd())
+	shareCmd.AddCommand(sharecmd.NewSendCmd())
 
 	return shareCmd
 }
