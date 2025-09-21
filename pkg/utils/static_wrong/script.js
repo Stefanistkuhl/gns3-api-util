@@ -17,7 +17,7 @@ const selectedGroupSelect = document.getElementById("selectedGroup");
 const fullNameInput = document.getElementById("fullName");
 const userNameInput = document.getElementById("userName");
 const emailInput = document.getElementById("email");
-const passwordLengthInput = document.getElementById("passwordLength");
+const customPasswordInput = document.getElementById("customPassword");
 const passwordErrorP = document.getElementById("passwordError");
 const userDataErrorP = document.getElementById("userDataError");
 const addGroupBtn = document.getElementById("addGroupBtn");
@@ -102,6 +102,22 @@ window
       applySavedTheme();
     }
   });
+
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    return "Password must be at least 8 characters long.";
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password must contain at least one lowercase letter.";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password must contain at least one uppercase letter.";
+  }
+  if (!/\d/.test(password)) {
+    return "Password must contain at least one number.";
+  }
+  return null; // Valid password
+}
 
 function generatePassword(length) {
   const clampedLength = Math.max(8, Math.min(length, 128));
@@ -193,27 +209,27 @@ selectedGroupSelect.addEventListener("change", () => {
 
 addStudentBtn.addEventListener("click", () => {
   const re = new RegExp("^[\\w\\-\\.]+@([\\w-]+\\.)+[\\w-]{2,}$", "gm");
-  const passwordLength = parseInt(passwordLengthInput.value, 10);
-
-  if (passwordLength > 128) {
-    passwordErrorP.textContent =
-      "Password length cannot exceed 128 characters.";
-    passwordErrorP.style.display = "";
-    return;
-  } else if (passwordLength < 8) {
-    passwordErrorP.textContent =
-      "Password length cannot be bellow 8 characters.";
-    passwordErrorP.style.display = "";
-    return;
-  } else {
-    passwordErrorP.textContent = "";
-    passwordErrorP.style.display = "none";
-  }
 
   if (!selectedGroup) return;
 
   const fullName = fullNameInput.value.trim();
   const userNameRaw = userNameInput.value.trim();
+  const emailRaw = emailInput.value.trim();
+  const customPassword = customPasswordInput.value.trim();
+
+  // Validate custom password if provided
+  if (customPassword) {
+    const passwordValidationError = validatePassword(customPassword);
+    if (passwordValidationError) {
+      passwordErrorP.textContent = passwordValidationError;
+      passwordErrorP.style.display = "";
+      return;
+    }
+  }
+
+  // Clear password error if validation passes or no custom password
+  passwordErrorP.textContent = "";
+  passwordErrorP.style.display = "none";
 
   if (userNameRaw.length < 3) {
     userDataErrorP.textContent =
@@ -232,7 +248,6 @@ addStudentBtn.addEventListener("click", () => {
     i++;
   }
 
-  const emailRaw = emailInput.value.trim();
   if (!re.test(emailRaw)) {
     userDataErrorP.textContent = "Please enter a valid email address";
     userDataErrorP.style.display = "";
@@ -254,11 +269,14 @@ addStudentBtn.addEventListener("click", () => {
 
   if (!fullName || !userName || !emailRaw) return;
 
+  // Generate password or use custom password
+  const finalPassword = customPassword || generatePassword(8);
+
   // Add the new student
   selectedGroup.students.push({
     fullName,
     userName,
-    password: generatePassword(passwordLength),
+    password: finalPassword,
     email: emailRaw,
   });
 
@@ -266,6 +284,7 @@ addStudentBtn.addEventListener("click", () => {
   fullNameInput.value = "";
   userNameInput.value = "";
   emailInput.value = "";
+  customPasswordInput.value = "";
 
   // Update the UI to show the new student
   renderGroups();
@@ -713,7 +732,7 @@ clearJSONBtn.addEventListener("click", async () => {
   emailInput.value = "";
   groupNumberCount = 1;
   renderGroups();
-  passwordLengthInput.value = 12;
+  customPasswordInput.value = "";
   passwordErrorP.textContent = "";
   passwordErrorP.style.display = "none";
   userDataErrorP.textContent = "";
@@ -1377,4 +1396,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Add theme toggle event listener
   themeToggle.addEventListener("click", toggleTheme);
+
+  // Initialize button states
+  updateButtonStates();
 });
