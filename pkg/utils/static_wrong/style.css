@@ -989,3 +989,8 @@ body.dark-mode .theme-toggle .moon-icon {
     justify-content: flex-start;
   }
 }
+
+/* Gab for action-btns */
+.action-btns {
+  gap: 0.4rem;
+}
