@@ -492,26 +492,26 @@ func getSortedKeys(m map[string][]byte) []string {
 	return keys
 }
 
-//go:embed static_wrong/*
+//go:embed static/*
 var staticFiles embed.FS
 
 func GetEmbeddedHTML() []byte {
-	data, _ := staticFiles.ReadFile("static_wrong/index.html")
+	data, _ := staticFiles.ReadFile("static/index.html")
 	return data
 }
 
 func GetEmbeddedCSS() []byte {
-	data, _ := staticFiles.ReadFile("static_wrong/style.css")
+	data, _ := staticFiles.ReadFile("static/style.css")
 	return data
 }
 
 func GetEmbeddedJS() []byte {
-	data, _ := staticFiles.ReadFile("static_wrong/script.js")
+	data, _ := staticFiles.ReadFile("static/script.js")
 	return data
 }
 
 func GetEmbeddedFavicon() []byte {
-	data, _ := staticFiles.ReadFile("static_wrong/favicon.ico")
+	data, _ := staticFiles.ReadFile("static/favicon.ico")
 	return data
 }
 
