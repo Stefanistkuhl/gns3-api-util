@@ -10,6 +10,7 @@ import (
 	"github.com/quic-go/quic-go"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/keys"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/trust"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
 type VerifyPrompt func(peerLabel, fp string, words []string) (bool, error)
@@ -87,7 +88,7 @@ func DialWithPin(
 		conn.CloseWithError(0, "sas derive failed")
 		return nil, nil, Hello{}, err
 	}
-	fmt.Printf("Verify code: %s\n", FormatSAS(words))
+	fmt.Printf("%s %s\n", colorUtils.Info("Verify code:"), colorUtils.Highlight(FormatSAS(words)))
 
 	// 5) Pinning: if not pinned, ask the user to accept
 	if _, ok := ts.Get(serverFP); !ok {

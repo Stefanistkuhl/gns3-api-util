@@ -12,20 +12,22 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/keys"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/mdns"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/transport"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/trust"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 	pathUtils "github.com/stefanistkuhl/gns3util/pkg/utils/pathUtils"
 )
 
 // promptTrustCLI shows SAS code and asks to pin on first contact.
 func promptTrustCLI(peerLabel, fp string, words []string) (bool, error) {
 	r := bufio.NewReader(os.Stdin)
-	fmt.Printf("First-time connection to %q\n", peerLabel)
-	fmt.Printf("Fingerprint: %s\n", keys.ShortFingerprint(fp))
-	fmt.Printf("Verify code: %s\n", transport.FormatSAS(words))
-	fmt.Print("Do the codes match? Trust this device? [y/N]: ")
+	fmt.Printf("\n%s %s\n", colorUtils.Warning("First-time connection to"), colorUtils.Bold(peerLabel))
+	fmt.Printf("%s %s\n", colorUtils.Info("Fingerprint:"), colorUtils.Highlight(keys.ShortFingerprint(fp)))
+	fmt.Printf("%s %s\n", colorUtils.Info("Verify code:"), colorUtils.Highlight(transport.FormatSAS(words)))
+	fmt.Printf("%s ", colorUtils.Bold("Do the codes match? Trust this device? [y/N]:"))
 	line, _ := r.ReadString('\n')
 	line = strings.TrimSpace(strings.ToLower(line))
 	return line == "y" || line == "yes", nil
@@ -39,7 +41,8 @@ func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (ad
 		return hint, hint, nil
 	}
 
-	fmt.Println("Discovering receivers on the LAN...")
+	fmt.Printf("%s\n", colorUtils.Info("Discovering receivers on the LAN..."))
+	
 	peers, err := mdns.Browse(ctx, timeout)
 	if err != nil {
 		return "", "", err
@@ -66,25 +69,42 @@ func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (ad
 		if len(filtered) > 1 {
 			list = filtered
 		} else {
-			fmt.Printf("No exact match for %q; showing all discovered receivers.\n", hint)
+			fmt.Printf("%s\n", colorUtils.Warning("No exact match for %q; showing all discovered receivers.", hint))
 		}
 	}
 
-	fmt.Println("Select a receiver:")
+	// Create fuzzy finder options (plain text for picker)
+	options := make([]string, len(list))
+	peerMap := make(map[string]mdns.Peer)
+	
 	for i, p := range list {
 		fp := p.TXT["fp"]
-		fmt.Printf("  [%d] %-30s %-22s fp=%s\n", i+1, p.Instance, p.Addr, keys.ShortFingerprint(fp))
+		shortFP := ""
+		if len(fp) >= 4 {
+			shortFP = fp[:4]
+		}
+		option := fmt.Sprintf("%-30s │ %s", p.Instance, shortFP)
+		options[i] = option
+		peerMap[option] = p
 	}
-	fmt.Print("Enter number: ")
-	var idx int
-	_, scanErr := fmt.Scanf("%d\n", &idx)
-	if scanErr != nil || idx < 1 || idx > len(list) {
+
+	fmt.Printf("\n%s\n", colorUtils.Bold("Select a receiver:"))
+	
+	// Use fuzzy finder for selection
+	selected := fuzzy.NewFuzzyFinder(options, false)
+	if len(selected) == 0 {
+		return "", "", errors.New("no receiver selected")
+	}
+
+	chosen, exists := peerMap[selected[0]]
+	if !exists {
 		return "", "", errors.New("invalid selection")
 	}
-	chosen := list[idx-1]
+	
 	if chosen.Addr == "" {
 		return "", "", fmt.Errorf("selected peer %q has no resolvable address", chosen.Instance)
 	}
+	
 	return chosen.Addr, chosen.Instance, nil
 }
 
@@ -110,8 +130,8 @@ func NewSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("My device:", keys.DeviceLabel())
-			fmt.Println("My FP:     ", keys.ShortFingerprint(dk.FP))
+			fmt.Printf("%s %s\n", colorUtils.Info("My device:"), colorUtils.Bold(keys.DeviceLabel()))
+			fmt.Printf("%s %s\n", colorUtils.Info("My FP:     "), colorUtils.Highlight(keys.ShortFingerprint(dk.FP)))
 
 			// Trust store
 			appDir, err := pathUtils.GetGNS3Dir()
@@ -138,7 +158,7 @@ func NewSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Dialing %s (%s)...\n", label, target)
+			fmt.Printf("%s %s (%s)...\n", colorUtils.Info("Dialing"), colorUtils.Bold(label), colorUtils.Highlight(target))
 
 			// Dial with SAS + pinning
 			conn, ctrl, hello, err := transport.DialWithPin(
@@ -155,7 +175,7 @@ func NewSendCmd() *cobra.Command {
 			}
 			defer conn.CloseWithError(0, "done")
 
-			fmt.Printf("Connected to %s as %q\n", target, hello.Label)
+			fmt.Printf("%s %s as %s\n", colorUtils.Success("Connected to"), colorUtils.Highlight(target), colorUtils.Bold(fmt.Sprintf("\"%s\"", hello.Label)))
 
 			// Determine which artifacts to send
 			candidates := []string{"cluster_config.toml", "clusterData.db", "gns3key"}
@@ -182,54 +202,63 @@ func NewSendCmd() *cobra.Command {
 					}
 					abs, st, ok := exists(rel)
 					if ok {
-						fmt.Printf("Include %s (%d bytes)\n", rel, st.Size())
+						fmt.Printf("%s %s %s\n", colorUtils.Success("Include"), colorUtils.Bold(rel), colorUtils.Highlight(fmt.Sprintf("(%d bytes)", st.Size())))
 						selected = append(selected, abs)
 					} else {
-						fmt.Printf("Skip %s (not found at %s)\n", rel, abs)
+						fmt.Printf("%s %s %s\n", colorUtils.Warning("Skip"), colorUtils.Bold(rel), colorUtils.Seperator(fmt.Sprintf("(not found at %s)", abs)))
 					}
 				}
 				if len(selected) == 0 {
 					return errors.New("no artifacts selected or found")
 				}
 			} else {
-				// Interactive per-file confirmation
-				reader := bufio.NewReader(os.Stdin)
+				// Interactive file selection using fuzzy picker
+				availableFiles := make([]string, 0)
+				fileMap := make(map[string]string) // display name -> absolute path
+				
 				for _, rel := range candidates {
 					abs, st, ok := exists(rel)
 					if !ok {
 						continue
 					}
-					if yesFlag {
-						fmt.Printf("Include %s (%d bytes)\n", rel, st.Size())
-						selected = append(selected, abs)
-						continue
-					}
-					fmt.Printf("Send %s (%d bytes)? [y/N]: ", rel, st.Size())
-					line, _ := reader.ReadString('\n')
-					line = strings.TrimSpace(strings.ToLower(line))
-					if line == "y" || line == "yes" {
-						selected = append(selected, abs)
-					}
+					// Store plain text version for fuzzy picker
+					plainName := fmt.Sprintf("%-20s (%d bytes)", rel, st.Size())
+					availableFiles = append(availableFiles, plainName)
+					fileMap[plainName] = abs
 				}
-				if len(selected) == 0 {
-					fmt.Println("Nothing selected; aborting.")
-					return nil
+				
+				if len(availableFiles) == 0 {
+					return errors.New("no artifacts found in source directory")
 				}
-				if !yesFlag {
-					// Final confirmation
-					fmt.Println("About to send:")
-					for _, abs := range selected {
-						rel := filepath.Base(abs)
-						st, _ := os.Stat(abs)
-						fmt.Printf("  - %s (%d bytes)\n", rel, st.Size())
+				
+				if yesFlag {
+					// Select all available files
+					for _, abs := range fileMap {
+						selected = append(selected, abs)
 					}
-					fmt.Print("Proceed? [y/N]: ")
-					line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-					line = strings.TrimSpace(strings.ToLower(line))
-					if line != "y" && line != "yes" {
-						fmt.Println("Aborted.")
+				} else {
+					fmt.Printf("\n%s\n", colorUtils.Bold("Select files to send:"))
+					selectedFiles := fuzzy.NewFuzzyFinder(availableFiles, true) // multi-select mode
+					
+					if len(selectedFiles) == 0 {
+						fmt.Printf("%s\n", colorUtils.Warning("Nothing selected; aborting."))
 						return nil
 					}
+					
+					// Convert selected display names to absolute paths
+					for _, displayName := range selectedFiles {
+						if abs, ok := fileMap[displayName]; ok {
+							selected = append(selected, abs)
+						}
+					}
+				}
+				
+				// Show final selection
+				fmt.Printf("\n%s\n", colorUtils.Info("About to send:"))
+				for _, abs := range selected {
+					rel := filepath.Base(abs)
+					st, _ := os.Stat(abs)
+					fmt.Printf("  %s %s %s\n", colorUtils.Seperator("•"), colorUtils.Bold(rel), colorUtils.Highlight(fmt.Sprintf("(%d bytes)", st.Size())))
 				}
 			}
 
@@ -237,7 +266,7 @@ func NewSendCmd() *cobra.Command {
 			if err := transport.SendOfferAndFiles(ctx, ctrl, conn, selected); err != nil {
 				return err
 			}
-			fmt.Println("Send complete.")
+			fmt.Printf("%s\n", colorUtils.Success("Send complete."))
 			return nil
 		},
 	}

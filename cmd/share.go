@@ -17,8 +17,6 @@ func NewShareCmdGroup() *cobra.Command {
 			return nil
 		},
 	}
-	shareCmd.AddCommand(sharecmd.NewDevicesCmd())
-	shareCmd.AddCommand(sharecmd.NewDiscoverCmd())
 	shareCmd.AddCommand(sharecmd.NewReceiveCmd())
 	shareCmd.AddCommand(sharecmd.NewSendCmd())
 

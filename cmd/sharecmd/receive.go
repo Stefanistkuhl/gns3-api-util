@@ -13,6 +13,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/keys"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/mdns"
 	"github.com/stefanistkuhl/gns3util/pkg/sharing/transport"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 )
 
 func NewReceiveCmd() *cobra.Command {
@@ -26,8 +27,8 @@ func NewReceiveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Println("My device:", keys.DeviceLabel())
-			fmt.Println("My FP:     ", keys.ShortFingerprint(dk.FP))
+			fmt.Printf("%s %s\n", colorUtils.Info("My device:"), colorUtils.Bold(keys.DeviceLabel()))
+			fmt.Printf("%s %s\n", colorUtils.Info("My FP:     "), colorUtils.Highlight(keys.ShortFingerprint(dk.FP)))
 
 			// 2) TLS config (with ALPN) from ed25519 key
 			cert, err := transport.CertFromEd25519(dk.Priv, "gns3util")
@@ -59,9 +60,9 @@ func NewReceiveCmd() *cobra.Command {
 			var port int
 			if udp, ok := addr.(*net.UDPAddr); ok {
 				port = udp.Port
-				fmt.Printf("Listening on %s (UDP %d)\n", udp.IP.String(), udp.Port)
+				fmt.Printf("%s %s %s\n", colorUtils.Success("Listening on"), colorUtils.Highlight(udp.IP.String()), colorUtils.Info(fmt.Sprintf("(UDP %d)", udp.Port)))
 			} else {
-				fmt.Printf("Listening on %v\n", addr)
+				fmt.Printf("%s %v\n", colorUtils.Success("Listening on"), addr)
 			}
 
 			// 5) mDNS advertise
@@ -84,21 +85,25 @@ func NewReceiveCmd() *cobra.Command {
 					},
 				)
 				if err != nil {
-					fmt.Println("mDNS advertise failed:", err)
+					fmt.Printf("%s %v\n", colorUtils.Warning("mDNS advertise failed:"), err)
 				} else {
 					defer stopAdv()
-					fmt.Printf("Advertised via mDNS as %q (_gns3util-share._udp)\n", keys.DeviceLabel())
+					fmt.Printf("%s %s %s\n", colorUtils.Success("Advertised via mDNS as"), colorUtils.Bold(keys.DeviceLabel()), colorUtils.Seperator("(_gns3util-share._udp)"))
 				}
 			}
 
-			fmt.Println("Waiting for a connection...")
+			fmt.Printf("%s\n", colorUtils.Info("Waiting for a connection..."))
 
 			// 6) Wait for either an accept-loop error or timeout
 			select {
 			case err := <-errs:
-				return err
+				if err != nil {
+					return err
+				}
+				// err == nil means graceful shutdown after successful transfer
+				return nil
 			case <-time.After(5 * time.Minute):
-				fmt.Println("No incoming connections in 5m; exiting")
+				fmt.Printf("%s\n", colorUtils.Warning("No incoming connections in 5m; exiting"))
 				return nil
 			}
 		},
