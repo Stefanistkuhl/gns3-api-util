@@ -9,9 +9,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/stefanistkuhl/gns3util/pkg/authentication"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
 	"github.com/stefanistkuhl/gns3util/pkg/config"
+	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
@@ -53,9 +56,50 @@ func RunAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.Nod
 
 func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error) {
 	if len(opts.Servers) == 0 {
-		fmt.Println(messageUtils.InfoMsg("No servers provided, entering interactive mode..."))
-		// TODO: implement Bubble Tea picker thing
-		return nil, nil
+		fmt.Printf("%s\n", colorUtils.Info("No servers provided, entering interactive mode..."))
+
+		cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
+		if err != nil {
+		}
+
+		// Load servers from keyfile
+		keys, err := authentication.LoadKeys(cfg.KeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load keyfile: %w", err)
+		}
+
+		if len(keys) == 0 {
+			return nil, fmt.Errorf("no servers found in keyfile. Please use 'auth login' to add servers")
+		}
+
+		// Create fuzzy picker options
+		serverOptions := make([]string, len(keys))
+		serverMap := make(map[string]string)
+
+		for i, key := range keys {
+			plainName := fmt.Sprintf("%-30s (%s)", key.ServerURL, key.User)
+			serverOptions[i] = plainName
+			serverMap[plainName] = key.ServerURL
+		}
+
+		selectedServers := fuzzy.NewFuzzyFinderWithTitle(serverOptions, true, "Select servers to add to cluster:")
+
+		if len(selectedServers) == 0 {
+			fmt.Printf("%s\n", colorUtils.Warning("No servers selected"))
+			return nil, nil
+		}
+
+		// Convert selected display names to server URLs
+		for _, displayName := range selectedServers {
+			if serverURL, ok := serverMap[displayName]; ok {
+				opts.Servers = append(opts.Servers, serverURL)
+			}
+		}
+
+		fmt.Printf("\n%s\n", colorUtils.Info("Selected servers:"))
+		for _, server := range opts.Servers {
+			fmt.Printf("  %s %s\n", colorUtils.Seperator("•"), colorUtils.Highlight(server))
+		}
 	}
 
 	if len(opts.Servers) == 1 {

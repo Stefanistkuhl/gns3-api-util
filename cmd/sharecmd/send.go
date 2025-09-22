@@ -21,7 +21,6 @@ import (
 	pathUtils "github.com/stefanistkuhl/gns3util/pkg/utils/pathUtils"
 )
 
-// promptTrustCLI shows SAS code and asks to pin on first contact.
 func promptTrustCLI(peerLabel, fp string, words []string) (bool, error) {
 	r := bufio.NewReader(os.Stdin)
 	fmt.Printf("\n%s %s\n", colorUtils.Warning("First-time connection to"), colorUtils.Bold(peerLabel))
@@ -33,16 +32,13 @@ func promptTrustCLI(peerLabel, fp string, words []string) (bool, error) {
 	return line == "y" || line == "yes", nil
 }
 
-// selectReceiver discovers receivers via mDNS and returns a host:port to dial.
-// If hint contains ":", returns it directly. If hint is a label, pre-filter.
-// If hint empty, show menu of all.
 func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (addr string, label string, err error) {
 	if hint != "" && strings.Contains(hint, ":") {
 		return hint, hint, nil
 	}
 
 	fmt.Printf("%s\n", colorUtils.Info("Discovering receivers on the LAN..."))
-	
+
 	peers, err := mdns.Browse(ctx, timeout)
 	if err != nil {
 		return "", "", err
@@ -73,10 +69,9 @@ func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (ad
 		}
 	}
 
-	// Create fuzzy finder options (plain text for picker)
 	options := make([]string, len(list))
 	peerMap := make(map[string]mdns.Peer)
-	
+
 	for i, p := range list {
 		fp := p.TXT["fp"]
 		shortFP := ""
@@ -88,10 +83,7 @@ func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (ad
 		peerMap[option] = p
 	}
 
-	fmt.Printf("\n%s\n", colorUtils.Bold("Select a receiver:"))
-	
-	// Use fuzzy finder for selection
-	selected := fuzzy.NewFuzzyFinder(options, false)
+	selected := fuzzy.NewFuzzyFinderWithTitle(options, false, "Select a receiver:")
 	if len(selected) == 0 {
 		return "", "", errors.New("no receiver selected")
 	}
@@ -100,11 +92,11 @@ func selectReceiver(ctx context.Context, hint string, timeout time.Duration) (ad
 	if !exists {
 		return "", "", errors.New("invalid selection")
 	}
-	
+
 	if chosen.Addr == "" {
 		return "", "", fmt.Errorf("selected peer %q has no resolvable address", chosen.Instance)
 	}
-	
+
 	return chosen.Addr, chosen.Instance, nil
 }
 
@@ -125,7 +117,6 @@ func NewSendCmd() *cobra.Command {
 		Short: "Send GNS3 artifacts to a peer",
 		Long:  "Discover or resolve a receiver, dial over QUIC, verify via SAS, pin on first contact, and transfer selected artifacts.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Load/create device key
 			dk, err := keys.LoadOrCreate(keys.Options{})
 			if err != nil {
 				return err
@@ -133,7 +124,6 @@ func NewSendCmd() *cobra.Command {
 			fmt.Printf("%s %s\n", colorUtils.Info("My device:"), colorUtils.Bold(keys.DeviceLabel()))
 			fmt.Printf("%s %s\n", colorUtils.Info("My FP:     "), colorUtils.Highlight(keys.ShortFingerprint(dk.FP)))
 
-			// Trust store
 			appDir, err := pathUtils.GetGNS3Dir()
 			if err != nil {
 				return err
@@ -143,7 +133,6 @@ func NewSendCmd() *cobra.Command {
 				return err
 			}
 
-			// Source dir
 			srcDir := srcDirFlag
 			if srcDir == "" {
 				home, _ := os.UserHomeDir()
@@ -153,14 +142,12 @@ func NewSendCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
 
-			// Resolve target via mDNS selection if needed
 			target, label, err := selectReceiver(ctx, to, discoverTimeout)
 			if err != nil {
 				return err
 			}
 			fmt.Printf("%s %s (%s)...\n", colorUtils.Info("Dialing"), colorUtils.Bold(label), colorUtils.Highlight(target))
 
-			// Dial with SAS + pinning
 			conn, ctrl, hello, err := transport.DialWithPin(
 				ctx,
 				target,
@@ -177,7 +164,6 @@ func NewSendCmd() *cobra.Command {
 
 			fmt.Printf("%s %s as %s\n", colorUtils.Success("Connected to"), colorUtils.Highlight(target), colorUtils.Bold(fmt.Sprintf("\"%s\"", hello.Label)))
 
-			// Determine which artifacts to send
 			candidates := []string{"cluster_config.toml", "clusterData.db", "gns3key"}
 			exists := func(rel string) (string, os.FileInfo, bool) {
 				abs := filepath.Join(srcDir, rel)
@@ -189,7 +175,6 @@ func NewSendCmd() *cobra.Command {
 			}
 
 			selected := make([]string, 0, len(candidates))
-			// Non-interactive flags take precedence
 			if allFlag || sendConfigFlag || sendDBFlag || sendKeyFlag {
 				want := map[string]bool{
 					"cluster_config.toml": allFlag || sendConfigFlag,
@@ -212,48 +197,42 @@ func NewSendCmd() *cobra.Command {
 					return errors.New("no artifacts selected or found")
 				}
 			} else {
-				// Interactive file selection using fuzzy picker
 				availableFiles := make([]string, 0)
-				fileMap := make(map[string]string) // display name -> absolute path
-				
+				fileMap := make(map[string]string)
+
 				for _, rel := range candidates {
 					abs, st, ok := exists(rel)
 					if !ok {
 						continue
 					}
-					// Store plain text version for fuzzy picker
 					plainName := fmt.Sprintf("%-20s (%d bytes)", rel, st.Size())
 					availableFiles = append(availableFiles, plainName)
 					fileMap[plainName] = abs
 				}
-				
+
 				if len(availableFiles) == 0 {
 					return errors.New("no artifacts found in source directory")
 				}
-				
+
 				if yesFlag {
-					// Select all available files
 					for _, abs := range fileMap {
 						selected = append(selected, abs)
 					}
 				} else {
-					fmt.Printf("\n%s\n", colorUtils.Bold("Select files to send:"))
-					selectedFiles := fuzzy.NewFuzzyFinder(availableFiles, true) // multi-select mode
-					
+					selectedFiles := fuzzy.NewFuzzyFinderWithTitle(availableFiles, true, "Select files to send:")
+
 					if len(selectedFiles) == 0 {
 						fmt.Printf("%s\n", colorUtils.Warning("Nothing selected; aborting."))
 						return nil
 					}
-					
-					// Convert selected display names to absolute paths
+
 					for _, displayName := range selectedFiles {
 						if abs, ok := fileMap[displayName]; ok {
 							selected = append(selected, abs)
 						}
 					}
 				}
-				
-				// Show final selection
+
 				fmt.Printf("\n%s\n", colorUtils.Info("About to send:"))
 				for _, abs := range selected {
 					rel := filepath.Base(abs)
@@ -262,7 +241,6 @@ func NewSendCmd() *cobra.Command {
 				}
 			}
 
-			// Send offer + files
 			if err := transport.SendOfferAndFiles(ctx, ctrl, conn, selected); err != nil {
 				return err
 			}

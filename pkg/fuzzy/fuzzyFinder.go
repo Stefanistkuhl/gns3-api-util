@@ -42,9 +42,10 @@ type fuzzyFinder struct {
 	boxW      int
 	multiMode bool
 	selection []string
+	title     string
 }
 
-func newFuzzyFinder(data []string, multiMode bool) (*fuzzyFinder, error) {
+func newFuzzyFinder(data []string, multiMode bool, title string) (*fuzzyFinder, error) {
 	ti := textinput.New()
 	ti.Prompt = "› "
 	ti.Focus()
@@ -62,6 +63,7 @@ func newFuzzyFinder(data []string, multiMode bool) (*fuzzyFinder, error) {
 		termW:     0,
 		boxW:      0,
 		multiMode: multiMode,
+		title:     title,
 	}
 	return f, nil
 }
@@ -210,8 +212,16 @@ func (f *fuzzyFinder) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (f *fuzzyFinder) View() string {
 	gap := "\n"
+	var titleSection string
+	if f.title != "" {
+		titleStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("205")).
+			Bold(true).
+			Padding(0, 1)
+		titleSection = titleStyle.Render(f.title) + gap
+	}
 	boxedInput := inputBox.Render(f.input.View())
-	return boxedInput + gap + f.viewport.View() + f.helpView()
+	return titleSection + boxedInput + gap + f.viewport.View() + f.helpView()
 }
 
 func getMatches(matches []fuzzy.Match) []string {
@@ -249,8 +259,12 @@ func deduplicate(slice []string) []string {
 }
 
 func NewFuzzyFinder(input []string, multiMode bool) []string {
+	return NewFuzzyFinderWithTitle(input, multiMode, "")
+}
+
+func NewFuzzyFinderWithTitle(input []string, multiMode bool, title string) []string {
 	var result []string
-	model, err := newFuzzyFinder(input, multiMode)
+	model, err := newFuzzyFinder(input, multiMode, title)
 
 	if err != nil {
 		fmt.Println("Could not initialize Bubble Tea model:", err)

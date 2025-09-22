@@ -12,6 +12,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/class"
+	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
@@ -185,7 +186,11 @@ func selectExercisesWithFuzzyFromCluster(cfg config.GlobalOptions, clusterName s
 	if len(names) == 0 {
 		return nil, fmt.Errorf("no exercises found")
 	}
-	finder := fuzzy.NewFuzzyFinder(names, multi)
+	title := fmt.Sprintf("Select exercises from cluster %s:", clusterName)
+	if multi {
+		title = fmt.Sprintf("Select exercises from cluster %s (multi-select):", clusterName)
+	}
+	finder := fuzzy.NewFuzzyFinderWithTitle(names, multi, title)
 	return finder, nil
 }
 
@@ -231,8 +236,34 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("cannot specify both selection flags and explicit class/group")
 		}
 
-		// TODO: Implement interactive class/group selection
-		return fmt.Errorf("interactive class/group selection not yet implemented")
+		// Interactive class selection
+		if selectClass {
+			selectedClass, err := selectClassWithFuzzy(cfg)
+			if err != nil {
+				return fmt.Errorf("failed to select class: %w", err)
+			}
+			if selectedClass == "" {
+				fmt.Printf("%s\n", colorUtils.Warning("No class selected"))
+				return nil
+			}
+			className = selectedClass
+		}
+
+		// Interactive group selection (only if class is selected)
+		if selectGroup {
+			if className == "" {
+				return fmt.Errorf("must select a class before selecting a group")
+			}
+			selectedGroup, err := selectGroupWithFuzzy(cfg, className)
+			if err != nil {
+				return fmt.Errorf("failed to select group: %w", err)
+			}
+			if selectedGroup == "" {
+				fmt.Printf("%s\n", colorUtils.Warning("No group selected"))
+				return nil
+			}
+			groupName = selectedGroup
+		}
 	}
 
 	if selectExercise {
@@ -329,7 +360,7 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 		if err := deleteAllExercisesForClassWithConfirmation(cfg, className, confirm); err != nil {
 			return fmt.Errorf("failed to delete exercises for class: %w", err)
 		}
-	} else {
+	} else if selectExercise || (!selectClass && !selectGroup) {
 		var exerciseNames []string
 		var err error
 		if clusterName != "" {
@@ -359,6 +390,16 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 					messageUtils.Bold(name),
 					derr)
 			}
+		}
+	} else {
+		// This handles the case where selectClass or selectGroup was used
+		// but no specific action was taken (className should be set by now)
+		if className != "" {
+			if err := deleteAllExercisesForClassWithConfirmation(cfg, className, confirm); err != nil {
+				return fmt.Errorf("failed to delete exercises for class: %w", err)
+			}
+		} else {
+			fmt.Printf("%s\n", colorUtils.Warning("No action taken - no class or exercises selected"))
 		}
 	}
 
@@ -397,7 +438,11 @@ func selectExercisesWithFuzzy(cfg config.GlobalOptions, multi bool) ([]string, e
 		return nil, fmt.Errorf("no exercises found")
 	}
 
-	finder := fuzzy.NewFuzzyFinder(exerciseNames, multi)
+	title := "Select exercises to delete:"
+	if multi {
+		title = "Select exercises to delete (multi-select):"
+	}
+	finder := fuzzy.NewFuzzyFinderWithTitle(exerciseNames, multi, title)
 	return finder, nil
 }
 
@@ -470,4 +515,88 @@ func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, classN
 	}
 
 	return class.DeleteAllExercisesForClass(cfg, className)
+}
+
+func selectClassWithFuzzy(cfg config.GlobalOptions) (string, error) {
+	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+	if status != 200 {
+		return "", fmt.Errorf("failed to get projects: status %d", status)
+	}
+
+	var projects []schemas.ProjectResponse
+	if err := json.Unmarshal(projectsBody, &projects); err != nil {
+		return "", fmt.Errorf("failed to parse projects response: %w", err)
+	}
+
+	classSet := make(map[string]bool)
+	for _, project := range projects {
+		parts := strings.Split(project.Name, "-")
+		if len(parts) >= 4 {
+			className := parts[2]
+			if className != "" {
+				classSet[className] = true
+			}
+		}
+	}
+
+	if len(classSet) == 0 {
+		return "", fmt.Errorf("no classes found")
+	}
+
+	var classes []string
+	for className := range classSet {
+		classes = append(classes, className)
+	}
+
+	selected := fuzzy.NewFuzzyFinderWithTitle(classes, false, "Select a class:")
+	if len(selected) == 0 {
+		return "", nil
+	}
+	return selected[0], nil
+}
+
+func selectGroupWithFuzzy(cfg config.GlobalOptions, className string) (string, error) {
+	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects: %w", err)
+	}
+	if status != 200 {
+		return "", fmt.Errorf("failed to get projects: status %d", status)
+	}
+
+	var projects []schemas.ProjectResponse
+	if err := json.Unmarshal(projectsBody, &projects); err != nil {
+		return "", fmt.Errorf("failed to parse projects response: %w", err)
+	}
+
+	groupSet := make(map[string]bool)
+	for _, project := range projects {
+		parts := strings.Split(project.Name, "-")
+		if len(parts) >= 4 {
+			projectClass := parts[2]
+			groupName := parts[3]
+			if projectClass == className && groupName != "" {
+				groupSet[groupName] = true
+			}
+		}
+	}
+
+	if len(groupSet) == 0 {
+		return "", fmt.Errorf("no groups found for class %s", className)
+	}
+
+	var groups []string
+	for groupName := range groupSet {
+		groups = append(groups, groupName)
+	}
+
+	title := fmt.Sprintf("Select a group for class %s:", className)
+	selected := fuzzy.NewFuzzyFinderWithTitle(groups, false, title)
+	if len(selected) == 0 {
+		return "", nil
+	}
+	return selected[0], nil
 }
