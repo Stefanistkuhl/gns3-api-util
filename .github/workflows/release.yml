@@ -40,6 +40,7 @@ jobs:
 
       - name: Build for multiple platforms
         run: |
+          set -euo pipefail
           mkdir -p dist
 
           # Get version from tag (e.g., v1.2.3)
@@ -57,14 +58,15 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-amd64.exe .
           GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-arm64.exe .
 
-      - name: Create compressed archives
+      - name: Package non-Windows as tar.gz (Windows stays as raw .exe)
         run: |
+          set -euo pipefail
           cd dist
 
-          # Package non-Windows artifacts as .tar.gz
+          # Linux/macOS archives
           for file in gns3util-*; do
             case "$file" in
-              *windows-*.exe) ;;  # skip Windows binaries here
+              *windows-*.exe) ;;  # do not archive Windows; upload raw .exe
               *)
                 tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE ../completions/ 2>/dev/null \
                   || tar -czf "${file}.tar.gz" "$file"
@@ -72,17 +74,13 @@ jobs:
             esac
           done
 
-          # Package Windows .exe as .zip only (no .tar.gz)
-          for file in gns3util-windows-*.exe; do
-            zipname="${file%.exe}.zip"
-            zip -9 "$zipname" "$file" ../README.md ../LICENSE 2>/dev/null || zip -9 "$zipname" "$file"
-          done
-
-      - name: Generate checksums
+      - name: Generate checksums (for all upload artifacts)
         run: |
+          set -e
           cd dist
           shopt -s nullglob
-          for file in *.tar.gz *.zip; do
+          # Include raw .exe (Windows) and .tar.gz (others)
+          for file in *.tar.gz *.exe; do
             sha256sum "$file" > "${file}.sha256"
           done
 
@@ -91,7 +89,7 @@ jobs:
         with:
           files: |
             dist/*.tar.gz
-            dist/*.zip
+            dist/*.exe
             dist/*.sha256
           generate_release_notes: true
           draft: false
