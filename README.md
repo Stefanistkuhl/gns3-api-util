@@ -312,12 +312,11 @@ go build -o gns3util
 **Comprehensive Documentation Available**
 
 - **[Online Documentation](https://stefanistkuhl.github.io/gns3-api-util/)** - Complete guide with examples
-- **[CLI Reference](https://stefanistkuhl.github.io/gns3-api-util/CLI_Reference/)** - Full command reference
-- **[Examples](https://stefanistkuhl.github.io/gns3-api-util/Examples/)** - Step-by-step tutorials
+- **[CLI Reference](https://stefanistkuhl.github.io/gns3-api-util/cli-reference/commands/)** - Full command reference
 
 ### Quick Links
-- [Scripts Walkthrough](https://stefanistkuhl.github.io/gns3-api-util/Examples/) - Detailed script usage guide
-- [Automation Guide](https://stefanistkuhl.github.io/gns3-api-util/) - Comprehensive automation walkthrough
+- [Scripts Walkthrough](https://stefanistkuhl.github.io/gns3-api-util/scripts/overview/) - Detailed script usage guide
+- [Automation Guide](https://stefanistkuhl.github.io/gns3-api-util/automation/walkthrough/) - Comprehensive automation walkthrough
 - [Complete Documentation](https://stefanistkuhl.github.io/gns3-api-util/) - Full documentation structure
 
 ## License
