@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-const bufferSize = 1024 * 1024 // 1MB buffer for file transfers
-
 // SendFile sends a file to the specified address
 func SendFile(ctx context.Context, path string, addr string) error {
 	// Connect to the receiver

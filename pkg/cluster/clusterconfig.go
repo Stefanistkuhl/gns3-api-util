@@ -12,7 +12,7 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 )
 
-var NoConfigErr = errors.New("No config for clusters")
+var ErrNoConfig = errors.New("no config for clusters")
 
 func LoadClusterConfig() (Config, error) {
 	var c Config
@@ -23,7 +23,7 @@ func LoadClusterConfig() (Config, error) {
 	path := filepath.Join(dir, "cluster_config.toml")
 	f, readErr := os.ReadFile(path)
 	if readErr != nil {
-		return c, NoConfigErr
+		return c, ErrNoConfig
 	}
 	unmarshallErr := toml.Unmarshal(f, &c)
 	if unmarshallErr != nil {
@@ -35,7 +35,7 @@ func LoadClusterConfig() (Config, error) {
 func EnsureConfigSyncedFromDB() (Config, bool, error) {
 	cfg, err := LoadClusterConfig()
 	if err != nil {
-		if errors.Is(err, NoConfigErr) {
+		if errors.Is(err, ErrNoConfig) {
 			conn, openErr := db.InitIfNeeded()
 			if openErr != nil {
 				return Config{}, false, fmt.Errorf("db open error: %w", openErr)

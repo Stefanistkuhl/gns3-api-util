@@ -22,7 +22,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 			cfgLoaded, err := cluster.LoadClusterConfig()
 			missing := false
 			if err != nil {
-				if errors.Is(err, cluster.NoConfigErr) {
+				if errors.Is(err, cluster.ErrNoConfig) {
 					missing = true
 				} else {
 					fmt.Printf("%s failed to load config: %v\n", messageUtils.ErrorMsg("Error"), err)

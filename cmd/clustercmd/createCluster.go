@@ -43,7 +43,7 @@ func NewCreateClusterCmd() *cobra.Command {
 
 				cfg, cfgErr := cluster.LoadClusterConfig()
 				if cfgErr != nil {
-					if cfgErr == cluster.NoConfigErr {
+					if cfgErr == cluster.ErrNoConfig {
 						cfg = cluster.NewConfig()
 					} else {
 						fmt.Printf("%s failed to load config: %v\n", messageUtils.ErrorMsg("Error"), cfgErr)

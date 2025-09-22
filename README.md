@@ -96,6 +96,21 @@ gns3util -s https://server:3080 exercise create \
   --template "/path/to/template.gns3project"
 ```
 
+#### Exercise Management with Fuzzy Selection
+```bash
+# Interactive class selection for exercise deletion
+gns3util -s https://server:3080 exercise delete --select-class
+
+# Interactive class and group selection
+gns3util -s https://server:3080 exercise delete --select-class --select-group
+
+# Multi-select exercises for deletion
+gns3util -s https://server:3080 exercise delete --select-exercise --multi
+
+# Delete exercises from specific cluster (no server flag needed)
+gns3util exercise delete --cluster production-cluster --select-exercise
+```
+
 #### Remote Server Management
 ```bash
 # Install HTTPS reverse proxy with firewall rules

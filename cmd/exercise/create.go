@@ -70,7 +70,7 @@ This command will:
 	return createExerciseCmd
 }
 
-func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID int, className, exerciseName string) (map[string]string, error) {
+func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID int, _className, _exerciseName string) (map[string]string, error) {
 	conn, err := db.InitIfNeeded()
 	if err != nil {
 		return nil, fmt.Errorf("init db: %w", err)
