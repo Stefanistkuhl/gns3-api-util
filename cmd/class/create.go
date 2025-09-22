@@ -69,6 +69,7 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 
 	cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 	if err != nil {
+		return fmt.Errorf("failed to get global options: %w", err)
 	}
 
 	filePath, _ := cmd.Flags().GetString("file")

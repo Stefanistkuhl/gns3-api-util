@@ -62,7 +62,7 @@ func InitIfNeeded() (*sql.DB, error) {
 			return nil, err
 		}
 		if _, err := tx.Exec(Schema); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			db.Close()
 			return nil, fmt.Errorf("apply schema: %w", err)
 		}
@@ -184,7 +184,7 @@ func CreateClusters(conn *sql.DB, clusters []ClusterName) ([]ClusterName, error)
         VALUES (?, ?)
     `)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return ids, fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
@@ -192,7 +192,7 @@ func CreateClusters(conn *sql.DB, clusters []ClusterName) ([]ClusterName, error)
 	for _, c := range clusters {
 		res, err := stmt.Exec(c.Name, c.Desc)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return ids, fmt.Errorf("insert cluster %s failed: %w", c.Name, err)
 		}
 		id, idErr := res.LastInsertId()
@@ -226,7 +226,7 @@ func InsertNodesIntoClusters(conn *sql.DB, nodes []NodeDataAll) error {
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
@@ -234,7 +234,7 @@ func InsertNodesIntoClusters(conn *sql.DB, nodes []NodeDataAll) error {
 	for _, n := range nodes {
 		_, err := stmt.Exec(n.ClusterID, n.Protocol, n.Host, n.Port, n.Weight, n.MaxGroups, n.User)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("insert node %s:%d failed: %w", n.Host, n.Port, err)
 		}
 	}
@@ -263,7 +263,7 @@ func InsertNodes(clusterID int, nodes []NodeData) ([]NodeDataAll, error) {
         VALUES (?, ?, ?, ?, ?, ?, ?)
     `)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return nil, fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
@@ -272,13 +272,13 @@ func InsertNodes(clusterID int, nodes []NodeData) ([]NodeDataAll, error) {
 	for _, n := range nodes {
 		res, err := stmt.Exec(clusterID, n.Protocol, n.Host, n.Port, n.Weight, n.MaxGroups, n.User)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return nil, fmt.Errorf("insert node %s:%d failed: %w", n.Host, n.Port, err)
 		}
 
 		nodeID, idErr := res.LastInsertId()
 		if idErr != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return nil, fmt.Errorf("get node insert id: %w", idErr)
 		}
 
@@ -314,7 +314,7 @@ func AssignGroupsToNode(conn *sql.DB, ids NodeAndGroupIds) error {
         VALUES (?, ?)
     `)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
 	defer stmt.Close()
@@ -323,7 +323,7 @@ func AssignGroupsToNode(conn *sql.DB, ids NodeAndGroupIds) error {
 		for _, g := range a.GroupIDs {
 			_, err := stmt.Exec(a.NodeID, g)
 			if err != nil {
-				tx.Rollback()
+				_ = tx.Rollback()
 				return fmt.Errorf("insert assingment failed: %w", err)
 			}
 		}
@@ -391,7 +391,7 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 	       VALUES (?, ?)
 	   `)
 	if grpErr != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return InsertedClassData{}, fmt.Errorf("prepare group stmt: %w", grpErr)
 	}
 	defer stmtGrp.Close()
@@ -401,7 +401,7 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 	       VALUES (?, ?, ?, ?)
 	   `)
 	if usrErr != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return InsertedClassData{}, fmt.Errorf("prepare user stmt: %w", usrErr)
 	}
 	defer stmtUsr.Close()
@@ -409,13 +409,13 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 	for _, g := range data.Groups {
 		grpRes, err := stmtGrp.Exec(classID, g.Name)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return InsertedClassData{}, fmt.Errorf("insert group %s failed: %w", g.Name, err)
 		}
 
 		groupID, groupIDErr := grpRes.LastInsertId()
 		if groupIDErr != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return InsertedClassData{}, fmt.Errorf("get group insert id: %w", groupIDErr)
 		}
 
@@ -450,7 +450,7 @@ func DeleteClassFromDB(conn *sql.DB, clusterID int, className string) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var classID int
 	err = tx.QueryRow(
@@ -572,7 +572,7 @@ func unassignGroupsFromNodeWithTx(conn *sql.DB, tx *sql.Tx, ids NodeAndGroupIds)
 		if err != nil {
 			return fmt.Errorf("begin tx: %w", err)
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 		commitTx = true
 	}
 
@@ -727,7 +727,7 @@ func InsertExerciseRecord(conn *sql.DB, projectUUID, groupName, exerciseName, st
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	var groupID int
 	err = tx.QueryRow(`

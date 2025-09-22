@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -77,7 +76,7 @@ func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body an
 
 	token := ""
 	if cmdName != "userAuthenticate" {
-		err := errors.New("")
+		var err error
 		token, err = authentication.GetKeyForServer(cfg)
 		if err != nil {
 			return nil, 0, err
@@ -517,10 +516,7 @@ func GetEmbeddedFavicon() []byte {
 
 func ValidateUrl(input string) bool {
 	_, err := url.ParseRequestURI(input)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func ValidateUrlWithReturn(input string) *url.URL {

@@ -60,6 +60,7 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 
 		cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 		if err != nil {
+			return nil, fmt.Errorf("failed to get global options: %w", err)
 		}
 
 		// Load servers from keyfile

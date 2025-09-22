@@ -10,7 +10,7 @@ func NewClusterConfigmdGroup() *cobra.Command {
 		Short: "cluster config operations",
 		Long:  `commands to manage your cluster config`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
+			_ = cmd.Help()
 		},
 	}
 	//check

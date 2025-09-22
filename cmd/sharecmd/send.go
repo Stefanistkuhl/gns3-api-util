@@ -160,7 +160,7 @@ func NewSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			defer conn.CloseWithError(0, "done")
+			defer func() { _ = conn.CloseWithError(0, "done") }()
 
 			fmt.Printf("%s %s as %s\n", colorUtils.Success("Connected to"), colorUtils.Highlight(target), colorUtils.Bold(fmt.Sprintf("\"%s\"", hello.Label)))
 

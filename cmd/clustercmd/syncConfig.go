@@ -19,9 +19,10 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 		Short: "sync your cluster config file with the local database",
 		Long:  `sync your cluster config file with the local database`,
 		Run: func(cmd *cobra.Command, args []string) {
-			cfgLoaded, err := cluster.LoadClusterConfig()
-			missing := false
-			if err != nil {
+			var cfgLoaded cluster.Config
+			var missing bool
+			
+			if _, err := cluster.LoadClusterConfig(); err != nil {
 				if errors.Is(err, cluster.ErrNoConfig) {
 					missing = true
 				} else {

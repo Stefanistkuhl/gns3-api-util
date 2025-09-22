@@ -155,7 +155,7 @@ func runListClasses(cmd *cobra.Command, args []string) error {
 		type printable struct{ Node, Groups, Users string }
 		p := make([]printable, 0, len(rows))
 		for _, r := range rows {
-			p = append(p, printable{Node: r.Node, Groups: r.Groups, Users: r.Users})
+			p = append(p, printable(r))
 		}
 		utils.PrintTable(p, []utils.Column[printable]{
 			{Header: "Node", Value: func(x printable) string { return x.Node }},

@@ -852,7 +852,7 @@ func closeProject(cfg config.GlobalOptions, projectID string) error {
 	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "UUID") || strings.Contains(err.Error(), "uuid_parsing") {
-			projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+			projectsBody, _, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 			if err != nil {
 				return fmt.Errorf("failed to get projects: %w", err)
 			}
@@ -965,7 +965,7 @@ func deleteProject(cfg config.GlobalOptions, projectID string) error {
 	_, status, err = utils.CallClient(cfg, "deleteProject", []string{projectID}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "UUID") || strings.Contains(err.Error(), "uuid_parsing") {
-			projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
+			projectsBody, _, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 			if err != nil {
 				return fmt.Errorf("failed to get projects: %w", err)
 			}
@@ -982,7 +982,7 @@ func deleteProject(cfg config.GlobalOptions, projectID string) error {
 						return fmt.Errorf("failed to close project %s: %w", p.ProjectID, err)
 					}
 
-					_, status, err = utils.CallClient(cfg, "deleteProject", []string{p.ProjectID}, nil)
+					_, _, err = utils.CallClient(cfg, "deleteProject", []string{p.ProjectID}, nil)
 					if err != nil {
 						return fmt.Errorf("failed to delete project %s: %w", p.ProjectID, err)
 					}

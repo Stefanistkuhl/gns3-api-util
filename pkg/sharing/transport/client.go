@@ -37,47 +37,47 @@ func DialWithPin(
 
 	ctrl, err := conn.OpenStreamSync(ctx)
 	if err != nil {
-		conn.CloseWithError(0, "open stream failed")
+		_ = conn.CloseWithError(0, "open stream failed")
 		return nil, nil, Hello{}, err
 	}
 
 	// 1) Hello
 	if err := WriteJSON(ctx, ctrl, Hello{Label: myLabel, FP: myFP}); err != nil {
-		conn.CloseWithError(0, "hello failed")
+		_ = conn.CloseWithError(0, "hello failed")
 		return nil, nil, Hello{}, err
 	}
 	var srv Hello
 	if err := ReadJSON(ctx, ctrl, &srv); err != nil {
-		conn.CloseWithError(0, "hello recv failed")
+		_ = conn.CloseWithError(0, "hello recv failed")
 		return nil, nil, Hello{}, err
 	}
 
 	// 2) SAS nonce exchange
 	clientNonce, err := NewNonce()
 	if err != nil {
-		conn.CloseWithError(0, "nonce gen failed")
+		_ = conn.CloseWithError(0, "nonce gen failed")
 		return nil, nil, Hello{}, err
 	}
 	if err := WriteJSON(ctx, ctrl, SASMsg{Nonce: clientNonce}); err != nil {
-		conn.CloseWithError(0, "sas write failed")
+		_ = conn.CloseWithError(0, "sas write failed")
 		return nil, nil, Hello{}, err
 	}
 	var srvSAS SASMsg
 	if err := ReadJSON(ctx, ctrl, &srvSAS); err != nil {
-		conn.CloseWithError(0, "sas read failed")
+		_ = conn.CloseWithError(0, "sas read failed")
 		return nil, nil, Hello{}, err
 	}
 
 	// 3) Extract server public key from TLS to compute fingerprint and SAS
 	st := conn.ConnectionState().TLS
 	if len(st.PeerCertificates) == 0 {
-		conn.CloseWithError(0, "no peer cert")
+		_ = conn.CloseWithError(0, "no peer cert")
 		return nil, nil, Hello{}, errors.New("no peer certificate")
 	}
 	cert := st.PeerCertificates[0]
 	serverPub, ok := cert.PublicKey.(ed25519.PublicKey)
 	if !ok {
-		conn.CloseWithError(0, "unexpected key type")
+		_ = conn.CloseWithError(0, "unexpected key type")
 		return nil, nil, Hello{}, errors.New("server key is not ed25519")
 	}
 	serverFP := keys.Fingerprint(serverPub)
@@ -85,7 +85,7 @@ func DialWithPin(
 	// 4) Derive SAS code bound to server identity + fresh nonces
 	words, err := DerivePGPWordsSimple(serverPub, clientNonce, srvSAS.Nonce, 3)
 	if err != nil {
-		conn.CloseWithError(0, "sas derive failed")
+		_ = conn.CloseWithError(0, "sas derive failed")
 		return nil, nil, Hello{}, err
 	}
 	fmt.Printf("%s %s\n", colorUtils.Info("Verify code:"), colorUtils.Highlight(FormatSAS(words)))
@@ -93,12 +93,12 @@ func DialWithPin(
 	// 5) Pinning: if not pinned, ask the user to accept
 	if _, ok := ts.Get(serverFP); !ok {
 		if prompt == nil {
-			conn.CloseWithError(0, "unpinned and no prompt")
+			_ = conn.CloseWithError(0, "unpinned and no prompt")
 			return nil, nil, Hello{}, errors.New("unpinned and no prompt")
 		}
 		accept, err := prompt(srv.Label, serverFP, words)
 		if err != nil || !accept {
-			conn.CloseWithError(0, "verification rejected")
+			_ = conn.CloseWithError(0, "verification rejected")
 			if err == nil {
 				err = errors.New("verification rejected")
 			}

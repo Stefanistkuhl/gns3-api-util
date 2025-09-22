@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // SendFile sends a file to the specified address
@@ -122,7 +121,6 @@ func ReceiveFile(ctx context.Context, port int, outputDir string) (string, error
 
 // GeneratePort generates a random port number in the dynamic/private range
 func GeneratePort() int {
-	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(16383) + 49152 // 49152-65535
 }
 
