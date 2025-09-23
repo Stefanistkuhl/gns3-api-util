@@ -26,11 +26,10 @@ brew tap Stefanistkuhl/tap
 brew install gns3util
 ```
 
-### Windows - Coming Soon
+### Windows
 ```bash
 scoop bucket add gns3util https://github.com/stefanistkuhl/bucket.git
 scoop install gns3util
-```
 ```
 
 ## Building from Source
