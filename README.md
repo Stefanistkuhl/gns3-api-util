@@ -43,6 +43,10 @@ paru -S gns3util
 # macOS (Homebrew)
 brew tap stefanistkuhl/tap
 brew install gns3util
+
+# Windows (Scoop)
+scoop bucket add stefanistkuhl https://github.com/stefanistkuhl/bucket
+scoop install gns3util
 ```
 
 #### Pre-built Binaries
@@ -287,9 +291,6 @@ go build -o gns3util
 5. Submit a pull request
 
 ## Roadmap
-
-### **Package Managers**
-- **Chocolatey (Windows)**: `choco install gns3util` - Coming Soon
 
 ### **Future Features**
 - **Multi-Server Management**
