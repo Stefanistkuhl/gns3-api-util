@@ -1,0 +1,82 @@
+version: 2
+
+project_name: gns3util
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gns3util_nonwin
+    main: .
+    binary: gns3util
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/stefanistkuhl/gns3util/cmd.Version={{ .Version }}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+
+  - id: gns3util_win
+    main: .
+    binary: gns3util
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/stefanistkuhl/gns3util/cmd.Version={{ .Version }}
+    goos:
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goamd64:
+      - v1
+
+archives:
+  - id: non_windows
+    ids: [gns3util_nonwin]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - README.md
+      - LICENSE
+      # - completions/**
+
+  - id: windows
+    ids: [gns3util_win]
+    formats: [zip]
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    wrap_in_directory: false
+    files:
+      - README.md
+      - LICENSE
+      # - completions/**
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  draft: false
+  prerelease: false
