@@ -28,8 +28,9 @@ brew install gns3util
 
 ### Windows - Coming Soon
 ```bash
-# Installation will be available soon
-# Package manager support for Windows is in development
+scoop bucket add gns3util https://github.com/stefanistkuhl/bucket.git
+scoop install gns3util
+```
 ```
 
 ## Building from Source

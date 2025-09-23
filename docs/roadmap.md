@@ -1,8 +1,5 @@
 # Roadmap
 
-## Package Managers
-- **Chocolatey (Windows)**: `choco install gns3util` - Coming Soon
-
 ## Future Features
 - **Multi-Server Management**
   - Copy projects between servers
