@@ -46,41 +46,71 @@ jobs:
           # Get version from tag (e.g., v1.2.3)
           VERSION=${GITHUB_REF#refs/tags/}
 
-          # Build for Linux
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-linux-amd64 .
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-linux-arm64 .
+          LDFLAGS="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION"
 
-          # Build for macOS
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-darwin-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-darwin-arm64 .
+          GOOS=linux GOARCH=amd64 go build -ldflags="$LDFLAGS" -o dist/gns3util-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -ldflags="$LDFLAGS" -o dist/gns3util-linux-arm64 .
 
-          # Build for Windows
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-amd64.exe .
-          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w -X github.com/stefanistkuhl/gns3util/cmd.Version=$VERSION" -o dist/gns3util-windows-arm64.exe .
+          GOOS=darwin GOARCH=amd64 go build -ldflags="$LDFLAGS" -o dist/gns3util-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -ldflags="$LDFLAGS" -o dist/gns3util-darwin-arm64 .
 
-      - name: Package non-Windows as tar.gz (Windows stays as raw .exe)
+          GOOS=windows GOARCH=amd64 go build -ldflags="$LDFLAGS" -o dist/gns3util-windows-amd64.exe .
+          GOOS=windows GOARCH=arm64 go build -ldflags="$LDFLAGS" -o dist/gns3util-windows-arm64.exe .
+
+      - name: Package non-Windows as tar.gz
         run: |
           set -euo pipefail
           cd dist
 
-          # Linux/macOS archives
+          # Linux/macOS archives include README.md, LICENSE, and completions if present
           for file in gns3util-*; do
             case "$file" in
-              *windows-*.exe) ;;  # do not archive Windows; upload raw .exe
+              *windows-*.exe) ;;  # skip Windows .exe here
               *)
+                # Try to include extra files; if not available, fall back to just the binary
                 tar -czf "${file}.tar.gz" "$file" ../README.md ../LICENSE ../completions/ 2>/dev/null \
                   || tar -czf "${file}.tar.gz" "$file"
                 ;;
             esac
           done
 
-      - name: Generate checksums (for all upload artifacts)
+      - name: Package Windows as zip (include README and LICENSE)
+        run: |
+          set -euo pipefail
+          cd dist
+
+          # Helper: add file/dir to zip only if it exists
+          add_if_exists() {
+            local target_zip="$1"; shift
+            for path in "$@"; do
+              if [ -e "$path" ]; then
+                zip -r -q "$target_zip" "$path"
+              fi
+            done
+          }
+
+          # Requires zip; install if missing (on ubuntu-latest it is present, but ensure anyway)
+          if ! command -v zip >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y zip
+          fi
+
+          for exe in gns3util-windows-*.exe; do
+            [ -e "$exe" ] || continue
+            zipname="${exe%.exe}.zip"
+            # Start the zip with the executable at the top-level
+            zip -q "$zipname" "$exe"
+            # Add README, LICENSE, and completions (if present, paths are relative to repo root)
+            add_if_exists "$zipname" ../README.md ../LICENSE ../completions
+          done
+
+      - name: Generate checksums
         run: |
           set -e
           cd dist
           shopt -s nullglob
-          # Include raw .exe (Windows) and .tar.gz (others)
-          for file in *.tar.gz *.exe; do
+          # Include .tar.gz (non-Windows) and .zip (Windows)
+          for file in *.tar.gz *.zip; do
             sha256sum "$file" > "${file}.sha256"
           done
 
@@ -89,7 +119,7 @@ jobs:
         with:
           files: |
             dist/*.tar.gz
-            dist/*.exe
+            dist/*.zip
             dist/*.sha256
           generate_release_notes: true
           draft: false

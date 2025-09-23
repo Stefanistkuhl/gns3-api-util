@@ -20,7 +20,7 @@ var (
 	version  bool
 )
 
-var Version = "1.1.2"
+var Version = "1.1.3"
 
 var Foo bool
 
