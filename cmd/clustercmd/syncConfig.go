@@ -21,7 +21,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			var cfgLoaded cluster.Config
 			var missing bool
-			
+
 			if _, err := cluster.LoadClusterConfig(); err != nil {
 				if errors.Is(err, cluster.ErrNoConfig) {
 					missing = true

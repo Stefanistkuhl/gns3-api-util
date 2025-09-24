@@ -16,7 +16,7 @@ import (
 
 type Server struct {
 	TLS       *tls.Config
-	ServerKey ed25519.PrivateKey // used to derive SAS (server public key)
+	ServerKey ed25519.PrivateKey
 }
 
 func (s *Server) Listen(
@@ -33,11 +33,11 @@ func (s *Server) Listen(
 
 	errs := make(chan error, 1)
 	shutdown := make(chan struct{}, 1)
-	
+
 	go func() {
 		defer close(errs)
-		defer ln.Close() // Ensure listener is closed when goroutine exits
-		
+		defer ln.Close()
+
 		for {
 			select {
 			case <-shutdown:
@@ -160,7 +160,7 @@ func handleConn(ctx context.Context, c *quic.Conn, serverPriv ed25519.PrivateKey
 
 	// 10) Send shutdown signal to main server loop
 	fmt.Printf("%s\n", colorUtils.Info("Transfer complete. Server shutting down..."))
-	
+
 	// 11) Close gracefully
 	_ = c.CloseWithError(0, "transfer complete")
 }

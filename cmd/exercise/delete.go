@@ -236,7 +236,6 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("cannot specify both selection flags and explicit class/group")
 		}
 
-		// Interactive class selection
 		if selectClass {
 			selectedClass, err := selectClassWithFuzzy(cfg)
 			if err != nil {
@@ -249,7 +248,6 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 			className = selectedClass
 		}
 
-		// Interactive group selection (only if class is selected)
 		if selectGroup {
 			if className == "" {
 				return fmt.Errorf("must select a class before selecting a group")
@@ -392,8 +390,6 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else {
-		// This handles the case where selectClass or selectGroup was used
-		// but no specific action was taken (className should be set by now)
 		if className != "" {
 			if err := deleteAllExercisesForClassWithConfirmation(cfg, className, confirm); err != nil {
 				return fmt.Errorf("failed to delete exercises for class: %w", err)
