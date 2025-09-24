@@ -170,10 +170,10 @@ func ValidateInstallSSLInput(args InstallSSLArgs) error {
 
 func ParseServerURLForSSH(serverURL string, portOption int) (string, int) {
 	cleanURL := serverURL
-	if strings.HasPrefix(serverURL, "http://") {
-		cleanURL = strings.TrimPrefix(serverURL, "http://")
-	} else if strings.HasPrefix(serverURL, "https://") {
-		cleanURL = strings.TrimPrefix(serverURL, "https://")
+	if result, found := strings.CutPrefix(serverURL, "http://"); found {
+		cleanURL = result
+	} else if result, found := strings.CutPrefix(serverURL, "https://"); found {
+		cleanURL = result
 	}
 	// Parse the URL to extract hostname and port
 	parsedURL, err := url.Parse("http://" + cleanURL)
@@ -300,9 +300,7 @@ func ParseInteractiveOptions(optionsText string) (InstallSSLArgs, error) {
 		Verbose:          false,
 	}
 
-	lines := strings.Split(optionsText, "\n")
-
-	for _, line := range lines {
+	for line := range strings.SplitSeq(optionsText, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue

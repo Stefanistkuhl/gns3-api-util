@@ -24,6 +24,7 @@ func NewInstallCmd() *cobra.Command {
 		},
 	}
 	cmd.AddCommand(NewInstallHttpsCmd())
+	cmd.AddCommand(NewRemoteInstallCmd())
 	return cmd
 }
 

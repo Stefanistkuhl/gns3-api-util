@@ -42,4 +42,3 @@ func ParseEd25519PrivateKeyPEM(b []byte) (ed25519.PrivateKey, time.Time, error) 
 	}
 	return priv, created, nil
 }
-

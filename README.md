@@ -23,6 +23,7 @@ A powerful command-line utility for managing GNS3v3 servers, with advanced templ
 
 ### **Remote Server Management**
 - **HTTPS setup**: Install Caddy reverse proxy with SSL certificates
+- **GNS3 server installation**: Remote installation and configuration of GNS3 servers
 - **Firewall management**: Configure security rules and access restrictions
 - **SSH operations**: Direct server administration via SSH
 - **State file support**: Automatic configuration tracking for easy cleanup
@@ -112,15 +113,91 @@ gns3util exercise delete --cluster production-cluster --select-exercise
 ```
 
 #### Remote Server Management
+
+**GNS3 Server Installation**:
+```bash
+# Install GNS3 server with default options
+gns3util -s https://server:3080 remote install gns3 admin
+
+# Install with Docker and VirtualBox support
+gns3util -s https://server:3080 remote install gns3 admin \
+  --install-docker \
+  --install-virtualbox \
+  --gns3-port 3080 \
+  --home-dir /opt/gns3
+
+# Install with IOU support (requires valid license)
+gns3util -s https://server:3080 remote install gns3 admin \
+  --use-iou \
+  --enable-i386 \
+  --username gns3-server
+
+# Interactive installation (recommended for first-time setup)
+gns3util -s https://server:3080 remote install gns3 admin --interactive
+```
+
+**GNS3 Server Uninstallation**:
+```bash
+# Uninstall GNS3 server (preserves user data)
+gns3util -s https://server:3080 remote uninstall gns3 admin \
+  --preserve-data
+
+# Complete uninstall (removes everything)
+gns3util -s https://server:3080 remote uninstall gns3 admin
+
+# Interactive uninstallation
+gns3util -s https://server:3080 remote uninstall gns3 admin --interactive
+```
+
+**HTTPS Reverse Proxy Setup**:
 ```bash
 # Install HTTPS reverse proxy with firewall rules
 gns3util -s https://server:3080 remote install https admin \
   --domain gns3.yourdomain.com \
   --firewall-allow 10.0.0.0/24
 
+# Install with custom SSL certificate subject
+gns3util -s https://server:3080 remote install https admin \
+  --domain gns3.yourdomain.com \
+  --subject "/CN=gns3.yourdomain.com" \
+  --firewall-block
+
+# Interactive HTTPS setup
+gns3util -s https://server:3080 remote install https admin --interactive
+```
+
+**HTTPS Reverse Proxy Removal**:
+```bash
 # Remove HTTPS configuration (uses state file automatically)
 gns3util -s https://server:3080 remote uninstall https admin
+
+# Interactive HTTPS removal
+gns3util -s https://server:3080 remote uninstall https admin --interactive
 ```
+
+#### Remote Server Management Features
+
+**State Management**: The remote installation system automatically saves installation state for easy cleanup and configuration tracking.
+
+**GNS3 Server Installation Options**:
+- **Docker Support**: Install Docker for containerized appliances
+- **VirtualBox Support**: Enable VirtualBox integration
+- **VMware Support**: Install VMware integration packages
+- **IOU Support**: Configure IOU (IOS on Unix) support (requires valid license)
+- **KVM Acceleration**: Hardware acceleration for QEMU (enabled by default)
+- **Custom Configuration**: Specify custom ports, directories, and usernames
+
+**HTTPS Reverse Proxy Options**:
+- **SSL Certificates**: Automatic certificate generation and management
+- **Firewall Rules**: Configure security rules and access restrictions
+- **Custom Domains**: Support for custom domain names and subjects
+- **Port Configuration**: Configurable reverse proxy and GNS3 server ports
+
+**Uninstallation Options**:
+- **Data Preservation**: Keep GNS3 home directory and user projects
+- **Complete Removal**: Remove all GNS3 components and configurations
+- **State Cleanup**: Automatic removal of installation state files
+- **Selective Cleanup**: Remove only specific components (HTTPS, GNS3, etc.)
 
 ## Example Scripts
 
@@ -295,7 +372,7 @@ go build -o gns3util
 - **Multi-Server Management**
   - Copy projects between servers
   - Centralized project management
-  - Remote install/uninstall
+  - ~~Remote install/uninstall~~ ✅ **Implemented**
 
 - **Backup & Migration**
   - Automated project backups
