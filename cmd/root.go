@@ -25,9 +25,11 @@ var Version = "1.2.4"
 var Foo bool
 
 var rootCmd = &cobra.Command{
-	Use:   "gns3util",
-	Short: "A utility for GNS3v3",
-	Long:  `A utility for GNS3v3 for managing GNS3v3 projects and devices.`,
+	Use:           "gns3util",
+	Short:         "A utility for GNS3v3",
+	Long:          `A utility for GNS3v3 for managing GNS3v3 projects and devices.`,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if cmd.Name() == "completion" || (cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
 			return nil
@@ -121,7 +123,9 @@ func init() {
 }
 
 func Execute() {
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Printf("%v\n", err)
+	}
 }
 
 func validateGlobalFlags() error {

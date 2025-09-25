@@ -17,6 +17,8 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/utils/server"
 )
 
+var interactive bool
+
 func NewCreateClassCmd() *cobra.Command {
 	var createClassCmd = &cobra.Command{
 		Use:   "create",
@@ -35,18 +37,20 @@ The class structure includes:
 
   # Launch interactive class creation
   gns3util -s https://controller:3080 class create --interactive
-
-  # Create class with specific name
-  gns3util -s https://controller:3080 class create --file class.json --name "CS101"
 		`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if cmd.Flags().Changed("cluster") && cmd.Flags().Changed("server") {
-				return fmt.Errorf("cannot specify both --cluster and --server")
-			}
-			server, _ := cmd.InheritedFlags().GetString("server")
+			serverUrl, _ := cmd.InheritedFlags().GetString("server")
 			cluster, _ := cmd.Flags().GetString("cluster")
-			if server == "" && cluster != "" {
-				return nil
+			filePath, _ := cmd.Flags().GetString("file")
+
+			if serverUrl != "" && cluster != "" {
+				return errorUtils.FormatError("cannot specify both --cluster and --server")
+			}
+			if serverUrl == "" && cluster == "" {
+				return errorUtils.FormatError("either --cluster or --server must be specified")
+			}
+			if filePath == "" && !interactive {
+				return errorUtils.FormatError("either --file or --interactive must be specified")
 			}
 			return nil
 		},
@@ -54,8 +58,7 @@ The class structure includes:
 	}
 
 	createClassCmd.Flags().String("file", "", "JSON file containing class data")
-	createClassCmd.Flags().Bool("interactive", false, "Launch interactive web interface for class creation")
-	createClassCmd.Flags().String("name", "", "Override class name from file")
+	createClassCmd.Flags().BoolVar(&interactive, "interactive", false, "Launch interactive web interface for class creation")
 	createClassCmd.Flags().Int("port", 8080, "Port for interactive web interface")
 	createClassCmd.Flags().String("host", "localhost", "Host for interactive web interface")
 	createClassCmd.Flags().StringP("cluster", "c", "", "Cluster name")
@@ -65,31 +68,18 @@ The class structure includes:
 
 func runCreateClass(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
-	cmd.SilenceErrors = true
+
+	serverUrl, _ := cmd.InheritedFlags().GetString("server")
 
 	cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 	if err != nil {
-		return fmt.Errorf("failed to get global options: %w", err)
 	}
 
 	filePath, _ := cmd.Flags().GetString("file")
-	interactive, _ := cmd.Flags().GetBool("interactive")
 	className, _ := cmd.Flags().GetString("name")
 	port, _ := cmd.Flags().GetInt("port")
 	host, _ := cmd.Flags().GetString("host")
 	clusterName, _ := cmd.Flags().GetString("cluster")
-
-	if filePath == "" && !interactive {
-		err := errorUtils.FormatError("either --file or --interactive must be specified")
-		fmt.Printf("%v\n", err)
-		return err
-	}
-
-	if filePath != "" && interactive {
-		err := errorUtils.FormatError("cannot specify both --file and --interactive")
-		fmt.Printf("%v\n", err)
-		return err
-	}
 
 	var classData schemas.Class
 
@@ -121,6 +111,7 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 		noCluster = true
 	}
 	if noCluster {
+		cfg.Server = serverUrl
 		urlObj := utils.ValidateUrlWithReturn(cfg.Server)
 		user, getUserErr := utils.GetUserInKeyFileForUrl(cfg)
 		if getUserErr != nil {
