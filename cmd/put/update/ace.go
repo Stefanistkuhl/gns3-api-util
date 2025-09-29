@@ -37,7 +37,7 @@ func NewUpdateACECmd() *cobra.Command {
 
 			aceID := args[0]
 			if !utils.IsValidUUIDv4(aceID) {
-				return fmt.Errorf("Please use a valid UUIDv4 for the ACE-ID")
+				return fmt.Errorf("please use a valid UUIDv4 for the ACE-ID")
 			}
 
 			if err := validateChoice(aceType, []string{"user", "group"}, "--ace-type"); err != nil {

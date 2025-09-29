@@ -40,7 +40,11 @@ func EnsureConfigSyncedFromDB() (Config, bool, error) {
 			if openErr != nil {
 				return Config{}, false, fmt.Errorf("db open error: %w", openErr)
 			}
-			defer conn.Close()
+			defer func() {
+				if conn != nil {
+					_ = conn.Close()
+				}
+			}()
 
 			dbClusters, ferr := db.GetClusters(conn)
 			if ferr != nil && ferr != sql.ErrNoRows {

@@ -167,7 +167,7 @@ func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error)
 		if c.settings.Timeout > 0 {
 			go func() {
 				<-time.After(c.settings.Timeout)
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}()
 		}
 
@@ -191,7 +191,11 @@ func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -222,7 +226,7 @@ func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error)
 			if err := json.Unmarshal(body, &errorMsg); err == nil {
 				return body, resp, fmt.Errorf("%s", errorMsg["message"])
 			}
-			return body, resp, fmt.Errorf("Unknown forbidden 403 error.")
+			return body, resp, fmt.Errorf("unknown forbidden 403 error. ")
 		}
 		return body, resp, fmt.Errorf("bad status %d: %s", resp.StatusCode, body)
 	}

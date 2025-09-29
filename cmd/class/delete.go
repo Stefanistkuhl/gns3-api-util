@@ -207,7 +207,11 @@ func deleteClassInCluster(cfg config.GlobalOptions, clusterName, className strin
 	if err != nil {
 		return fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	clusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -282,7 +286,11 @@ func getAllClassNamesFromDB(cfg config.GlobalOptions) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	classes, err := db.GetClassesFromDB(conn, clusterID)
 	if err != nil {
@@ -365,7 +373,11 @@ func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	clusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -449,7 +461,11 @@ func getAllClassNamesFromDBForClusterName(clusterName string) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	clusters, err := db.GetClusters(conn)
 	if err != nil {

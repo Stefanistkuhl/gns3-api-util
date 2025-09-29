@@ -21,9 +21,9 @@ var Schema string
 
 var ErrNoDb = errors.New("no db")
 var ErrQeuryDb = errors.New("failed to query the db")
-var ErrClusterExists = errors.New("Cluster already exists")
-var ErrNodeExists = errors.New("Node already exists")
-var ErrClassExists = errors.New("Class already exists")
+var ErrClusterExists = errors.New("cluster already exists")
+var ErrNodeExists = errors.New("node already exists")
+var ErrClassExists = errors.New("class already exists")
 
 func openDB(dbPath string) (*sql.DB, error) {
 	dsn := fmt.Sprintf("file:%s?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL", dbPath)
@@ -33,11 +33,11 @@ func openDB(dbPath string) (*sql.DB, error) {
 	}
 
 	if err := db.Ping(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	if _, err := db.Exec("PRAGMA foreign_keys = ON;"); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 	return db, nil
@@ -58,22 +58,21 @@ func InitIfNeeded() (*sql.DB, error) {
 		}
 		tx, err := db.Begin()
 		if err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, err
 		}
 		if _, err := tx.Exec(Schema); err != nil {
 			_ = tx.Rollback()
-			db.Close()
+			_ = db.Close()
 			return nil, fmt.Errorf("apply schema: %w", err)
 		}
 		if err := tx.Commit(); err != nil {
-			db.Close()
+			_ = db.Close()
 			return nil, err
 		}
 		return db, nil
 	}
 
-	// Exists: open without applying schema
 	return openDB(dbPath)
 }
 
@@ -92,7 +91,11 @@ func CheckIfCluterExists(name string) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	var exists bool
 	if err := db.QueryRow(
@@ -145,7 +148,11 @@ func QueryRows[T any](
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 
 	var results []T
 	for rows.Next() {
@@ -187,7 +194,11 @@ func CreateClusters(conn *sql.DB, clusters []ClusterName) ([]ClusterName, error)
 		_ = tx.Rollback()
 		return ids, fmt.Errorf("prepare stmt: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			_ = stmt.Close()
+		}
+	}()
 
 	for _, c := range clusters {
 		res, err := stmt.Exec(c.Name, c.Desc)
@@ -229,7 +240,11 @@ func InsertNodesIntoClusters(conn *sql.DB, nodes []NodeDataAll) error {
 		_ = tx.Rollback()
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			_ = stmt.Close()
+		}
+	}()
 
 	for _, n := range nodes {
 		_, err := stmt.Exec(n.ClusterID, n.Protocol, n.Host, n.Port, n.Weight, n.MaxGroups, n.User)
@@ -251,7 +266,11 @@ func InsertNodes(clusterID int, nodes []NodeData) ([]NodeDataAll, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open db: %w", err)
 	}
-	defer dbConn.Close()
+	defer func() {
+		if dbConn != nil {
+			_ = dbConn.Close()
+		}
+	}()
 
 	tx, err := dbConn.Begin()
 	if err != nil {
@@ -266,7 +285,11 @@ func InsertNodes(clusterID int, nodes []NodeData) ([]NodeDataAll, error) {
 		_ = tx.Rollback()
 		return nil, fmt.Errorf("prepare stmt: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			_ = stmt.Close()
+		}
+	}()
 
 	var insertedNodes []NodeDataAll
 	for _, n := range nodes {
@@ -303,7 +326,6 @@ func InsertNodes(clusterID int, nodes []NodeData) ([]NodeDataAll, error) {
 }
 
 func AssignGroupsToNode(conn *sql.DB, ids NodeAndGroupIds) error {
-
 	tx, err := conn.Begin()
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -317,7 +339,11 @@ func AssignGroupsToNode(conn *sql.DB, ids NodeAndGroupIds) error {
 		_ = tx.Rollback()
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			_ = stmt.Close()
+		}
+	}()
 
 	for _, a := range ids.Assignments {
 		for _, g := range a.GroupIDs {
@@ -379,7 +405,6 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 		return InsertedClassData{}, fmt.Errorf("get last insert id: %w", classErr)
 	}
 
-	// Initialize the result struct
 	result := InsertedClassData{
 		ClassID:  int(classID),
 		GroupIDs: make(map[string]int),
@@ -394,7 +419,11 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 		_ = tx.Rollback()
 		return InsertedClassData{}, fmt.Errorf("prepare group stmt: %w", grpErr)
 	}
-	defer stmtGrp.Close()
+	defer func() {
+		if stmtGrp != nil {
+			_ = stmtGrp.Close()
+		}
+	}()
 
 	stmtUsr, usrErr := tx.Prepare(`
 	       INSERT INTO users (group_id, username, full_name, default_password)
@@ -404,7 +433,11 @@ func InsertClassIntoDB(conn *sql.DB, clusterID int, data schemas.Class) (Inserte
 		_ = tx.Rollback()
 		return InsertedClassData{}, fmt.Errorf("prepare user stmt: %w", usrErr)
 	}
-	defer stmtUsr.Close()
+	defer func() {
+		if stmtUsr != nil {
+			_ = stmtUsr.Close()
+		}
+	}()
 
 	for _, g := range data.Groups {
 		grpRes, err := stmtGrp.Exec(classID, g.Name)
@@ -471,7 +504,11 @@ func DeleteClassFromDB(conn *sql.DB, clusterID int, className string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get groups for class: %w", err)
 	}
-	defer groupRows.Close()
+	defer func() {
+		if groupRows != nil {
+			_ = groupRows.Close()
+		}
+	}()
 
 	var groupIDs []int
 	for groupRows.Next() {
@@ -493,7 +530,11 @@ func DeleteClassFromDB(conn *sql.DB, clusterID int, className string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get nodes for cluster: %w", err)
 	}
-	defer nodeRows.Close()
+	defer func() {
+		if err := nodeRows.Close(); err != nil {
+			fmt.Printf("failed to close node rows: %v", err)
+		}
+	}()
 
 	var nodeIDs []int
 	for nodeRows.Next() {
@@ -583,7 +624,11 @@ func unassignGroupsFromNodeWithTx(conn *sql.DB, tx *sql.Tx, ids NodeAndGroupIds)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
 	}
-	defer stmt.Close()
+	defer func() {
+		if stmt != nil {
+			_ = stmt.Close()
+		}
+	}()
 
 	for _, g := range ids.Assignments {
 		for _, groupID := range g.GroupIDs {
@@ -628,7 +673,11 @@ ORDER BY n.node_id, g.group_id, u.user_id;
 	if err != nil {
 		return nil, fmt.Errorf("failed to query groups: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 
 	results := make([]NodeGroupsForClass, 0)
 	var currentNodeURL string
@@ -807,7 +856,11 @@ ORDER BY n.node_id, g.group_id, e.exercise_id;`, clusterID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query exercises: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if rows != nil {
+			_ = rows.Close()
+		}
+	}()
 
 	results := make([]NodeExercisesForClass, 0)
 	var current *NodeExercisesForClass

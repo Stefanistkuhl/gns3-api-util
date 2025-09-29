@@ -54,7 +54,11 @@ func recvOne(rs *quic.ReceiveStream, dstDir string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err != nil {
+			_ = os.Remove(out)
+		}
+	}()
 
 	if _, err := io.CopyN(f, rs, size); err != nil {
 		return err

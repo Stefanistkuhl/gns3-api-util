@@ -3,8 +3,8 @@ package cluster
 import (
 	"database/sql"
 	"fmt"
+	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/stefanistkuhl/gns3util/pkg/cluster/db"
@@ -17,7 +17,11 @@ func ApplyConfig(cfg Config) error {
 		return fmt.Errorf("DB open error: %v", openErr)
 	}
 
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	var create db.CreateClustersAndNodes
 	for _, cluster := range cfg.Clusters {
@@ -269,7 +273,11 @@ func SyncConfigWithDb(cfg Config) (Config, bool, error) {
 	if openErr != nil {
 		return cfg, false, fmt.Errorf("DB open error: %v", openErr)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	dbClusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -299,7 +307,11 @@ func CheckConfigWithDb(cfg Config, verbose bool) (bool, error) {
 		}
 		return false, fmt.Errorf("db open error: %w", openErr)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	dbClusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -428,146 +440,138 @@ func MergeConfigWithDb(
 	dbClusters []db.ClusterName,
 	dbNodes []db.NodeDataAll,
 ) (Config, bool) {
-	changed := false
+	cfgView := buildCfgView(cfg)
 
-	cfgView := make(map[string]cfgClusterView)
-	for _, c := range cfg.Clusters {
-		nname := norm(c.Name)
-		cv, ok := cfgView[nname]
-		if !ok {
-			cv = cfgClusterView{
-				Description: strings.TrimSpace(c.Description),
-				Nodes:       make(map[string]cfgNode),
-			}
-		} else if cv.Description == "" && strings.TrimSpace(c.Description) != "" {
-			cv.Description = strings.TrimSpace(c.Description)
-		}
-		for _, n := range c.Nodes {
-			proto := n.Protocol
-			if proto == "" {
-				proto = cfg.Settings.DefaultProtocol
-			}
-			maxGroups := n.MaxGroups
-			if maxGroups == 0 {
-				maxGroups = cfg.Settings.DefaultMaxGroups
-			}
-			key := nodeKey(n.Host, n.Port)
-			if _, exists := cv.Nodes[key]; exists {
-				changed = true
-				continue
-			}
-			cv.Nodes[key] = cfgNode{
-				Protocol:  strings.ToLower(proto),
-				Weight:    n.Weight,
-				MaxGroups: maxGroups,
-				User:      n.User,
-			}
-		}
-		cfgView[nname] = cv
-	}
-
-	idToName := make(map[int]string, len(dbClusters))
-	for _, cdb := range dbClusters {
-		nname := norm(cdb.Name)
-		idToName[cdb.Id] = nname
-		cv, exists := cfgView[nname]
-		if !exists {
-			cv = cfgClusterView{
-				Description: strings.TrimSpace(cdb.Desc.String),
-				Nodes:       make(map[string]cfgNode),
-			}
-			cfgView[nname] = cv
-			changed = true
-		} else if cv.Description == "" && cdb.Desc.Valid {
-			cv.Description = strings.TrimSpace(cdb.Desc.String)
-			cfgView[nname] = cv
-			changed = true
-		}
-	}
-
-	for _, n := range dbNodes {
-		nname, ok := idToName[n.ClusterID]
-		if !ok {
-			continue
-		}
-		cv := cfgView[nname]
-		if cv.Nodes == nil {
-			cv.Nodes = make(map[string]cfgNode)
-		}
-		key := nodeKey(n.Host, n.Port)
-		proto := strings.TrimSpace(n.Protocol)
-		if proto == "" {
-			proto = cfg.Settings.DefaultProtocol
-		}
-		dbNodeValue := cfgNode{
-			Protocol: strings.ToLower(proto),
-			Weight:   n.Weight,
-			MaxGroups: func() int {
-				if n.MaxGroups == 0 {
-					return cfg.Settings.DefaultMaxGroups
-				}
-				return n.MaxGroups
-			}(),
-			User: n.User,
-		}
-		if existing, exists := cv.Nodes[key]; !exists {
-			cv.Nodes[key] = dbNodeValue
-			cfgView[nname] = cv
-			changed = true
-		} else if !equalStr(existing.Protocol, dbNodeValue.Protocol) ||
-			existing.Weight != dbNodeValue.Weight ||
-			existing.MaxGroups != dbNodeValue.MaxGroups ||
-			existing.User != dbNodeValue.User {
-			cv.Nodes[key] = dbNodeValue
-			cfgView[nname] = cv
-			changed = true
-		}
+	nodesByCluster := make(map[int][]db.NodeDataAll)
+	for _, node := range dbNodes {
+		nodesByCluster[node.ClusterID] = append(nodesByCluster[node.ClusterID], node)
 	}
 
 	rebuilt := Config{
 		Settings: cfg.Settings,
-		Clusters: make([]Cluster, 0, len(cfgView)),
+		Clusters: make([]Cluster, 0, len(dbClusters)),
 	}
 
-	type kv struct {
-		name string
-		cv   cfgClusterView
-	}
-	all := make([]kv, 0, len(cfgView))
-	for nname, cv := range cfgView {
-		all = append(all, kv{name: nname, cv: cv})
-	}
-	sort.Slice(all, func(i, j int) bool { return all[i].name < all[j].name })
+	for _, dbCluster := range dbClusters {
+		nname := norm(dbCluster.Name)
+		existing := cfgView[nname]
 
-	for _, it := range all {
-		nname, cv := it.name, it.cv
-		cl := Cluster{
-			Name:        nname,
-			Description: cv.Description,
-			Nodes:       make([]Node, 0, len(cv.Nodes)),
+		desc := strings.TrimSpace(existing.Description)
+		if dbCluster.Desc.Valid {
+			desc = strings.TrimSpace(dbCluster.Desc.String)
 		}
-		nkeys := make([]string, 0, len(cv.Nodes))
-		for k := range cv.Nodes {
-			nkeys = append(nkeys, k)
-		}
-		sort.Strings(nkeys)
-		for _, key := range nkeys {
-			nn := cv.Nodes[key]
-			host, portStr, _ := strings.Cut(key, ":")
-			pi, _ := strconv.Atoi(portStr)
-			cl.Nodes = append(cl.Nodes, Node{
-				Host:      host,
-				Port:      pi,
-				Protocol:  nn.Protocol,
-				Weight:    nn.Weight,
-				MaxGroups: nn.MaxGroups,
-				User:      nn.User,
+
+		dbNodeSlice := append([]db.NodeDataAll(nil), nodesByCluster[dbCluster.Id]...)
+		sort.Slice(dbNodeSlice, func(i, j int) bool {
+			if !equalStr(dbNodeSlice[i].Host, dbNodeSlice[j].Host) {
+				return strings.ToLower(strings.TrimSpace(dbNodeSlice[i].Host)) < strings.ToLower(strings.TrimSpace(dbNodeSlice[j].Host))
+			}
+			return dbNodeSlice[i].Port < dbNodeSlice[j].Port
+		})
+
+		nodes := make([]Node, 0, len(dbNodeSlice))
+		for _, dbNode := range dbNodeSlice {
+			key := nodeKey(dbNode.Host, dbNode.Port)
+			existingNode := existing.Nodes[key]
+
+			proto := strings.TrimSpace(dbNode.Protocol)
+			if proto == "" {
+				proto = strings.TrimSpace(existingNode.Protocol)
+			}
+			if proto == "" {
+				proto = strings.TrimSpace(cfg.Settings.DefaultProtocol)
+			}
+			if proto == "" {
+				proto = "http"
+			}
+			proto = strings.ToLower(proto)
+
+			maxGroups := dbNode.MaxGroups
+			if maxGroups == 0 {
+				if existingNode.MaxGroups != 0 {
+					maxGroups = existingNode.MaxGroups
+				} else if cfg.Settings.DefaultMaxGroups != 0 {
+					maxGroups = cfg.Settings.DefaultMaxGroups
+				} else {
+					maxGroups = 3
+				}
+			}
+
+			user := strings.TrimSpace(dbNode.User)
+			if user == "" {
+				user = strings.TrimSpace(existingNode.User)
+			}
+
+			nodes = append(nodes, Node{
+				Host:      strings.ToLower(strings.TrimSpace(dbNode.Host)),
+				Port:      dbNode.Port,
+				Protocol:  proto,
+				Weight:    dbNode.Weight,
+				MaxGroups: maxGroups,
+				User:      user,
 			})
 		}
-		rebuilt.Clusters = append(rebuilt.Clusters, cl)
+
+		name := strings.TrimSpace(dbCluster.Name)
+		if name == "" {
+			name = nname
+		}
+
+		rebuilt.Clusters = append(rebuilt.Clusters, Cluster{
+			Name:        name,
+			Description: desc,
+			Nodes:       nodes,
+		})
 	}
 
+	sort.Slice(rebuilt.Clusters, func(i, j int) bool {
+		return strings.ToLower(rebuilt.Clusters[i].Name) < strings.ToLower(rebuilt.Clusters[j].Name)
+	})
+
+	changed := !reflect.DeepEqual(normalizeConfig(cfg), normalizeConfig(rebuilt))
+
 	return rebuilt, changed
+}
+
+func normalizeConfig(cfg Config) Config {
+	normalized := Config{
+		Settings: cfg.Settings,
+		Clusters: make([]Cluster, len(cfg.Clusters)),
+	}
+
+	for i, cl := range cfg.Clusters {
+		normCluster := Cluster{
+			Name:        strings.TrimSpace(cl.Name),
+			Description: strings.TrimSpace(cl.Description),
+			Nodes:       make([]Node, len(cl.Nodes)),
+		}
+
+		for j, node := range cl.Nodes {
+			normCluster.Nodes[j] = Node{
+				Host:      strings.ToLower(strings.TrimSpace(node.Host)),
+				Port:      node.Port,
+				Protocol:  strings.ToLower(strings.TrimSpace(node.Protocol)),
+				Weight:    node.Weight,
+				MaxGroups: node.MaxGroups,
+				User:      strings.TrimSpace(node.User),
+			}
+		}
+
+		sort.Slice(normCluster.Nodes, func(a, b int) bool {
+			if normCluster.Nodes[a].Host == normCluster.Nodes[b].Host {
+				return normCluster.Nodes[a].Port < normCluster.Nodes[b].Port
+			}
+			return normCluster.Nodes[a].Host < normCluster.Nodes[b].Host
+		})
+
+		normalized.Clusters[i] = normCluster
+	}
+
+	sort.Slice(normalized.Clusters, func(i, j int) bool {
+		return strings.ToLower(normalized.Clusters[i].Name) < strings.ToLower(normalized.Clusters[j].Name)
+	})
+
+	return normalized
 }
 
 type dbClusterView struct {

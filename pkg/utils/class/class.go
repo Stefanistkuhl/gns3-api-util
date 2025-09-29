@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -21,7 +22,11 @@ type NodeAndGroups struct {
 	NumGroups int
 }
 
-var ErrInsufficientCapacity = errors.New("not enough capacity for all groups")
+var (
+	ErrInsufficientCapacity = errors.New("not enough capacity for all groups")
+	ErrExerciseNotFound     = errors.New("exercise not found")
+	ErrClassNotFound        = errors.New("class not found")
+)
 
 func LoadClassFromFile(filePath string) (schemas.Class, error) {
 	var classData schemas.Class
@@ -34,7 +39,9 @@ func LoadClassFromFile(filePath string) (schemas.Class, error) {
 	if err != nil {
 		return classData, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -67,7 +74,9 @@ func CreateClass(cfg config.GlobalOptions, clusterID int, classData schemas.Clas
 	if err != nil {
 		return false, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	assignedPerNode := make(map[int]int)
 	rows, qerr := conn.Query(`
@@ -78,7 +87,11 @@ WHERE n.cluster_id = ?
 GROUP BY ga.node_id;
 `, clusterID)
 	if qerr == nil {
-		defer rows.Close()
+		defer func() {
+			if err := rows.Err(); err != nil {
+				fmt.Printf("failed to iterate over rows: %v", err)
+			}
+		}()
 		for rows.Next() {
 			var nodeID, cnt int
 			if err := rows.Scan(&nodeID, &cnt); err == nil {
@@ -217,11 +230,19 @@ func addUserToGroup(cfg config.GlobalOptions, userID, groupID string) error {
 func DeleteClass(cfg config.GlobalOptions, className string) error {
 	clusterID, err := getClusterIDForServer(cfg)
 
-	var dbDeleted bool
+	var (
+		dbDeleted   bool
+		nodeServers []string
+	)
+
 	if err == nil && clusterID != 0 {
 		dbConn, dbErr := db.InitIfNeeded()
 		if dbErr == nil {
-			defer dbConn.Close()
+			defer func() {
+				if err := dbConn.Close(); err != nil {
+					fmt.Printf("failed to close database connection: %v", err)
+				}
+			}()
 
 			if dbErr = deleteClassFromDB(clusterID, className); dbErr == nil {
 				dbDeleted = true
@@ -236,52 +257,64 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 			}
 
 			nodes, nerr := db.GetNodes(dbConn)
-			if nerr == nil {
-				var nodeServers []string
+			if nerr != nil {
+				fmt.Printf("%v Failed to get nodes for class deletion: %v\n",
+					messageUtils.WarningMsg("Warning"),
+					nerr)
+			} else {
+				nodeServers = make([]string, 0, len(nodes))
 				for _, n := range nodes {
 					if n.ClusterID == clusterID {
 						nodeServers = append(nodeServers, fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port))
 					}
 				}
-
-				if len(nodeServers) > 0 {
-					var wg sync.WaitGroup
-					errCh := make(chan error, len(nodeServers))
-
-					for _, srv := range nodeServers {
-						wg.Add(1)
-						go func(server string) {
-							defer wg.Done()
-							nodeCfg := cfg
-							nodeCfg.Server = server
-							if err := deleteClassFromAPI(nodeCfg, className); err != nil {
-								errCh <- fmt.Errorf("%s: %w", server, err)
-							}
-						}(srv)
-					}
-
-					wg.Wait()
-					close(errCh)
-
-					var apiErrors []error
-					for e := range errCh {
-						if e != nil {
-							apiErrors = append(apiErrors, e)
-						}
-					}
-
-					if dbDeleted && len(apiErrors) == 0 {
-						return nil
-					}
-
-					if len(apiErrors) > 0 {
-						return fmt.Errorf("failed to delete from some nodes: %v", apiErrors)
-					}
-
-					return nil
-				}
 			}
 		}
+	}
+
+	if len(nodeServers) > 0 {
+		var wg sync.WaitGroup
+		errCh := make(chan error, len(nodeServers))
+
+		for _, srv := range nodeServers {
+			wg.Add(1)
+			go func(server string) {
+				defer wg.Done()
+				nodeCfg := cfg
+				nodeCfg.Server = server
+				if err := deleteClassFromAPI(nodeCfg, className); err != nil {
+					if errors.Is(err, ErrClassNotFound) {
+						fmt.Printf("%v Class %v not present on %s; skipping.\n",
+							messageUtils.WarningMsg("Warning"),
+							messageUtils.Bold(className),
+							server,
+						)
+						return
+					}
+					errCh <- fmt.Errorf("%s: %w", server, err)
+				}
+			}(srv)
+		}
+
+		wg.Wait()
+		close(errCh)
+
+		var apiErrors []error
+		for e := range errCh {
+			if e != nil {
+				apiErrors = append(apiErrors, e)
+			}
+		}
+
+		if dbDeleted && len(apiErrors) == 0 {
+			return nil
+		}
+
+		if len(apiErrors) > 0 {
+			return fmt.Errorf("failed to delete from some nodes: %v", apiErrors)
+		}
+
+		return nil
 	}
 
 	if !dbDeleted {
@@ -290,7 +323,19 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 			messageUtils.Bold(className))
 	}
 
-	return deleteClassFromAPI(cfg, className)
+	if err := deleteClassFromAPI(cfg, className); err != nil {
+		if errors.Is(err, ErrClassNotFound) {
+			fmt.Printf("%v Class %v not present on %s; skipping.\n",
+				messageUtils.WarningMsg("Warning"),
+				messageUtils.Bold(className),
+				cfg.Server,
+			)
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
 
 func deleteClassFromAPI(cfg config.GlobalOptions, className string) error {
@@ -310,7 +355,7 @@ func deleteClassFromAPI(cfg config.GlobalOptions, className string) error {
 	classGroups, studentGroups := findClassAndStudentGroups(groups, className)
 
 	if len(classGroups) == 0 && len(studentGroups) == 0 {
-		return fmt.Errorf("no groups found for class %s", messageUtils.Bold(className))
+		return fmt.Errorf("%w: %s", ErrClassNotFound, className)
 	}
 
 	fmt.Printf("%v Found %d class groups and %d student groups for class %v\n",
@@ -440,7 +485,11 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 			messageUtils.WarningMsg("Warning"),
 			err)
 	} else {
-		defer dbConn.Close()
+		defer func() {
+			if err := dbConn.Close(); err != nil {
+				fmt.Printf("failed to close database connection: %v", err)
+			}
+		}()
 	}
 
 	projects, err := getProjectsForExercise(cfg, exerciseName, className, groupName)
@@ -449,7 +498,6 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 	}
 
 	if len(projects) == 0 {
-		fmt.Println(exerciseName)
 		if dbConn != nil {
 			_, err := dbConn.Exec(`
 				DELETE FROM exercises 
@@ -461,7 +509,7 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 					err)
 			}
 		}
-		return fmt.Errorf("exercise %s not found", messageUtils.Bold(exerciseName))
+		return fmt.Errorf("%w: %s", ErrExerciseNotFound, exerciseName)
 	}
 
 	fmt.Printf("%v Found %d projects for exercise %v\n",
@@ -473,6 +521,16 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 		projectID := project.ProjectID
 		projectName := project.Name
 
+		parts := strings.Split(projectName, "-")
+		resolvedClass := className
+		resolvedExercise := exerciseName
+		if resolvedClass == "" && len(parts) > 0 {
+			resolvedClass = parts[0]
+		}
+		if resolvedExercise == "" && len(parts) > 1 {
+			resolvedExercise = parts[1]
+		}
+
 		if err := closeProject(cfg, projectID); err != nil {
 			fmt.Printf("%v Failed to close project %s: %v\n",
 				messageUtils.WarningMsg("Warning"),
@@ -480,7 +538,7 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 				err)
 		}
 
-		pools, err := getPoolsForExercise(cfg, exerciseName, className, groupName)
+		pools, err := getPoolsForProject(cfg, projectID, projectName, resolvedClass, resolvedExercise)
 		if err != nil {
 			fmt.Printf("%v Failed to get pools for exercise %s: %v\n",
 				messageUtils.WarningMsg("Warning"),
@@ -488,11 +546,42 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 				err)
 		} else {
 			for _, pool := range pools {
-				if err := deleteACLsForPool(cfg, pool.ResourcePoolID); err != nil {
-					fmt.Printf("%v Failed to delete ACLs for pool %s: %v\n",
+				aclsToDelete, collectErr := listACLsForPool(cfg, pool.ResourcePoolID, pool.Name)
+				if collectErr != nil {
+					fmt.Printf("%v Failed to enumerate ACLs for pool %s: %v\n",
 						messageUtils.WarningMsg("Warning"),
 						pool.Name,
-						err)
+						collectErr)
+					continue
+				}
+
+				if len(aclsToDelete) == 0 {
+					fmt.Printf("%v No ACL entries matched pool %s; pool deletion skipped.\n",
+						messageUtils.InfoMsg("Info"),
+						messageUtils.Bold(pool.Name))
+					continue
+				}
+
+				fmt.Printf("%v Found %d ACL entries for pool %s; deleting...\n",
+					messageUtils.InfoMsg("Info"),
+					len(aclsToDelete),
+					messageUtils.Bold(pool.Name))
+
+				for _, aclID := range aclsToDelete {
+					if err := deleteACL(cfg, aclID); err != nil {
+						fmt.Printf("%v Failed to delete ACL %s for pool %s: %v\n",
+							messageUtils.WarningMsg("Warning"),
+							aclID,
+							pool.Name,
+							err)
+					}
+				}
+
+				if len(aclsToDelete) > 0 {
+					fmt.Printf("%v Deleted %d ACL entry(ies) for pool %s\n",
+						messageUtils.SuccessMsg("Deleted ACLs"),
+						len(aclsToDelete),
+						messageUtils.Bold(pool.Name))
 				}
 
 				if err := deletePool(cfg, pool.ResourcePoolID); err != nil {
@@ -562,7 +651,11 @@ func getProjectsForExercise(cfg config.GlobalOptions, exerciseName, className, g
 		fmt.Printf("%v Failed to initialize database (will try API): %v\n",
 			messageUtils.WarningMsg("Warning"), err)
 	} else {
-		defer dbConn.Close()
+		defer func() {
+			if err := dbConn.Close(); err != nil {
+				fmt.Printf("failed to close database connection: %v", err)
+			}
+		}()
 
 		query := `
 			SELECT e.project_uuid, e.name, c.name as class_name, g.name as group_name
@@ -588,7 +681,11 @@ func getProjectsForExercise(cfg config.GlobalOptions, exerciseName, className, g
 			fmt.Printf("%v Database query failed (will try API): %v\n",
 				messageUtils.WarningMsg("Warning"), err)
 		} else {
-			defer rows.Close()
+			defer func() {
+				if err := rows.Err(); err != nil {
+					fmt.Printf("failed to iterate over rows: %v", err)
+				}
+			}()
 
 			validProjects := make(map[string]struct{})
 			var scanErrors []error
@@ -696,7 +793,11 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 			messageUtils.WarningMsg("Warning"),
 			err)
 	} else {
-		defer dbConn.Close()
+		defer func() {
+			if err := dbConn.Close(); err != nil {
+				fmt.Printf("failed to close database connection: %v", err)
+			}
+		}()
 	}
 
 	clusterID, err := getClusterIDForServer(cfg)
@@ -730,21 +831,18 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 		}(srv)
 	}
 
-	go func() {
-		if dbConn != nil {
-			_, err := dbConn.Exec(`
-				DELETE FROM exercises 
-				WHERE class_name = ?`,
-				className)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to delete exercises for class %s from database: %w", className, err)
-			} else {
-				fmt.Printf("%v Deleted database records for exercises in class %v\n",
-					messageUtils.SuccessMsg("Deleted database records"),
-					messageUtils.Bold(className))
-			}
+	if dbConn != nil {
+		if _, err := dbConn.Exec(`
+			DELETE FROM exercises 
+			WHERE class = ?`,
+			className); err != nil {
+			errCh <- fmt.Errorf("failed to delete exercises for class %s from database: %w", className, err)
+		} else {
+			fmt.Printf("%v Deleted database records for exercises in class %v\n",
+				messageUtils.SuccessMsg("Deleted database records"),
+				messageUtils.Bold(className))
 		}
-	}()
+	}
 
 	wg.Wait()
 	close(errCh)
@@ -759,7 +857,11 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string) error {
 	dbConn, err := db.InitIfNeeded()
 	if err == nil {
-		defer dbConn.Close()
+		defer func() {
+			if err := dbConn.Close(); err != nil {
+				fmt.Printf("failed to close database connection: %v", err)
+			}
+		}()
 		_, err = dbConn.Exec(`
 			DELETE FROM exercises 
 			WHERE class = ?`,
@@ -819,15 +921,24 @@ func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string
 		messageUtils.Bold(className), cfg.Server)
 
 	deleted := 0
-	errors := 0
+	errorCount := 0
 	for _, exerciseName := range classExercises {
-		if err := DeleteExercise(cfg, exerciseName, className, ""); err != nil {
+		err := DeleteExercise(cfg, exerciseName, className, "")
+		if err != nil {
+			if errors.Is(err, ErrExerciseNotFound) {
+				fmt.Printf("%v Exercise %v not present on %s; skipping.\n",
+					messageUtils.WarningMsg("Warning"),
+					messageUtils.Bold(exerciseName),
+					cfg.Server,
+				)
+				continue
+			}
 			fmt.Printf("%v Failed to delete exercise %v on %s: %v\n",
 				messageUtils.ErrorMsg("Error"),
 				messageUtils.Bold(exerciseName),
 				cfg.Server,
 				err)
-			errors++
+			errorCount++
 		} else {
 			deleted++
 		}
@@ -841,8 +952,8 @@ func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string
 			messageUtils.Bold(className))
 	}
 
-	if errors > 0 {
-		return fmt.Errorf("encountered %d errors while deleting exercises", errors)
+	if errorCount > 0 {
+		return fmt.Errorf("encountered %d errors while deleting exercises", errorCount)
 	}
 
 	return nil
@@ -882,8 +993,7 @@ func closeProject(cfg config.GlobalOptions, projectID string) error {
 	return nil
 }
 
-func getPoolsForExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) ([]schemas.ResourcePoolResponse, error) {
-	_ = groupName
+func getPoolsForProject(cfg config.GlobalOptions, projectID, projectName, className, exerciseName string) ([]schemas.ResourcePoolResponse, error) {
 	poolsBody, status, err := utils.CallClient(cfg, "getPools", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pools: %w", err)
@@ -899,7 +1009,32 @@ func getPoolsForExercise(cfg config.GlobalOptions, exerciseName, className, grou
 
 	var matchingPools []schemas.ResourcePoolResponse
 	for _, pool := range allPools {
-		if strings.HasPrefix(pool.Name, className+"-"+exerciseName+"-") && strings.HasSuffix(pool.Name, "-pool") {
+		name := strings.TrimSpace(pool.Name)
+		if name == "" {
+			continue
+		}
+
+		if projectName != "" && strings.HasPrefix(name, projectName) && strings.HasSuffix(name, "-pool") {
+			matchingPools = append(matchingPools, pool)
+			continue
+		}
+
+		contains, cerr := poolContainsProject(cfg, pool.ResourcePoolID, projectID)
+		if cerr != nil {
+			fmt.Printf("%v Failed to inspect pool %s for project membership: %v\n",
+				messageUtils.WarningMsg("Warning"),
+				messageUtils.Bold(pool.Name),
+				cerr)
+		} else if contains {
+			matchingPools = append(matchingPools, pool)
+			continue
+		}
+
+		if className != "" && exerciseName != "" && strings.HasPrefix(name, fmt.Sprintf("%s-%s-", className, exerciseName)) && strings.HasSuffix(name, "-pool") {
+			matchingPools = append(matchingPools, pool)
+			continue
+		}
+		if exerciseName != "" && strings.Contains(name, "-"+exerciseName+"-") && strings.HasSuffix(name, "-pool") {
 			matchingPools = append(matchingPools, pool)
 		}
 	}
@@ -907,35 +1042,117 @@ func getPoolsForExercise(cfg config.GlobalOptions, exerciseName, className, grou
 	return matchingPools, nil
 }
 
-func deleteACLsForPool(cfg config.GlobalOptions, poolID string) error {
-	aclsBody, status, err := utils.CallClient(cfg, "getACL", []string{}, nil)
+func poolContainsProject(cfg config.GlobalOptions, poolID, projectID string) (bool, error) {
+	body, status, err := utils.CallClient(cfg, "getPoolResources", []string{poolID}, nil)
 	if err != nil {
-		return fmt.Errorf("failed to get ACLs: %w", err)
+		return false, fmt.Errorf("failed to get pool resources: %w", err)
 	}
 	if status != 200 {
-		return fmt.Errorf("failed to get ACLs: status %d", status)
+		return false, fmt.Errorf("failed to get pool resources: status %d", status)
+	}
+
+	var resources []struct {
+		ResourceID string `json:"resource_id"`
+	}
+	if err := json.Unmarshal(body, &resources); err != nil {
+		return false, fmt.Errorf("failed to parse pool resources response: %w", err)
+	}
+
+	for _, res := range resources {
+		if res.ResourceID == projectID {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func listACLsForPool(cfg config.GlobalOptions, poolID, poolName string) ([]string, error) {
+	aclsBody, status, err := utils.CallClient(cfg, "getAcl", []string{}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ACLs: %w", err)
+	}
+	if status != 200 {
+		return nil, fmt.Errorf("failed to get ACLs: status %d", status)
 	}
 
 	var acls []schemas.ACLResponse
 	if err := json.Unmarshal(aclsBody, &acls); err != nil {
-		return fmt.Errorf("failed to parse ACLs response: %w", err)
+		return nil, fmt.Errorf("failed to parse ACLs response: %w", err)
 	}
 
 	poolPath := fmt.Sprintf("/pools/%s", poolID)
+	poolPathLower := strings.ToLower(poolPath)
+	trimmedName := strings.TrimSpace(poolName)
+	trimmedNameLower := strings.ToLower(trimmedName)
+	poolIDLower := strings.ToLower(poolID)
+
+	var matched []string
+
 	for _, acl := range acls {
-		if acl.Path == poolPath {
-			aclID := acl.ACLID
-			if err := deleteACL(cfg, aclID); err != nil {
-				return fmt.Errorf("failed to delete ACL: %w", err)
+		path := strings.TrimSpace(acl.Path)
+		if path == "" {
+			continue
+		}
+		pathLower := strings.ToLower(path)
+
+		match := path == poolPath || path == strings.TrimPrefix(poolPath, "/")
+		if !match {
+			if pathLower == poolPathLower || pathLower == strings.TrimPrefix(poolPathLower, "/") {
+				match = true
+			}
+		}
+		if !match && trimmedName != "" {
+			if strings.Contains(pathLower, poolIDLower) || strings.Contains(pathLower, trimmedNameLower) || strings.Contains(pathLower, fmt.Sprintf("\"%s\"", trimmedNameLower)) {
+				match = true
+			}
+		}
+		if !match && trimmedName != "" {
+			resourceLabel := fmt.Sprintf("resource pool \"%s\"", trimmedNameLower)
+			if strings.Contains(pathLower, resourceLabel) {
+				match = true
+			}
+		}
+		fmt.Printf("%v Inspecting ACL %s with path %q for pool %s (%s); match=%v\n",
+			messageUtils.InfoMsg("ACL"),
+			messageUtils.Bold(acl.ACLID),
+			path,
+			messageUtils.Bold(poolName),
+			poolID,
+			match)
+		if match {
+			id := strings.TrimSpace(acl.ACLID)
+			if id != "" {
+				matched = append(matched, id)
 			}
 		}
 	}
 
-	return nil
+	if len(matched) == 0 && trimmedName != "" {
+		for _, acl := range acls {
+			id := strings.TrimSpace(acl.ACLID)
+			if id == "" {
+				continue
+			}
+			if strings.Contains(strings.ToLower(id), trimmedNameLower) {
+				matched = append(matched, id)
+			}
+		}
+	}
+
+	if len(matched) == 0 {
+		fmt.Printf("%v No ACL entries matched pool %s (%s) after inspecting %d entries.\n",
+			messageUtils.WarningMsg("Warning"),
+			messageUtils.Bold(poolName),
+			poolID,
+			len(acls))
+	}
+
+	return matched, nil
 }
 
 func deletePool(cfg config.GlobalOptions, poolID string) error {
-	_, status, err := utils.CallClient(cfg, "deleteResourcePool", []string{poolID}, nil)
+	_, status, err := utils.CallClient(cfg, "deletePool", []string{poolID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete pool: %w", err)
 	}
@@ -1001,14 +1218,40 @@ func deleteProject(cfg config.GlobalOptions, projectID string) error {
 }
 
 func deleteACL(cfg config.GlobalOptions, aclID string) error {
-	_, status, err := utils.CallClient(cfg, "deleteACL", []string{aclID}, nil)
-	if err != nil {
-		return fmt.Errorf("failed to delete ACL: %w", err)
+	cleanID := strings.TrimSpace(aclID)
+	if cleanID == "" {
+		return fmt.Errorf("empty ACL id")
 	}
-	if status != 200 && status != 204 {
-		return fmt.Errorf("failed to delete ACL: status %d", status)
+
+	variants := []string{cleanID, url.PathEscape(cleanID)}
+
+	for _, id := range variants {
+		for _, suffix := range []string{"", "/"} {
+			candidate := strings.TrimSuffix(id, "/") + suffix
+
+			_, status, err := utils.CallClient(cfg, "deleteACE", []string{candidate}, nil)
+			if err != nil {
+				lastErr := fmt.Errorf("failed to delete ACL %s: %w", candidate, err)
+				if suffix == "/" || id == variants[len(variants)-1] {
+					return lastErr
+				}
+				continue
+			}
+
+			switch status {
+			case 200, 204, 404:
+				return nil
+			case 405:
+				if suffix == "/" || id == variants[len(variants)-1] {
+					return fmt.Errorf("failed to delete ACL %s: status %d", candidate, status)
+				}
+			default:
+				return fmt.Errorf("failed to delete ACL %s: status %d", candidate, status)
+			}
+		}
 	}
-	return nil
+
+	return fmt.Errorf("failed to delete ACL %s", cleanID)
 }
 
 func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
@@ -1023,7 +1266,11 @@ func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	clusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -1044,7 +1291,11 @@ func deleteClassFromDB(clusterID int, className string) error {
 	if err != nil {
 		return fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	return db.DeleteClassFromDB(conn, clusterID, className)
 }

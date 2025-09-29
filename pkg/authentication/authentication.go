@@ -52,7 +52,7 @@ func TryKeys(keys []pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, error)
 			}
 		}
 	}
-	return nil, fmt.Errorf("No working API-Key found for the server %s. Please use the %s command to authenticate.", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
+	return nil, fmt.Errorf("no working API-Key found for the server %s. Please use the %s command to authenticate. ", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
 }
 
 func normalizeURL(url string) string {
@@ -88,7 +88,11 @@ func tryKey(key pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, bool) {
 	if err != nil {
 		log.Fatalf("API error: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}()
 	if resp.StatusCode == 200 {
 		return body, true
 	} else {
@@ -143,7 +147,11 @@ func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string
 	if err != nil {
 		return fmt.Errorf("failed to open key file %q: %w", keyFileLocation, err)
 	}
-	defer f.Close()
+	defer func() {
+		if f != nil {
+			_ = f.Close()
+		}
+	}()
 
 	for _, key := range keys {
 		buff_key, err := json.Marshal(key)
@@ -191,5 +199,5 @@ func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
 			return key.AccessToken, nil
 		}
 	}
-	return "", fmt.Errorf("Could not find find a matching access token for the server %s, please use the %s command to login to the server.", cfg.Server, messageUtils.Bold("auth login"))
+	return "", fmt.Errorf("could not find find a matching access token for the server %s, please use the %s command to login to the server. ", cfg.Server, messageUtils.Bold("auth login"))
 }

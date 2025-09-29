@@ -70,12 +70,14 @@ This command will:
 	return createExerciseCmd
 }
 
-func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID int, _className, _exerciseName string) (map[string]string, error) {
+func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID int) (map[string]string, error) {
 	conn, err := db.InitIfNeeded()
 	if err != nil {
 		return nil, fmt.Errorf("init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	nodes, err := db.GetNodes(conn)
 	if err != nil {
@@ -212,7 +214,9 @@ func importProjectArchive(cfg config.GlobalOptions, archive []byte, projectName 
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != 201 {
 		return "", fmt.Errorf("import status %d", resp.StatusCode)
 	}
@@ -243,7 +247,9 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to init db: %w", err)
 		}
-		defer conn.Close()
+		defer func() {
+			_ = conn.Close()
+		}()
 
 		clusters, err := db.GetClusters(conn)
 		if err != nil {
@@ -267,7 +273,7 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 
 		var templateIDByNode map[string]string
 		if selectTemplate {
-			templateIDByNode, err = selectAndReplicateTemplateAcrossCluster(cfg, clusterID, className, exerciseName)
+			templateIDByNode, err = selectAndReplicateTemplateAcrossCluster(cfg, clusterID)
 			if err != nil {
 				return fmt.Errorf("template selection/replication failed: %w", err)
 			}
@@ -415,7 +421,7 @@ func createForGroupsOnServer(cfg config.GlobalOptions, className, exerciseName, 
 	conn, _ := db.InitIfNeeded()
 	defer func() {
 		if conn != nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
@@ -684,7 +690,9 @@ func importTemplateProject(cfg config.GlobalOptions, filePath, className, exerci
 	if err != nil {
 		return "", fmt.Errorf("failed to open template file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)

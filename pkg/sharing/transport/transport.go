@@ -18,14 +18,22 @@ func SendFile(ctx context.Context, path string, addr string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to receiver: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close connection: %v", err)
+		}
+	}()
 
 	// Open the file
 	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			fmt.Printf("failed to close file: %v", err)
+		}
+	}()
 
 	// Get file info for size
 	fileInfo, err := file.Stat()
@@ -66,14 +74,22 @@ func ReceiveFile(ctx context.Context, port int, outputDir string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("failed to start listener: %w", err)
 	}
-	defer listener.Close()
+	defer func() {
+		if err := listener.Close(); err != nil {
+			fmt.Printf("failed to close listener: %v", err)
+		}
+	}()
 
 	// Handle incoming connection
 	conn, err := listener.Accept()
 	if err != nil {
 		return "", fmt.Errorf("failed to accept connection: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close connection: %v", err)
+		}
+	}()
 
 	// Read file size (8 bytes)
 	var fileSize int64
@@ -103,7 +119,11 @@ func ReceiveFile(ctx context.Context, port int, outputDir string) (string, error
 	if err != nil {
 		return "", fmt.Errorf("failed to create output file: %w", err)
 	}
-	defer outputFile.Close()
+	defer func() {
+		if err := outputFile.Close(); err != nil {
+			fmt.Printf("failed to close output file: %v", err)
+		}
+	}()
 
 	// Receive file data
 	_, err = io.CopyN(outputFile, conn, fileSize)

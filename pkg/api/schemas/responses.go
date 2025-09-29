@@ -51,7 +51,7 @@ type RoleResponse struct {
 }
 
 type ACLResponse struct {
-	ACLID     string  `json:"acl_id"`
+	ACLID     string  `json:"ace_id"`
 	ACEType   string  `json:"ace_type"`
 	Path      string  `json:"path"`
 	Propagate bool    `json:"propagate"`

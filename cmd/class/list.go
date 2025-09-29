@@ -52,7 +52,7 @@ func runListClasses(cmd *cobra.Command, args []string) error {
 	var classes []ClassDistribution
 
 	if !apiOnly {
-		dbClasses, err := getClassDistributionFromDB(cfg, clusterID)
+		dbClasses, err := getClassDistributionFromDB(clusterID)
 		if err != nil {
 			fmt.Printf("%v Warning: failed to get class distribution from database: %v\n",
 				messageUtils.WarningMsg("Warning"), err)
@@ -62,7 +62,7 @@ func runListClasses(cmd *cobra.Command, args []string) error {
 	}
 
 	if !dbOnly {
-		apiClasses, err := getClassDistributionFromAPI(cfg)
+		apiClasses, err := getClassDistributionFromAPI()
 		if err != nil {
 			if len(classes) == 0 {
 				return fmt.Errorf("failed to get class distribution from API: %w", err)
@@ -193,12 +193,16 @@ type NodeInfo struct {
 	GroupNames []string
 }
 
-func getClassDistributionFromDB(cfg config.GlobalOptions, clusterID int) ([]ClassDistribution, error) {
+func getClassDistributionFromDB(clusterID int) ([]ClassDistribution, error) {
 	conn, err := db.InitIfNeeded()
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	rows, qerr := conn.Query(`
 SELECT
@@ -222,7 +226,11 @@ ORDER BY c.name, n.node_id, g.group_id, u.user_id;
 	if qerr != nil {
 		return nil, fmt.Errorf("failed to query class distribution: %w", qerr)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Err(); err != nil {
+			fmt.Printf("failed to iterate over rows: %v", err)
+		}
+	}()
 
 	classMap := make(map[string]ClassDistribution)
 	for rows.Next() {
@@ -269,7 +277,7 @@ ORDER BY c.name, n.node_id, g.group_id, u.user_id;
 	return result, nil
 }
 
-func getClassDistributionFromAPI(cfg config.GlobalOptions) ([]ClassDistribution, error) {
+func getClassDistributionFromAPI() ([]ClassDistribution, error) {
 	return []ClassDistribution{}, nil
 }
 
@@ -278,7 +286,11 @@ func resolveClusterID(cfg config.GlobalOptions, clusterName string) (int, error)
 	if err != nil {
 		return 0, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	if clusterName != "" {
 		clusters, err := db.GetClusters(conn)

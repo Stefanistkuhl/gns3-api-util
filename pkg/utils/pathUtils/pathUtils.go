@@ -62,7 +62,11 @@ func LoadGNS3KeysFile(path string) ([]GNS3Key, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not open %q: %w", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Printf("failed to close file: %v", err)
+		}
+	}()
 
 	var keys []GNS3Key
 	dec := json.NewDecoder(f)

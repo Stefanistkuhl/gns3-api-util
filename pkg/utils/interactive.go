@@ -217,16 +217,16 @@ func (m PasswordModel) View() string {
 }
 
 func ValidatePassword(password string) bool {
+	if password == "admin" {
+		return true
+	}
+
 	if len(password) < 8 {
 		return false
 	}
 
 	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
 	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
-
-	if password == "admin" {
-		return true
-	}
 
 	return hasNumber && hasLower
 }
@@ -278,12 +278,16 @@ func EditTextWithEditor(text string, ext string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary file: %v", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			fmt.Printf("failed to remove temporary file: %v", err)
+		}
+	}()
 
 	if _, err := tmpFile.WriteString(text); err != nil {
 		return "", fmt.Errorf("failed to write to temporary file: %v", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	editor := os.Getenv("EDITOR")
 	if editor == "" {

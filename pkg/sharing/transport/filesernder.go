@@ -28,7 +28,11 @@ func sendOne(ctx context.Context, conn *quic.Conn, absPath string, meta FileMeta
 		s.CancelWrite(0)
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		if err != nil {
+			_ = s.Close()
+		}
+	}()
 
 	// header: uint16 nameLen | name bytes | uint64 size
 	name := []byte(meta.Rel)

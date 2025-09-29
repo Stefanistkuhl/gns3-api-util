@@ -3,8 +3,8 @@ package cluster
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
@@ -15,16 +15,16 @@ import (
 	"github.com/stefanistkuhl/gns3util/pkg/fuzzy"
 	"github.com/stefanistkuhl/gns3util/pkg/utils"
 	"github.com/stefanistkuhl/gns3util/pkg/utils/colorUtils"
-	"github.com/stefanistkuhl/gns3util/pkg/utils/messageUtils"
 )
 
 type AddNodeOptions struct {
-	Servers   []string
-	Weight    int
-	MaxGroups int
-	Username  string
-	Password  string
-	ClusterID int
+	Servers     []string
+	ServerUsers map[string]string
+	Weight      int
+	MaxGroups   int
+	Username    string
+	Password    string
+	ClusterID   int
 }
 
 func RunAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.NodeData, error) {
@@ -44,13 +44,20 @@ func RunAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.Nod
 		return db.NodeData{}, fmt.Errorf("failed to convert port to an int")
 	}
 
+	username := strings.TrimSpace(opts.Username)
+	if username == "" && opts.ServerUsers != nil {
+		if mappedUser, ok := opts.ServerUsers[server]; ok {
+			username = strings.TrimSpace(mappedUser)
+		}
+	}
+
 	return db.NodeData{
 		Protocol:  u.Scheme,
 		Host:      u.Hostname(),
 		Port:      port,
 		Weight:    opts.Weight,
 		MaxGroups: opts.MaxGroups,
-		User:      opts.Username,
+		User:      username,
 	}, nil
 }
 
@@ -58,10 +65,7 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 	if len(opts.Servers) == 0 {
 		fmt.Printf("%s\n", colorUtils.Info("No servers provided, entering interactive mode..."))
 
-		cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
-		if err != nil {
-			return nil, fmt.Errorf("failed to get global options: %w", err)
-		}
+		cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
 
 		// Load servers from keyfile
 		keys, err := authentication.LoadKeys(cfg.KeyFile)
@@ -76,11 +80,13 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 		// Create fuzzy picker options
 		serverOptions := make([]string, len(keys))
 		serverMap := make(map[string]string)
+		serverUserMap := make(map[string]string)
 
 		for i, key := range keys {
 			plainName := fmt.Sprintf("%-30s (%s)", key.ServerURL, key.User)
 			serverOptions[i] = plainName
 			serverMap[plainName] = key.ServerURL
+			serverUserMap[key.ServerURL] = key.User
 		}
 
 		selectedServers := fuzzy.NewFuzzyFinderWithTitle(serverOptions, true, "Select servers to add to cluster:")
@@ -91,9 +97,22 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 		}
 
 		// Convert selected display names to server URLs
+		if opts.ServerUsers == nil {
+			opts.ServerUsers = make(map[string]string)
+		}
 		for _, displayName := range selectedServers {
 			if serverURL, ok := serverMap[displayName]; ok {
 				opts.Servers = append(opts.Servers, serverURL)
+				if user, ok := serverUserMap[serverURL]; ok && strings.TrimSpace(user) != "" {
+					opts.ServerUsers[serverURL] = user
+				}
+			}
+		}
+
+		if strings.TrimSpace(opts.Username) == "" && len(opts.ServerUsers) == 1 {
+			for _, user := range opts.ServerUsers {
+				opts.Username = user
+				break
 			}
 		}
 
@@ -139,7 +158,7 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 	return nodes, nil
 }
 
-func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobra.Command) {
+func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobra.Command) error {
 	viper.SetEnvPrefix("GNS3")
 	viper.AutomaticEnv()
 
@@ -148,10 +167,13 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 
 	dbConn, err := db.InitIfNeeded()
 	if err != nil {
-		fmt.Printf("%s failed to init db: %v\n", messageUtils.ErrorMsg("Error"), err)
-		os.Exit(1)
+		return fmt.Errorf("failed to init db: %w", err)
 	}
-	defer dbConn.Close()
+	defer func() {
+		if dbConn != nil {
+			_ = dbConn.Close()
+		}
+	}()
 
 	clusters, fetchErr := db.QueryRows(dbConn,
 		"SELECT cluster_id, name, description FROM clusters WHERE name = ? LIMIT 1",
@@ -162,13 +184,14 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 		},
 		clusterName,
 	)
+	if clusters == nil {
+		return fmt.Errorf("no clusters found")
+	}
 	if fetchErr != nil {
 		if fetchErr == sql.ErrNoRows || len(clusters) == 0 {
-			fmt.Printf("%s cluster %s not found\n", messageUtils.ErrorMsg("Error"), clusterName)
-			os.Exit(1)
+			return fmt.Errorf("cluster %s not found", clusterName)
 		}
-		fmt.Printf("%s failed to query cluster: %v\n", messageUtils.ErrorMsg("Error"), fetchErr)
-		os.Exit(1)
+		return fmt.Errorf("failed to query cluster: %w", fetchErr)
 	}
 
 	opts.ClusterID = clusters[0].Id
@@ -181,11 +204,10 @@ func ValidateClusterAndCreds(clusterName string, opts *AddNodeOptions, cmd *cobr
 	}
 
 	if opts.Weight < 0 || opts.Weight > 10 {
-		fmt.Printf("%s --weight must be between 0 and 10\n", messageUtils.ErrorMsg("Error"))
-		os.Exit(1)
+		return fmt.Errorf("--weight must be between 0 and 10")
 	}
 	if opts.MaxGroups < 0 {
-		fmt.Printf("%s --max-groups must be > 0\n", messageUtils.ErrorMsg("Error"))
-		os.Exit(1)
+		return fmt.Errorf("--max-groups must be > 0")
 	}
+	return nil
 }

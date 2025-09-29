@@ -38,7 +38,11 @@ func runExerciseInfo(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close database connection: %v", err)
+		}
+	}()
 
 	nodes, err := db.GetNodeExercisesForClass(conn, clusterID, "")
 	if err != nil {

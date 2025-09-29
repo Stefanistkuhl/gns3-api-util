@@ -19,7 +19,7 @@ import (
 )
 
 func NewGetNotificationsCmd() *cobra.Command {
-	var timeout int = 5
+	timeout := 5
 	var cmd = &cobra.Command{
 		Use:     "notifications",
 		Short:   "Stream the notification of the controller",
@@ -61,7 +61,11 @@ func NewGetNotificationsCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "no response received")
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			scanner := bufio.NewScanner(resp.Body)
 			for scanner.Scan() {
@@ -97,7 +101,7 @@ func NewGetNotificationsCmd() *cobra.Command {
 }
 
 func NewGetProjectNotificationCmd() *cobra.Command {
-	var timeout int = 5
+	timeout := 5
 	var cmd = &cobra.Command{
 		Use:     "notifications [project-name/id]",
 		Short:   "Stream the notification of a project by id or name",
@@ -148,7 +152,11 @@ func NewGetProjectNotificationCmd() *cobra.Command {
 				fmt.Fprintln(os.Stderr, "no response received")
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			scanner := bufio.NewScanner(resp.Body)
 			for scanner.Scan() {

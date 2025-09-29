@@ -203,7 +203,11 @@ func NewProjectLoadCmd() *cobra.Command {
 				fmt.Printf("failed to load project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 201 {
 				fmt.Printf("%s Project loaded successfully\n", messageUtils.SuccessMsg("Project loaded successfully"))
@@ -262,7 +266,11 @@ func NewProjectCloseCmd() *cobra.Command {
 				fmt.Printf("failed to close project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Project closed successfully\n", messageUtils.SuccessMsg("Project closed successfully"))
@@ -300,7 +308,9 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 			if err != nil {
 				return fmt.Errorf("failed to open archive file: %w", err)
 			}
-			defer file.Close()
+			defer func() {
+				_ = file.Close()
+			}()
 
 			var buf bytes.Buffer
 			writer := multipart.NewWriter(&buf)
@@ -314,7 +324,7 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 				return fmt.Errorf("failed to copy file content: %w", err)
 			}
 
-			writer.Close()
+			_ = writer.Close()
 
 			token, err := authentication.GetKeyForServer(cfg)
 			if err != nil {
@@ -344,7 +354,9 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 			if err != nil {
 				return fmt.Errorf("failed to import project: %w", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				_ = resp.Body.Close()
+			}()
 
 			if resp.StatusCode == 201 {
 				fmt.Printf("%s: Project imported successfully\n", messageUtils.SuccessMsg("Success"))
@@ -407,7 +419,11 @@ func NewProjectLockCmd() *cobra.Command {
 				fmt.Printf("failed to lock project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Project locked successfully\n", messageUtils.SuccessMsg("Project locked successfully"))
@@ -466,7 +482,11 @@ func NewProjectOpenCmd() *cobra.Command {
 				fmt.Printf("failed to open project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Project opened successfully\n", messageUtils.SuccessMsg("Project opened successfully"))
@@ -525,7 +545,11 @@ func NewProjectUnlockCmd() *cobra.Command {
 				fmt.Printf("failed to unlock project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Project unlocked successfully\n", messageUtils.SuccessMsg("Project unlocked successfully"))
@@ -585,7 +609,11 @@ func NewProjectWriteFileCmd() *cobra.Command {
 				fmt.Printf("failed to write file to project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 201 {
 				fmt.Printf("%s File written to project successfully\n", messageUtils.SuccessMsg("File written to project successfully"))
@@ -650,7 +678,11 @@ func NewProjectStartCaptureCmd() *cobra.Command {
 				fmt.Printf("failed to start capture: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 201 {
 				fmt.Printf("%s Packet capture started successfully\n", messageUtils.SuccessMsg("Packet capture started successfully"))

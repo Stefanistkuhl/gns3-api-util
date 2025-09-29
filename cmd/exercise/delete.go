@@ -2,6 +2,7 @@ package exercise
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -94,7 +95,11 @@ func deleteExerciseInCluster(cfg config.GlobalOptions, clusterName, exerciseName
 	if err != nil {
 		return fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if conn != nil {
+			_ = conn.Close()
+		}
+	}()
 
 	clusters, err := db.GetClusters(conn)
 	if err != nil {
@@ -122,7 +127,16 @@ func deleteExerciseInCluster(cfg config.GlobalOptions, clusterName, exerciseName
 		}
 		nodeCfg := cfg
 		nodeCfg.Server = fmt.Sprintf("%s://%s:%d", n.Protocol, n.Host, n.Port)
-		if err := deleteExerciseWithConfirmation(nodeCfg, exerciseName, className, groupName, false); err != nil {
+		err := deleteExerciseWithConfirmation(nodeCfg, exerciseName, className, groupName, false)
+		if errors.Is(err, class.ErrExerciseNotFound) {
+			fmt.Printf("%v Exercise %v not present on %s; skipping.\n",
+				messageUtils.WarningMsg("Warning"),
+				messageUtils.Bold(exerciseName),
+				nodeCfg.Server,
+			)
+			continue
+		}
+		if err != nil {
 			fmt.Printf("%v Failed to delete exercise %v on %s: %v\n", messageUtils.ErrorMsg("Failed to delete exercise"), messageUtils.Bold(exerciseName), nodeCfg.Server, err)
 		} else {
 			fmt.Printf("%v Deleted exercise %v on %s\n", messageUtils.SuccessMsg("Deleted exercise"), messageUtils.Bold(exerciseName), nodeCfg.Server)
@@ -136,7 +150,12 @@ func getAllExerciseNamesFromCluster(cfg config.GlobalOptions, clusterName string
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if conn != nil {
+			_ = conn.Close()
+		}
+	}()
+
 	clusters, err := db.GetClusters(conn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clusters: %w", err)
@@ -327,7 +346,11 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 				messageUtils.WarningMsg("Warning"),
 				err)
 		} else {
-			defer dbConn.Close()
+			defer func() {
+				if dbConn != nil {
+					_ = dbConn.Close()
+				}
+			}()
 
 			_, err = dbConn.Exec(`DELETE FROM exercises`)
 			if err != nil {
@@ -489,7 +512,19 @@ func deleteExerciseWithConfirmation(cfg config.GlobalOptions, exerciseName, clas
 		}
 	}
 
-	return class.DeleteExercise(cfg, exerciseName, className, groupName)
+	if err := class.DeleteExercise(cfg, exerciseName, className, groupName); err != nil {
+		if errors.Is(err, class.ErrExerciseNotFound) {
+			fmt.Printf("%v Exercise %v not found on %s; skipping.\n",
+				messageUtils.WarningMsg("Warning"),
+				messageUtils.Bold(exerciseName),
+				cfg.Server,
+			)
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
 
 func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, className string, confirm bool) error {
@@ -502,7 +537,11 @@ func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, classN
 
 	dbConn, err := db.InitIfNeeded()
 	if err == nil {
-		defer dbConn.Close()
+		defer func() {
+			if err := dbConn.Close(); err != nil {
+				fmt.Printf("failed to close database connection: %v", err)
+			}
+		}()
 		_, err = dbConn.Exec(`DELETE FROM exercises WHERE class = ?`, className)
 		if err != nil {
 			fmt.Printf("%v Failed to delete exercises for class %s from database: %v\n",

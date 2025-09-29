@@ -350,7 +350,11 @@ func ResolveID(cfg config.GlobalOptions, subcommand string, name string, args []
 	if err != nil {
 		return "", fmt.Errorf("API error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	var data []map[string]any
 	if err := json.Unmarshal(body, &data); err != nil {
@@ -547,7 +551,11 @@ func ValidateAndTestUrl(input string) bool {
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode == http.StatusPermanentRedirect {
 		loc := resp.Header.Get("Location")

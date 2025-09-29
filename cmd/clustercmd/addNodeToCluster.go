@@ -2,7 +2,6 @@ package clustercmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/stefanistkuhl/gns3util/pkg/cluster"
@@ -15,36 +14,60 @@ func NewAddNodeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-node [cluster-name]",
 		Short: "Add a single node to a cluster",
-		Args:  cobra.ExactArgs(1),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("cluster name missing. Usage: %s", cmd.UseLine())
+			}
+			return nil
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			valErr := cluster.ValidateClusterAndCreds(args[0], opts, cmd)
+			if valErr != nil {
+				return valErr
+			}
 			if len(opts.Servers) == 0 {
 				fmt.Println(messageUtils.InfoMsg("No servers provided, will enter interactive mode."))
+				return nil
 			}
 			if len(opts.Servers) > 1 {
-				fmt.Printf("%s add-node only supports a single --server. Use add-nodes for multiple.\n",
-					messageUtils.ErrorMsg("Error"))
-				os.Exit(1)
+				return fmt.Errorf("add-node only supports a single --server. Use add-nodes for multiple. ")
 			}
+			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
-				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
-				os.Exit(1)
+				return fmt.Errorf("failed to add node: %w", err)
 			}
 			if nodes == nil {
-				return
+				return fmt.Errorf("no nodes added")
 			}
 
 			insertedNodes, err := db.InsertNodes(opts.ClusterID, nodes)
 			if err != nil {
-				fmt.Printf("%s failed to insert node: %v\n", messageUtils.ErrorMsg("Error"), err)
-				os.Exit(1)
+				return fmt.Errorf("failed to insert node: %w", err)
 			}
 			for _, node := range insertedNodes {
 				fmt.Printf("Inserted node %s:%d with ID: %d\n", node.Host, node.Port, node.ID)
 			}
+			cfg, cfgErr := cluster.LoadClusterConfig()
+			if cfgErr != nil {
+				if cfgErr == cluster.ErrNoConfig {
+					cfg = cluster.NewConfig()
+				} else {
+					return fmt.Errorf("failed to load config: %w", cfgErr)
+				}
+			}
+			cfg, changed, syncErr := cluster.SyncConfigWithDb(cfg)
+			if syncErr != nil {
+				return fmt.Errorf("failed to sync config with db: %w", syncErr)
+			}
+			if changed {
+				if err := cluster.WriteClusterConfig(cfg); err != nil {
+					return fmt.Errorf("failed to write synced config: %w", err)
+				}
+			}
+			return nil
 		},
 	}
 	addCommonFlags(cmd, opts)
@@ -56,36 +79,61 @@ func NewAddNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-nodes [cluster-name]",
 		Short: "Add multiple nodes to a cluster",
-		Args:  cobra.ExactArgs(1),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			cluster.ValidateClusterAndCreds(args[0], opts, cmd)
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) != 1 {
+				return fmt.Errorf("cluster name missing. Usage: %s", cmd.UseLine())
+			}
+			return nil
+		},
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			valErr := cluster.ValidateClusterAndCreds(args[0], opts, cmd)
+			if valErr != nil {
+				return valErr
+			}
 			if len(opts.Servers) == 0 {
 				fmt.Println(messageUtils.InfoMsg("No servers provided, will enter interactive mode."))
+				return nil
 			}
 			if len(opts.Servers) == 1 {
-				fmt.Printf("%s add-nodes requires at least 2 --server entries. Use add-node for one.\n",
-					messageUtils.ErrorMsg("Error"))
-				os.Exit(1)
+				return fmt.Errorf("add-nodes requires at least 2 --server entries. Use add-node for one. ")
 			}
+			return nil
 		},
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			nodes, err := cluster.RunAddNodes(opts, cmd)
 			if err != nil {
-				fmt.Printf("%s %v\n", messageUtils.ErrorMsg("Error"), err)
-				os.Exit(1)
+				return fmt.Errorf("failed to add nodes: %w", err)
 			}
 			if nodes == nil {
-				return
+				return fmt.Errorf("no nodes added")
 			}
 
 			insertedNodes, err := db.InsertNodes(opts.ClusterID, nodes)
 			if err != nil {
-				fmt.Printf("%s DB insert error: %v\n", messageUtils.ErrorMsg("Error"), err)
-				os.Exit(1)
+				return fmt.Errorf("DB insert error: %w", err)
 			}
 			for _, node := range insertedNodes {
 				fmt.Printf("Inserted node %s:%d with ID: %d\n", node.Host, node.Port, node.ID)
 			}
+
+			cfg, cfgErr := cluster.LoadClusterConfig()
+			if cfgErr != nil {
+				if cfgErr == cluster.ErrNoConfig {
+					cfg = cluster.NewConfig()
+				} else {
+					return fmt.Errorf("failed to load config: %w", cfgErr)
+				}
+			}
+			cfg, changed, syncErr := cluster.SyncConfigWithDb(cfg)
+			if syncErr != nil {
+				return fmt.Errorf("failed to sync config with db: %w", syncErr)
+			}
+			if changed {
+				if err := cluster.WriteClusterConfig(cfg); err != nil {
+					return fmt.Errorf("failed to write synced config: %w", err)
+				}
+			}
+			return nil
 		},
 	}
 	addCommonFlags(cmd, opts)

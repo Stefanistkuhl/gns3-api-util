@@ -313,10 +313,34 @@ generateJSONBtn.addEventListener("click", async () => {
   console.log(result); // Or display the result on the page
 });
 
+async function sendData(payload) {
+  const url = `http://localhost:${SERVER_PORT}/data`;
+  const options = {
+    method: "POST",
+    body: payload,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  };
+
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      throw new Error(`Response status: ${response.status}`);
+    }
+
+    const json = await response.json();
+    return json;
+  } catch (error) {
+    console.error('Error sending data:', error);
+    throw error;
+  }
+}
+
 function updateGroupCount() {
   const count = classData.groups.length;
   groupCount.textContent = `${count} ${count === 1 ? "group" : "groups"}`;
-}
+} 
 
 function updateButtonStates() {
   const hasGroups = classData.groups.length > 0;

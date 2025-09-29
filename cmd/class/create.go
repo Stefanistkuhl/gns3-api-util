@@ -1,6 +1,7 @@
 package class
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -71,9 +72,7 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 
 	serverUrl, _ := cmd.InheritedFlags().GetString("server")
 
-	cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
-	if err != nil {
-	}
+	cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
 
 	filePath, _ := cmd.Flags().GetString("file")
 	className, _ := cmd.Flags().GetString("name")
@@ -106,7 +105,7 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 	clusterExists := false
 	nodeExists := false
 	nodeData := db.NodeData{}
-	noCluster := false
+	var noCluster bool
 	if cfg.Server != "" && clusterName == "" {
 		noCluster = true
 	}
@@ -115,12 +114,12 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 		urlObj := utils.ValidateUrlWithReturn(cfg.Server)
 		user, getUserErr := utils.GetUserInKeyFileForUrl(cfg)
 		if getUserErr != nil {
-			return err
+			return getUserErr
 		}
 		clusterName = fmt.Sprintf("%s%s", urlObj.Hostname(), "_single_node_cluster")
 		port, convErr := strconv.Atoi(urlObj.Port())
 		if convErr != nil {
-			err = errorUtils.WrapError(convErr, "failed to convert port to int")
+			err := errorUtils.WrapError(convErr, "failed to convert port to int")
 			fmt.Printf("%v\n", err)
 			return err
 		}
@@ -138,7 +137,9 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%v\n", err)
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	err = db.CheckIfCluterExists(clusterName)
 	if err != nil {
@@ -192,37 +193,56 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 			return err
 		}
 	}
-	insertedNodes := []db.NodeDataAll{}
+	var insertedNodes []db.NodeDataAll
 	if noCluster {
 		if !nodeExists {
-			insertedNodes, err = db.InsertNodes(clusterID, []db.NodeData{nodeData})
-			if err != nil {
+			if _, err := db.InsertNodes(clusterID, []db.NodeData{nodeData}); err != nil {
 				err = errorUtils.WrapError(err, "failed to create node")
 				fmt.Printf("%v\n", err)
 				return err
 			}
-			config, getConfigErr := cluster.LoadClusterConfig()
-			if getConfigErr != nil {
-				return getConfigErr
-			}
-			configNew, _, syncConfiErr := cluster.SyncConfigWithDb(config)
-			if syncConfiErr != nil {
-				return syncConfiErr
-			}
-			writeCfgErr := cluster.WriteClusterConfig(configNew)
-			if writeCfgErr != nil {
-				return writeCfgErr
+		}
+
+		currentCfg, cfgErr := cluster.LoadClusterConfig()
+		if cfgErr != nil {
+			if errors.Is(cfgErr, cluster.ErrNoConfig) {
+				currentCfg = cluster.NewConfig()
+			} else {
+				return cfgErr
 			}
 		}
-	} else {
-		insertedNodes, err = db.GetNodes(conn)
-		if err != nil {
-			err = errorUtils.WrapError(err, "failed to get nodes for cluster")
-			fmt.Printf("%v\n", err)
-			return err
+		updatedCfg, changed, syncErr := cluster.SyncConfigWithDb(currentCfg)
+		if syncErr != nil {
+			return syncErr
+		}
+		if changed {
+			if err := cluster.WriteClusterConfig(updatedCfg); err != nil {
+				return err
+			}
+		}
+
+		allNodes, getNodesErr := db.GetNodes(conn)
+		if getNodesErr != nil {
+			getNodesErr = errorUtils.WrapError(getNodesErr, "failed to get nodes for cluster")
+			fmt.Printf("%v\n", getNodesErr)
+			return getNodesErr
 		}
 		filteredNodes := []db.NodeDataAll{}
-		for _, node := range insertedNodes {
+		for _, node := range allNodes {
+			if node.ClusterID == clusterID {
+				filteredNodes = append(filteredNodes, node)
+			}
+		}
+		insertedNodes = filteredNodes
+	} else {
+		allNodes, getNodesErr := db.GetNodes(conn)
+		if getNodesErr != nil {
+			getNodesErr = errorUtils.WrapError(getNodesErr, "failed to get nodes for cluster")
+			fmt.Printf("%v\n", getNodesErr)
+			return getNodesErr
+		}
+		filteredNodes := []db.NodeDataAll{}
+		for _, node := range allNodes {
 			if node.ClusterID == clusterID {
 				filteredNodes = append(filteredNodes, node)
 			}

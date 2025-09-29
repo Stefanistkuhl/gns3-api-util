@@ -112,7 +112,11 @@ The installation supports Ubuntu LTS releases and requires Python 3.9+.`,
 				fmt.Printf("%s Failed to connect via SSH: %v\n", messageUtils.ErrorMsg("Failed to connect via SSH"), err)
 				return
 			}
-			defer sshClient.Close()
+			defer func() {
+				if sshClient != nil {
+					_ = sshClient.Close()
+				}
+			}()
 			fmt.Printf("%s Connected successfully\n", messageUtils.SuccessMsg("Connected successfully"))
 
 			fmt.Printf("%s Checking user privileges...\n", messageUtils.InfoMsg("Checking user privileges"))

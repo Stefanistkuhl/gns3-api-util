@@ -181,7 +181,11 @@ func NewGetProjectExportCmd() *cobra.Command {
 				fmt.Printf("failed to export project: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != 200 {
 				fmt.Printf("export failed with status %d: %s", resp.StatusCode, string(exportData))
@@ -230,7 +234,11 @@ func getProjectNameFromID(cfg config.GlobalOptions, projectID string) (string, e
 	if err != nil {
 		return "", fmt.Errorf("API error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("failed to get project with status %d", resp.StatusCode)
@@ -300,7 +308,11 @@ func NewGetProjectFileCmd() *cobra.Command {
 				fmt.Printf("failed to get project file: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != 200 {
 				fmt.Printf("failed to get project file with status %d: %s", resp.StatusCode, string(fileData))
@@ -383,7 +395,11 @@ func NewGetNodeFileCmd() *cobra.Command {
 				fmt.Printf("failed to get node file: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != 200 {
 				fmt.Printf("failed to get node file with status %d: %s", resp.StatusCode, string(fileData))
@@ -465,7 +481,11 @@ func NewStreamPcapCmd() *cobra.Command {
 				fmt.Printf("failed to stream PCAP: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != 200 {
 				fmt.Printf("failed to stream PCAP with status %d: %s", resp.StatusCode, string(fileData))

@@ -195,7 +195,11 @@ will be automatically loaded and command line flags will be ignored.`,
 				fmt.Printf("%s Failed to connect via SSH: %v\n", messageUtils.ErrorMsg("Failed to connect via SSH"), err)
 				return
 			}
-			defer sshClient.Close()
+			defer func() {
+				if sshClient != nil {
+					_ = sshClient.Close()
+				}
+			}()
 			fmt.Printf("%s Connected successfully\n", messageUtils.SuccessMsg("Connected successfully"))
 
 			// Step 2: Check privileges
@@ -377,7 +381,11 @@ as they may be used by other applications.`,
 				fmt.Printf("%s Failed to connect via SSH: %v\n", messageUtils.ErrorMsg("Failed to connect via SSH"), err)
 				return
 			}
-			defer sshClient.Close()
+			defer func() {
+				if sshClient != nil {
+					_ = sshClient.Close()
+				}
+			}()
 			fmt.Printf("%s Connected successfully\n", messageUtils.SuccessMsg("Connected successfully"))
 
 			// Step 2: Check privileges

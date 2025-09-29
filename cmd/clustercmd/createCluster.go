@@ -30,7 +30,9 @@ func NewCreateClusterCmd() *cobra.Command {
 					fmt.Printf("%s failed to open db: %v\n", messageUtils.ErrorMsg("Error"), openErr)
 					return
 				}
-				defer data.Close()
+				defer func() {
+					_ = data.Close()
+				}()
 
 				if _, insertErr := db.UpdateRows(
 					data,

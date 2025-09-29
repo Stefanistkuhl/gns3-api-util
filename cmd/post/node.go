@@ -84,7 +84,11 @@ func NewNodeDuplicateCmd() *cobra.Command {
 				fmt.Printf("failed to duplicate node: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if resp != nil {
+					_ = resp.Body.Close()
+				}
+			}()
 
 			if resp.StatusCode == 201 {
 				fmt.Printf("%s Node duplicated successfully\n", messageUtils.SuccessMsg("Node duplicated successfully"))
@@ -149,7 +153,11 @@ func NewNodeConsoleResetCmd() *cobra.Command {
 				fmt.Printf("failed to reset node console: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if resp != nil {
+					_ = resp.Body.Close()
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Node console reset successfully\n", messageUtils.SuccessMsg("Node console reset successfully"))
@@ -214,7 +222,11 @@ func NewNodeIsolateCmd() *cobra.Command {
 				fmt.Printf("failed to isolate node: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if resp != nil {
+					_ = resp.Body.Close()
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Node isolated successfully\n", messageUtils.SuccessMsg("Node isolated successfully"))
@@ -279,7 +291,11 @@ func NewNodeUnisolateCmd() *cobra.Command {
 				fmt.Printf("failed to unisolate node: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Node unisolated successfully\n", messageUtils.SuccessMsg("Node unisolated successfully"))
@@ -338,7 +354,11 @@ func NewReloadNodesCmd() *cobra.Command {
 				fmt.Printf("failed to reload nodes: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Nodes reloaded successfully\n", messageUtils.SuccessMsg("Nodes reloaded successfully"))
@@ -397,7 +417,11 @@ func NewStartNodesCmd() *cobra.Command {
 				fmt.Printf("failed to start nodes: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Nodes started successfully\n", messageUtils.SuccessMsg("Nodes started successfully"))
@@ -456,7 +480,11 @@ func NewStopNodesCmd() *cobra.Command {
 				fmt.Printf("failed to stop nodes: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Nodes stopped successfully\n", messageUtils.SuccessMsg("Nodes stopped successfully"))
@@ -515,7 +543,11 @@ func NewSuspendNodesCmd() *cobra.Command {
 				fmt.Printf("failed to suspend nodes: %v", err)
 				return
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode == 204 {
 				fmt.Printf("%s Nodes suspended successfully\n", messageUtils.SuccessMsg("Nodes suspended successfully"))

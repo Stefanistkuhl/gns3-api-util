@@ -36,7 +36,11 @@ func (s *Server) Listen(
 
 	go func() {
 		defer close(errs)
-		defer ln.Close()
+		defer func() {
+			if err := ln.Close(); err != nil {
+				errs <- err
+			}
+		}()
 
 		for {
 			select {

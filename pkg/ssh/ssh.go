@@ -44,7 +44,11 @@ func (c *SSHClient) ExecuteCommand(command string) (*CommandResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SSH session: %v", err)
 	}
-	defer session.Close()
+	defer func() {
+		if err := session.Close(); err != nil {
+			fmt.Printf("failed to close session: %v", err)
+		}
+	}()
 
 	var stdout, stderr strings.Builder
 	session.Stdout = &stdout
@@ -245,7 +249,11 @@ func getSSHAgentAuth() []ssh.AuthMethod {
 	if err != nil {
 		return nil
 	}
-	defer sshAgent.Close()
+	defer func() {
+		if err := sshAgent.Close(); err != nil {
+			fmt.Printf("failed to close SSH agent connection: %v", err)
+		}
+	}()
 
 	agentClient := agent.NewClient(sshAgent)
 	signers, err := agentClient.Signers()
