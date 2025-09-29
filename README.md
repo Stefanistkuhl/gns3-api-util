@@ -28,6 +28,12 @@ A powerful command-line utility for managing GNS3v3 servers, with advanced templ
 - **SSH operations**: Direct server administration via SSH
 - **State file support**: Automatic configuration tracking for easy cleanup
 
+### **Cluster Management**
+- **Cluster creation**: Provision logical clusters that coordinate multiple GNS3 servers
+- **Node enrollment**: Add single or multiple nodes to scaling clusters on demand
+- **Configuration tooling**: Manage cluster configuration through `cluster config`
+- **Topology visibility**: List clusters and view class/exercise distribution across nodes
+
 ### **Developer Tools**
 - **Example scripts**: Ready-to-use bash scripts for common workflows
 - **Educational examples**: Step-by-step tutorials and use cases
@@ -77,6 +83,12 @@ gns3util -s https://server:3080 class create --file class.json
 
 # Interactive class creation
 gns3util -s https://server:3080 class create --interactive
+
+# Launch interactive class builder on a custom address
+gns3util -s https://server:3080 class create --interactive  --port 9090
+
+# Create a class and register it with a cluster
+gns3util class create --cluster production-cluster --file class.json
 ```
 
 #### Create an Exercise with Template
@@ -114,6 +126,57 @@ gns3util -s https://server:3080 exercise delete --select-exercise --multi
 
 # Delete exercises from specific cluster (no server flag needed)
 gns3util exercise delete --cluster production-cluster --select-exercise
+```
+
+#### Class Operations
+```bash
+# List classes and show node distribution
+gns3util class ls --cluster production-cluster
+
+# Delete a single class non-interactively without confirmation
+gns3util -s https://server:3080 class delete --name "CS101" --no-confirm
+
+# Delete classes via fuzzy finder (multi-select)
+gns3util -s https://server:3080 class delete --multi
+
+# Remove a class and its exercises from a cluster definition
+gns3util class delete --cluster production-cluster --name "CS101" --delete-exercises --no-confirm
+```
+
+#### Exercise Operations
+```bash
+# List exercises across the cluster
+gns3util exercise ls --cluster production-cluster
+
+# Filter exercise list by class 
+gns3util -s https://server:3080 exercise ls --class "CS101"
+
+# Delete all exercises for a class from the controller
+gns3util -s https://server:3080 exercise delete --class "CS101" --no-confirm
+
+# Delete multiple exercises interactively with multi-select
+gns3util -s https://server:3080 exercise delete --select-exercise --multi
+```
+
+#### Cluster Operations
+```bash
+# Create a new cluster definition
+gns3util cluster create --name production-cluster
+
+# Add nodes to a cluster (repeat --server for each node)
+gns3util cluster add-nodes production-cluster \
+  --server https://cluster-node-01:3080 \
+  --server https://cluster-node-02:3080 \
+  --user admin --password "$GNS3_PASSWORD"
+
+# Review cluster configuration and membership
+gns3util cluster ls
+
+# Edit cluster defaults (opens file in $EDITOR)
+gns3util cluster config edit
+
+# Apply an updated cluster configuration file
+gns3util cluster config apply cluster.yaml
 ```
 
 #### Remote Server Management
@@ -337,6 +400,26 @@ gns3util -s https://server:3080 class ls
 
 # Delete class
 gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
+```
+
+### Cluster Management Commands
+```bash
+# Add a single node to an existing cluster
+gns3util cluster add-node production-cluster \
+  --server https://edge-01:3080 \
+  --user admin --password "$GNS3_PASSWORD" \
+  --weight 6
+
+# Add multiple nodes from a configuration file
+gns3util cluster add-nodes production-cluster \
+  --server https://edge-02:3080 \
+  --server https://edge-03:3080
+
+# Edit stored cluster configuration values
+gns3util cluster config edit
+
+# Synchronize the edited config back to the database
+gns3util cluster config sync
 ```
 
 ## Configuration
