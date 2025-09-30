@@ -11,7 +11,7 @@ builds:
     main: .
     binary: gns3util
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     flags:
       - -trimpath
     ldflags:
@@ -30,7 +30,7 @@ builds:
     main: .
     binary: gns3util
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     flags:
       - -trimpath
     ldflags:
