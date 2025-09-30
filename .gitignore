@@ -43,3 +43,6 @@ ENV/
 .DS_Store
 Thumbs.db
 .qodo
+
+# Documentation assets
+gif-todo.md

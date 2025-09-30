@@ -1,178 +1,81 @@
 # Quick Start
 
-This guide will get you up and running with GNS3util in minutes.
+This guide walks through the minimum steps to connect `gns3util` to a GNS3v3 server, validate connectivity, and discover existing resources. Before continuing, complete the installation steps in `getting-started/installation.md` so the binary and prerequisites are ready.
 
-## Step 1: Authentication
-
-First, authenticate with your GNS3 server:
+## Step 1 · Authenticate
 
 ```bash
-# Interactive login
+# Interactive login (recommended)
 gns3util -s https://your-gns3-server:3080 auth login
 
-# Or use a keyfile
+# Or reuse an existing key file
 gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
 ```
 
-## Step 2: Create Your First Class
+If you plan to script commands with `jq` or other tooling, remember to add `--no-color --raw` so the output is easy to parse. See the `cli-reference/commands.md` page for all global flags.
 
-Create a class with student groups:
+## Step 2 · Discover Projects and Topology
 
-```bash
-# Create class from JSON file
-gns3util -s https://server:3080 class create --file class.json
-
-# Or create interactively
-gns3util -s https://server:3080 class create --interactive
-```
-
-Example class.json:
-```json
-{
-  "name": "CS101",
-  "groups": [
-    {
-      "name": "Group1",
-      "students": [
-        {"username": "student1", "password": "password123"},
-        {"username": "student2", "password": "password123"}
-      ]
-    }
-  ]
-}
-```
-
-## Step 3: Create an Exercise with Template
-
-### Using an Existing Project as Template
-```bash
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "NetworkTemplate" \
-  --confirm=false
-```
-
-### Interactive Template Selection
-```bash
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --select-template
-```
-
-### Using a Template File
-```bash
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "/path/to/template.gns3project"
-```
-
-## Step 4: Verify the Setup
-
-Check that everything was created correctly:
+Spend a minute exploring what already exists before you modify anything.
 
 ```bash
-# List classes
-gns3util -s https://server:3080 class ls
+# List projects you can access
+gns3util -s https://your-gns3-server:3080 project ls
 
-# List projects
-gns3util -s https://server:3080 project ls
+# Inspect a project in detail (replace the name as needed)
+gns3util -s https://your-gns3-server:3080 project info "Example"
 
-# List nodes in a project
-gns3util -s https://server:3080 node ls "CS101-Lab1-Group1-<uuid>"
+# Enumerate project members such as nodes, links, and captures
+gns3util -s https://your-gns3-server:3080 node ls "Example"
+gns3util -s https://your-gns3-server:3080 snapshot ls "Example"
 ```
 
-## Step 5: Test Student Access
+## Step 3 · Review Templates and Images
 
-Login as a student to verify they can only see their assigned projects:
+Templates define reusable topologies and appliances. Confirm what is available and gather metadata.
 
 ```bash
-# Login as student
-gns3util -s https://server:3080 -u student1 -p password123 auth login
+# Overview of template names
+gns3util -s https://your-gns3-server:3080 template ls
 
-# List projects (should only show student's projects)
-gns3util -s https://server:3080 project ls
+# Detailed information for a specific template
+gns3util -s https://your-gns3-server:3080 template info "NetworkTemplate"
+
+# List registered images (disk or appliance files)
+gns3util -s https://your-gns3-server:3080 image ls
 ```
 
-## Next Steps
+If the server is empty or you need teaching templates, jump to `features/educational-workflows.md#template-management-workflow` for creation workflows.
 
-### Explore Example Scripts
+## Step 4 · Check System Health and Connected Users
+
+Confirm that the server is healthy before making changes.
+
 ```bash
-# Run the test suite
-./scripts/examples/test-all-scripts.sh https://server:3080
+# Validate server version and uptime details
+gns3util -s https://your-gns3-server:3080 system version
+gns3util -s https://your-gns3-server:3080 system statistics
 
-# Deploy a template-based exercise
-./scripts/examples/deploy-template-exercise.sh \
-  https://server:3080 \
-  "CS101" \
-  "Lab2" \
-  "NetworkTemplate"
+# Audit current users and groups
+gns3util -s https://your-gns3-server:3080 user ls
+gns3util -s https://your-gns3-server:3080 group ls
+gns3util -s https://your-gns3-server:3080 role ls
 ```
 
-### Advanced Features
-- [Template System](features/template-based-exercises.md)
-- [Educational Workflows](features/educational-workflows.md)
-- [Scripts and Automation](scripts/overview.md)
+Once you understand the environment, you can proceed to provisioning tasks or automation.
 
-## Common Commands
+## Step 5 · Explore Optional Workflows
 
-### Project Management
-```bash
-# List projects
-gns3util -s https://server:3080 project ls
+Depending on your role, choose the next area to explore:
 
-# Create project
-gns3util -s https://server:3080 project new --name "MyProject"
+- **Education-focused labs**: See `features/educational-workflows.md` for class, exercise, and student management automation.
+- **Remote operations**: `features/remote-operations.md` covers HTTPS setup, firewalls, and maintenance commands.
+- **Sharing artifacts**: Exchange projects and configs with peers using the workflow in `features/sharing-and-collaboration.md`.
+- **Automation scripts**: Review reusable shell scripts in `scripts/overview.md` and the full catalog in `scripts/examples.md`.
 
-# Duplicate project
-gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
-```
+## Troubleshooting & Help
 
-### Node Management
-```bash
-# List nodes
-gns3util -s https://server:3080 node ls "MyProject"
-
-# Create node
-gns3util -s https://server:3080 node create "MyProject" \
-  --name "Router1" \
-  --node-type "qemu" \
-  --compute-id "local"
-```
-
-### Class Management
-```bash
-# List classes
-gns3util -s https://server:3080 class ls
-
-# Delete class
-gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
-```
-
-## Troubleshooting
-
-### Common Issues
-
-#### Template Not Found
-- Ensure the template project exists on the server
-- Check the project name spelling
-- Use `--select-template` for interactive selection
-
-#### Permission Denied
-- Verify student credentials
-- Check ACL settings
-- Ensure students are in the correct groups
-
-#### Project Creation Failed
-- Check server resources
-- Verify template project is not corrupted
-- Check server logs for detailed error messages
-
-### Getting Help
-
-- Use `--help` flag for command-specific help
-- Check the [CLI Reference](cli-reference/commands.md)
-- Review [example scripts](scripts/examples.md)
-- Open an issue on GitHub
+- Use `--help` on any command (for example `gns3util project --help`) to view available subcommands and flags.
+- Consult the full CLI reference at `cli-reference/commands.md` for a tree of every command group.
+- When piping output to other tools, run commands with `--no-color --raw` to avoid ANSI escape sequences.
+- If you encounter authentication or connectivity issues, re-run Step 1 and confirm the server URL, credentials, and TLS requirements.

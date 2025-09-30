@@ -1,19 +1,18 @@
 # gns3util CLI Command Structure Reference
 
 > This file serves as a reference for documentation.
-> Commands marked with [GIF] have demonstration videos available.
-> Commands marked with [EDUCATION] are prioritized for educational use cases.
-
 ## Root Command
 ```
 gns3util [flags]
 gns3util [command]
+
 ```
 
 ### Global Flags
 - `-s, --server string`: GNS3v3 Server URL (required)
 - `-k, --key-file string`: Set a location for a keyfile to use
 - `-i, --insecure`: Ignore unsigned SSL-Certificates
+- `--no-color`: Disable ANSI color output
 - `--raw`: Output all data in raw json
 - `-h, --help`: Help for gns3util
 
@@ -22,30 +21,30 @@ gns3util [command]
 ### Authentication Commands
 ```
 gns3util auth [flags] [command]
-├── login       # Log in as user [GIF] [EDUCATION]
-└── status      # Check the current status of your Authentication [GIF] [EDUCATION]
+├── login       # Log in as user
+└── status      # Check the current status of your authentication
 ```
 
 ### Project Operations
 ```
 gns3util project [command]
-├── close         # Close a project [GIF] [EDUCATION]
-├── delete        # Delete a project [GIF] [EDUCATION]
-├── duplicate     # Duplicate a Project [GIF] [EDUCATION]
-├── export        # Export a project from GNS3 [EDUCATION]
+├── close         # Close a project
+├── delete        # Delete a project
+├── duplicate     # Duplicate a project
+├── export        # Export a project from GNS3
 ├── file          # Get a file from a project
-├── import        # Import a project from a portable archive [EDUCATION]
-├── info          # Get a project by id or name [GIF] [EDUCATION]
+├── import        # Import a project from a portable archive
+├── info          # Get a project by id or name
 ├── load          # Load a project from a given path
 ├── lock          # Lock all drawings and nodes in a project
 ├── locked        # Get if a project is locked by id or name
-├── ls            # Get the projects of the GNS3 Server [GIF] [EDUCATION]
-├── new           # Create a Project [GIF] [EDUCATION]
+├── ls            # Get the projects of the GNS3 Server
+├── new           # Create a project
 ├── open          # Open a project
 ├── start-capture # Start a packet capture in a project on a given link
 ├── stats         # Get project-stats by id or name
 ├── unlock        # Unlock all drawings and nodes in a project
-├── update        # Update a Project
+├── update        # Update a project
 └── write-file    # Write a file to a project
 ```
 
@@ -55,28 +54,28 @@ gns3util node [command]
 ├── auto-idle-pc           # Get the auto-idle-pc of a node in a project by id or name
 ├── auto-idle-pc-proposals # Get the auto-idle-pc-proposals of a node in a project by id or name
 ├── console-reset          # Reset a console for a given node
-├── create                 # Create a node in a project [GIF] [EDUCATION]
-├── delete                 # Delete a node from a project [GIF] [EDUCATION]
-├── duplicate              # Duplicate a Node in a Project [GIF] [EDUCATION]
-├── from-template          # Create a node from a template [GIF] [EDUCATION]
-├── info                   # Get a node in a project by name or id [GIF] [EDUCATION]
+├── create                 # Create a node in a project
+├── delete                 # Delete a node from a project
+├── duplicate              # Duplicate a node in a project
+├── from-template          # Create a node from a template
+├── info                   # Get a node in a project by name or id
 ├── links                  # Get links of a given node in a project by id or name
-├── ls                     # Get the nodes within a project by name or id [GIF] [EDUCATION]
+├── ls                     # Get the nodes within a project by name or id
 ├── node-file              # Get a file from a node
 ├── node-isolate           # Isolate a node (suspend all attached links)
 ├── node-unisolate         # Un-isolate a node (resume all attached suspended links)
 ├── reload-all             # Reload all nodes belonging to a project
-├── start-all              # Start all nodes belonging to a project [GIF] [EDUCATION]
-├── stop-all               # Stop all nodes belonging to a project [GIF] [EDUCATION]
+├── start-all              # Start all nodes belonging to a project
+├── stop-all               # Stop all nodes belonging to a project
 ├── suspend-all            # Suspend all nodes belonging to a project
-└── update                 # Update a Node in a Project
+└── update                 # Update a node in a project
 ```
 
 ### Exercise Operations
 ```
 gns3util exercise [command]
-├── create      # Create an exercise (project) for every group in a class with ACLs [EDUCATION]
-└── delete      # Delete an exercise [EDUCATION]
+├── create      # Create an exercise (project) for every group in a class with ACLs
+└── delete      # Delete an exercise
 ```
 
 ### Class Operations
@@ -165,6 +164,32 @@ gns3util remote [command]
 └── uninstall   # Uninstall remote components
 ```
 
+### Cluster Operations
+```
+gns3util cluster [command]
+├── create      # Create a cluster
+├── add-node    # Add a single server to a cluster
+├── add-nodes   # Add multiple servers in one run
+├── config      # Manage the cluster config file
+└── ls          # List clusters (optionally filtered by name)
+```
+
+#### Key Flags
+- `cluster create`: `--name`, `--description`
+- `cluster add-node` / `cluster add-nodes`: `--server`, `--user`, `--password`, `--weight` (default 5), `--max-groups` (default 3)
+- `cluster config`: subcommands `edit`, `sync`, `apply`
+
+### Sharing Operations
+```
+gns3util share [command]
+├── send        # Transfer artifacts to an administrator over QUIC
+└── receive     # Listen for incoming transfers
+```
+
+#### Key Flags
+- `share send`: `--all`, `--send-config`, `--send-db`, `--send-key`, `--src-dir`, `--to`, `--discover-timeout`, `--yes`
+- `share receive`: no additional flags
+
 ### Other Operations
 ```
 gns3util appliance [command]    # Appliance operations
@@ -172,98 +197,6 @@ gns3util compute [command]      # Compute operations
 gns3util drawing [command]      # Drawing operations
 gns3util pool [command]         # Resource pool operations
 gns3util symbol [command]       # Symbol operations
-```
-
-## GIF Demonstration Placeholders
-
-### Authentication Flow
-```
-[GIF: auth-login.gif]
-- Shows interactive login process
-- Demonstrates keyfile creation
-- Shows authentication status check
-```
-
-### Project Management
-```
-[GIF: project-basics.gif]
-- Creating a new project
-- Listing projects with --raw output
-- Project details and status
-```
-
-### Node Management
-```
-[GIF: node-creation.gif]
-- Creating multiple nodes at once
-- Using different node types
-- Node configuration and status
-```
-
-### Template System
-```
-[GIF: template-system.gif]
-- Creating exercises with templates
-- Interactive template selection
-- File-based template import
-```
-
-### Exercise Management
-```
-[GIF: exercise-creation.gif]
-- Creating classes and exercises
-- Template-based exercise deployment
-- Student project access control
-```
-
-### Bulk Operations
-```
-[GIF: bulk-operations.gif]
-- Creating multiple projects
-- Bulk node creation
-- Mass cleanup operations
-```
-
-### JSON Integration
-```
-[GIF: json-output.gif]
-- Using --raw flag for JSON output
-- Processing JSON with jq
-- Scripting with JSON data
-```
-
-## Essential Commands for Education
-
-### Authentication
-```bash
-gns3util -s https://gns3-server.com auth login
-gns3util -s https://gns3-server.com auth status
-```
-
-### Project Management
-```bash
-gns3util -s https://gns3-server.com project new --name "Lab1"
-gns3util -s https://gns3-server.com project ls --raw
-gns3util -s https://gns3-server.com project info "Lab1"
-```
-
-### Node Management
-```bash
-gns3util -s https://gns3-server.com node create --project "Lab1" --name "R1" --node-type "qemu"
-gns3util -s https://gns3-server.com node ls --project "Lab1"
-gns3util -s https://gns3-server.com node start-all --project "Lab1"
-```
-
-### Exercise Management
-```bash
-gns3util -s https://gns3-server.com exercise create --class "CS101" --exercise "Lab1" --select-template
-gns3util -s https://gns3-server.com exercise create --class "CS101" --exercise "Lab1" --template "NetworkTemplate"
-```
-
-### Class Management
-```bash
-gns3util -s https://gns3-server.com class create --file class.json
-gns3util -s https://gns3-server.com class delete --name "CS101"
 ```
 
 ## Global Flags Usage
@@ -283,11 +216,13 @@ gns3util -s https://gns3-server.com:3080 -k ~/.gns3/gns3key project ls
 ### JSON Output
 ```bash
 # Raw JSON output for scripting
-gns3util -s https://gns3-server.com project ls --raw
+gns3util -s https://gns3-server.com project ls --raw --no-color
 
-# Process JSON with jq
-gns3util -s https://gns3-server.com project ls --raw | jq '.[] | .name'
+# Process JSON with jq (disable color codes)
+gns3util -s https://gns3-server.com project ls --raw --no-color | jq '.[] | .name'
 ```
+
+> **Note:** Pipe-friendly tooling like `jq` requires disabling ANSI color codes. Use `--no-color` together with `--raw` whenever you plan to parse output programmatically.
 
 ### Help System
 ```bash

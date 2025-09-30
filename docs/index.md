@@ -21,57 +21,75 @@ A powerful command-line utility for managing GNS3v3 servers, with advanced templ
 - **Example scripts**: Ready-to-use bash scripts for common workflows
 - **Educational examples**: Step-by-step tutorials and use cases
 
+### **Cluster Management**
+- **Topology control**: Create clusters and assign weights per compute node
+- **Configuration sync**: Round-trip cluster definitions with `cluster config`
+- **Visibility**: Inspect cluster membership with JSON-ready output
+
+### **Sharing and Collaboration**
+- **Secure transfer**: Exchange configs and keys over QUIC with SAS verification
+- **Granular bundles**: Choose config, database, and key artifacts per transfer
+- **Automation friendly**: Run non-interactively for scheduled replication
+
 ## Quick Start
 
-### Installation
+### Install gns3util
+Visit [Installation](getting-started/installation.md) for platform-specific guidance. Common options:
 ```bash
-# Build from source
-go build -o gns3util
+# macOS (Homebrew)
+brew tap Stefanistkuhl/tap
+brew install gns3util
 
-# Or use the pre-built binary
-gns3util --help
+# Arch Linux (paru)
+paru -S gns3util
+
+# Arch Linux (yay)
+yay -S gns3util
+
+# Windows (Scoop)
+scoop bucket add gns3util https://github.com/stefanistkuhl/bucket.git
+scoop install gns3util
+
+# Build from source (Go toolchain required)
+go build -o gns3util
 ```
 
-### Authentication
+### Authenticate
 ```bash
-# Login to your GNS3 server
+# Interactive login
 gns3util -s https://your-gns3-server:3080 auth login
 
-# Or use a keyfile
-gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key
+# Reuse stored credentials
+gns3util -s https://your-gns3-server:3080 -k ~/.gns3/gns3key project ls
 ```
 
-### Basic Usage
-
-#### Create a Class
+### Provision a Class
 ```bash
-# Create class from JSON file
+# From JSON definition
 gns3util -s https://server:3080 class create --file class.json
 
-# Interactive class creation
+# Launch interactive builder
 gns3util -s https://server:3080 class create --interactive
 ```
 
-#### Create an Exercise with Template
+### Deploy Labs from a Template
 ```bash
-# Using existing project as template
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "NetworkTemplate" \
-  --confirm=false
-
-# Interactive template selection
 gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --select-template
+```
 
-# Using template file
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "/path/to/template.gns3project"
+### Coordinate Cluster Resources
+```bash
+gns3util cluster create --name campus-core --description "Primary lab cluster"
+gns3util cluster ls --raw --no-color
+```
+
+### Share Configurations with Peers
+```bash
+gns3util share send --all
+gns3util share receive
 ```
 
 ## Example Scripts
@@ -82,7 +100,7 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ```bash
 # Deploy exercise using existing template
 ./scripts/examples/deploy-template-exercise.sh \
-  http://gns3-server:3080 \
+  https://gns3-server:3080 \
   "CS101" \
   "Lab1" \
   "NetworkTemplate"
@@ -92,7 +110,7 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ```bash
 # Create exercise with interactive template selection
 ./scripts/examples/create-exercise-interactive.sh \
-  http://gns3-server:3080 \
+  https://gns3-server:3080 \
   "CS101" \
   "Lab1"
 ```
@@ -101,7 +119,7 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ```bash
 # Create exercise from template file
 ./scripts/examples/import-template-and-create-exercise.sh \
-  http://gns3-server:3080 \
+  https://gns3-server:3080 \
   "CS101" \
   "Lab1" \
   "template.gns3project"
@@ -111,7 +129,7 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ```bash
 # Create individual lab projects for students
 ./scripts/examples/setup-class-lab.sh \
-  http://gns3-server:3080 \
+  https://gns3-server:3080 \
   5  # Number of students
 ```
 
@@ -119,14 +137,14 @@ The `scripts/examples/` directory contains ready-to-use bash scripts for common 
 ```bash
 # Clean up projects with specific prefix
 ./scripts/examples/cleanup-class.sh \
-  http://gns3-server:3080 \
+  https://gns3-server:3080 \
   "Student-"  # Project name prefix
 ```
 
 ### **Validate All Scripts**
 ```bash
 # Run comprehensive validation
-./scripts/examples/test-all-scripts.sh http://gns3-server:3080
+./scripts/examples/test-all-scripts.sh https://gns3-server:3080
 ```
 
 ## Template System
@@ -187,18 +205,6 @@ gns3util -s https://server:3080 project new --name "MyProject" --auto-close true
 
 # Duplicate project
 gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
-```
-
-### Node Management
-```bash
-# List nodes in project
-gns3util -s https://server:3080 node ls "MyProject"
-
-# Create nodes
-gns3util -s https://server:3080 node create "MyProject" \
-  --name "Router1" \
-  --node-type "qemu" \
-  --compute-id "local"
 ```
 
 ### Class Management

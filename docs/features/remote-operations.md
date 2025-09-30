@@ -5,12 +5,63 @@ The `gns3util remote` command provides direct server management capabilities via
 ## Overview
 
 Remote operations enable you to:
+
+- Install and configure the full GNS3 server stack over SSH
 - Install and configure HTTPS reverse proxies
 - Manage firewall rules for enhanced security
-- Perform server maintenance tasks
+- Perform server maintenance tasks that require shell access
 - Set up SSL certificates automatically
 
-## HTTPS Reverse Proxy Installation [GIF]
+Always run `gns3util remote <command> --help` (and the subcommand `--help` variants) to review every available flag before executing these tasks in production.
+
+## GNS3 Server Installation
+
+### Basic Installation
+
+```bash
+# Install the GNS3 server on a remote host via SSH
+gns3util -s https://your-gns3-controller:3080 remote install gns3 ubuntu
+
+# Prompt for all options interactively
+gns3util -s https://your-gns3-controller:3080 remote install gns3 ubuntu
+```
+
+### Common Flags
+
+- `--install-docker`: Install Docker support for appliance containers.
+- `--install-virtualbox`: Install VirtualBox integration packages.
+- `--install-vmware`: Install VMware workstation/fusion support.
+- `--use-iou`: Enable IOU (requires valid license). Combine with `--enable-i386` for 32-bit dependencies.
+- `--disable-kvm`: Turn off hardware acceleration when the target host does not support KVM.
+- `--gns3-port <port>` / `--listen-host <ip>`: Adjust the bind address and API port (defaults: `0.0.0.0`, `3080`).
+- `--home-dir <path>` / `--username <name>`: Customize the service account and directories (defaults: `gns3`, `/opt/gns3`).
+- `--key <ssh-key>` / `--port <ssh-port>`: Supply SSH credentials for non-standard locations.
+- `--verbose`: Emit detailed logs during installation.
+
+> The installer supports Ubuntu only and requires Python 3.9+. The command configures systemd units and optionally Docker/VirtualBox/VMware integrations depending on your flags.
+
+## GNS3 Server Removal
+
+### Uninstall Workflow
+
+```bash
+# Remove the GNS3 server and supporting services over SSH
+gns3util -s https://your-gns3-controller:3080 remote uninstall gns3 ubuntu@host.example.com
+
+# Run interactively to select components to remove
+gns3util -s https://your-gns3-controller:3080 remote uninstall gns3 ubuntu@host.example.com --interactive
+```
+
+### Cleanup Flags
+
+- `--keep-user`: Preserve the service user and home directory (omit to delete).
+- `--keep-docker`: Skip removal of Docker packages if they are used elsewhere.
+- `--keep-virtualbox` / `--keep-vmware`: Retain virtualization stacks that may be shared with other workloads.
+- `--key`, `--port`, `--verbose`: Same SSH and logging options as the installer.
+
+Review `gns3util remote uninstall gns3 --help` to see the latest removal switches and the exact services that will be stopped.
+
+## HTTPS Reverse Proxy Installation
 
 ### Basic Installation
 
@@ -61,7 +112,7 @@ gns3util -s https://your-gns3-server:3080 remote install https username \
   --port 2222
 ```
 
-## HTTPS Reverse Proxy Removal [GIF]
+## HTTPS Reverse Proxy Removal
 
 ### Basic Removal
 
@@ -103,7 +154,7 @@ gns3util -s https://your-gns3-server:3080 remote uninstall https username
 gns3util -s https://your-gns3-server:3080 remote uninstall https username --interactive
 ```
 
-## Complete Workflow Examples [GIF]
+## Complete Workflow Examples
 
 ### Secure HTTPS Setup with Firewall
 

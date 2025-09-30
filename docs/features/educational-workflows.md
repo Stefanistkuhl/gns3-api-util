@@ -1,10 +1,10 @@
 # Educational Workflows
 
-This section covers common educational workflows using gns3util for managing GNS3 lab environments in educational settings.
+This section walks through repeatable workflows for planning, deploying, and maintaining GNS3 lab environments with `gns3util` in educational settings. 
 
 ## Class Management Workflow
 
-### 1. Create a Class
+### Step 1 · Create a Class
 ```bash
 # Create class from JSON file
 gns3util -s https://server:3080 class create --file class.json
@@ -13,232 +13,107 @@ gns3util -s https://server:3080 class create --file class.json
 gns3util -s https://server:3080 class create --interactive
 ```
 
-### 2. Deploy Exercises
+> **Cluster scope note:** Classes are scoped to the endpoint you target. Use `-s/--server` for an individual server or `--cluster <name>` for a configured cluster entry—both ultimately hit a single cluster node. Clusters provide scheduling convenience but not aggregation: `gns3util class ls` only reports data for the nodes you reach, and a "single-node" cluster created via `--server` is still tracked in your local cluster config files.
+
+### Step 2 · Deploy Exercises
 ```bash
-# Using existing template
+# Recommended: reuse an existing template project
 gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "NetworkTemplate" \
   --confirm=false
 
-# Interactive template selection
+# Interactive template selection via fuzzy picker
 gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --select-template
+
+# Create empty exercises (omit template flag entirely)
+gns3util -s https://server:3080 exercise create \
+  --class "CS101" \
+  --exercise "Lab0"
 ```
 
-### 3. Monitor Student Progress
-```bash
-# List all projects for the class
-gns3util -s https://server:3080 project ls --raw | jq '.[] | select(.name | contains("CS101-Lab1"))'
+> **Exercise listings:** `gns3util exercise ls` behaves just like class listing—results come from whichever server or cluster node you target. Plan class schedules so each group knows the exact server (or cluster node) they must log into.
 
-# Check specific student project
-gns3util -s https://server:3080 project info "CS101-Lab1-Group1-<uuid>"
-```
 
 ## Template Management Workflow
 
-### 1. Create Template in GNS3 Web UI (Recommended)
-1. **Open the normal GNS3 web interface** in your browser (usually at `http://your-gns3-server:3080`)
-2. **Create a new project** with your desired name (e.g., "NetworkTemplate")
-3. **Design your lab topology** using the normal GNS3 interface:
-   - Drag and drop devices from the device panel
-   - Connect devices with cables
-   - Configure device settings
-   - Test the topology by starting devices
-4. **Save the project** - it's now ready to use as a template
+### How Templates Work
+- **Selection**: Choose an existing project on the server or import a `.gns3project` archive to act as the base topology.
+- **Duplication**: Deploying an exercise clones the template for every group in the class.
+- **Naming**: Projects follow `{Class}-{Exercise}-{Group}-{UUID}` to keep names unique.
+- **Access control**: ACLs are applied so each student group sees only their assigned lab.
 
-### 2. Use Template with Fuzzy Picker
+### Step 1 · Prepare a Template in the GNS3 Web UI (Recommended)
+1. **Open the GNS3 web interface** (typically `http://your-gns3-server:3080`).
+2. **Create a new project** with a clear name (for example, `NetworkTemplate`).
+3. **Design and validate the topology** until it meets your teaching objectives.
+4. **Save the project**—it is now ready to use as a template.
+
+### Template Types
+- **Server-based templates (recommended)**: Reuse a project already stored on the server. Fastest option and keeps artifacts local.
+- **File-based templates**: Import a `.gns3project` archive. Useful for moving labs between environments, but confirm images exist at the destination first.
+- **Cluster awareness**: Clusters schedule deployments, but they do **not** share UI sessions. Instructors and students still authenticate to each server URL individually.
+
+### Step 2 · Select a Template
 ```bash
-# Use interactive template selection (recommended)
+# Interactive fuzzy picker (shows all candidate projects)
 gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --select-template
 
-# The fuzzy picker will show all available projects
-# Select your template from the list
-```
-
-### 3. Alternative: Use Template by Name
-```bash
-# Use template by exact name
+# Use template by exact project name
 gns3util -s https://server:3080 exercise create \
   --class "CS101" \
   --exercise "Lab1" \
   --template "NetworkTemplate"
+
+# Import a template archive from disk
+gns3util -s https://server:3080 exercise create \
+  --class "CS101" \
+  --exercise "Lab1" \
+  --template "template.gns3project"
 ```
 
-### 4. Export Template (Optional)
+### Step 3 · Validate Template Quality
 ```bash
-# Export for sharing or backup
+# Inspect metadata and notes
+gns3util -s https://server:3080 project info "NetworkTemplate"
+
+# List nodes included in the template project
+gns3util -s https://server:3080 node ls "NetworkTemplate"
+```
+
+### Step 4 · Update Templates Safely
+```bash
+# Rename or tweak a template project
+gns3util -s https://server:3080 project update "NetworkTemplate" \
+  --name "UpdatedNetworkTemplate"
+
+# Recreate exercises so students receive the updated lab
+gns3util -s https://server:3080 exercise delete --class "CS101" --exercise "Lab1"
+gns3util -s https://server:3080 exercise create \
+  --class "CS101" \
+  --exercise "Lab1" \
+  --template "UpdatedNetworkTemplate"
+```
+
+### Step 5 · Export Templates (Optional)
+```bash
+# Export for sharing or offline backup
 gns3util -s https://server:3080 project export "NetworkTemplate" \
   --output "network-template.gns3project"
 ```
 
-## Lab Management Workflow
+**Recommendation:** Within a single environment or cluster it is usually faster to duplicate the template project than to export/import it. Export is best for moving labs between isolated infrastructures. Destination hosts must already have the required appliance images—automatic image syncing across the cluster is not yet available.
 
-### 1. Start All Labs
-```bash
-# Start all projects for a class
-gns3util -s https://server:3080 project ls --raw | \
-  jq -r '.[] | select(.name | contains("CS101")) | .name' | \
-  while read project; do
-    gns3util -s https://server:3080 project open "$project"
-  done
-```
+> **Cluster limitation reminder:** Template deployment runs on the server you target with `-s/--server`. When working across a cluster, repeat the deployment on every node that hosts student groups or script a loop over server URLs.
 
-### 2. Monitor Lab Status
-```bash
-# Check project status
-gns3util -s https://server:3080 project ls --raw | \
-  jq '.[] | {name: .name, status: .status}'
-```
-
-### 3. Create Snapshots
-```bash
-# Create snapshot for each student project
-gns3util -s https://server:3080 project ls --raw | \
-  jq -r '.[] | select(.name | contains("CS101")) | .name' | \
-  while read project; do
-    gns3util -s https://server:3080 snapshot create \
-      --project "$project" \
-      --name "Initial-Setup"
-  done
-```
-
-## Cleanup Workflow
-
-### 1. Clean Up After Class
-```bash
-# Delete all projects for a class
-gns3util -s https://server:3080 project ls --raw | \
-  jq -r '.[] | select(.name | contains("CS101")) | .name' | \
-  while read project; do
-    gns3util -s https://server:3080 project delete "$project" --confirm=false
-  done
-```
-
-### 2. Clean Up Classes
-```bash
-# Delete class
-gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
-```
-
-## Advanced Workflows
-
-### Bulk Project Creation
-```bash
-#!/bin/bash
-# create-student-labs.sh
-
-CLASS_NAME="CS101"
-EXERCISE_NAME="Lab1"
-STUDENT_COUNT=10
-
-for i in $(seq 1 $STUDENT_COUNT); do
-  PROJECT_NAME="Student-$i-$EXERCISE_NAME"
-  
-  # Create project
-  gns3util -s https://server:3080 project new --name "$PROJECT_NAME"
-  
-  # Add basic nodes
-  gns3util -s https://server:3080 node create "$PROJECT_NAME" \
-    --name "Router1" \
-    --node-type "qemu" \
-    --compute-id "local"
-  
-  gns3util -s https://server:3080 node create "$PROJECT_NAME" \
-    --name "PC1" \
-    --node-type "vpcs" \
-    --compute-id "local"
-done
-```
-
-### Automated Exercise Deployment
-```bash
-#!/bin/bash
-# deploy-exercise.sh
-
-CLASS_NAME=$1
-EXERCISE_NAME=$2
-TEMPLATE_NAME=$3
-
-# Create class if it doesn't exist
-gns3util -s https://server:3080 class create --file class.json
-
-# Deploy exercise
-gns3util -s https://server:3080 exercise create \
-  --class "$CLASS_NAME" \
-  --exercise "$EXERCISE_NAME" \
-  --template "$TEMPLATE_NAME" \
-  --confirm=false
-
-echo "Exercise '$EXERCISE_NAME' deployed for class '$CLASS_NAME'"
-```
-
-### Health Check Script
-```bash
-#!/bin/bash
-# health-check.sh
-
-echo "=== GNS3 Server Health Check ==="
-echo "Server Version:"
-gns3util -s https://server:3080 system version
-
-echo -e "\nServer Statistics:"
-gns3util -s https://server:3080 system statistics
-
-echo -e "\nActive Projects:"
-gns3util -s https://server:3080 project ls --raw | \
-  jq '.[] | {name: .name, status: .status, nodes: .nodes | length}'
-
-echo -e "\nAuthentication Status:"
-gns3util -s https://server:3080 auth status
-```
-
-## Best Practices
-
-### 1. Naming Conventions
-- Use consistent naming: `{Class}-{Exercise}-{Group}-{UUID}`
-- Include semester/year in class names: `CS101-Fall2024`
-- Use descriptive exercise names: `Basic-Routing`, `VLAN-Configuration`
-
-### 2. Resource Management
-- Monitor server resources regularly
-- Use resource pools for student access control
-- Set appropriate project limits
-
-### 3. Backup Strategy
-- Create snapshots before major changes
-- Export important templates
-- Regular project backups
-
-### 4. Security
-- Use ACLs to restrict student access
-- Regular password rotation
-- Monitor user activities
-
-## Troubleshooting
-
-### Common Issues
-- **Project not starting**: Check compute resources
-- **Node creation failed**: Verify node types and images
-- **Authentication issues**: Check server connectivity and credentials
-- **Template not found**: Verify template exists and is accessible
-
-### Debug Commands
-```bash
-# Check server status
-gns3util -s https://server:3080 system version
-gns3util -s https://server:3080 system statistics
-
-# Check authentication
-gns3util -s https://server:3080 auth status
-
-# List all resources
-gns3util -s https://server:3080 project ls --raw
-gns3util -s https://server:3080 template ls --raw
-```
+### Troubleshooting Template Deployments
+- **Template not found**: Run `gns3util project ls | grep -i template` or rely on `--select-template` to discover names.
+- **Duplication failed**: Check server resources, confirm the template opens cleanly, and inspect server logs.
+- **Access control issues**: Verify class membership and execute `gns3util -s https://server:3080 project acl <project>` to review ACLs.

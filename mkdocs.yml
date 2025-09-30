@@ -32,21 +32,21 @@ theme:
 nav:
   - Home: index.md
   - Getting Started:
-    - Installation: getting-started/installation.md
-    - Quick Start: getting-started/quick-start.md
-    - Authentication: getting-started/authentication.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
   - Features:
-    - Template-Based Exercises: features/template-based-exercises.md
-    - Educational Workflows: features/educational-workflows.md
-    - Remote Operations: features/remote-operations.md
+      - Educational Workflows: features/educational-workflows.md
+      - Remote Operations: features/remote-operations.md
+      - Cluster Management: features/cluster-management.md
+      - Sharing and Collaboration: features/sharing-and-collaboration.md
   - CLI Reference:
-    - Commands: cli-reference/commands.md
+      - Commands: cli-reference/commands.md
   - Scripts:
-    - Overview: scripts/overview.md
-    - Walkthrough: scripts/walkthrough.md
-    - Examples: scripts/examples.md
+      - Overview: scripts/overview.md
+      - Walkthrough: scripts/walkthrough.md
+      - Examples: scripts/examples.md
   - Automation:
-    - Walkthrough: automation/walkthrough.md
+      - Walkthrough: automation/walkthrough.md
   - Roadmap: roadmap.md
 
 markdown_extensions:
@@ -63,7 +63,7 @@ markdown_extensions:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+          # format: !!python/name:pymdownx.superfences.fence_code_format
   - tables
   - footnotes
   - pymdownx.critic
