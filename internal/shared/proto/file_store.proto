@@ -1,0 +1,4 @@
+syntax = "proto3";
+package filestore;
+
+option go_package = "github.com/0xveya/gns3util/internal/shared/pb/filestore";

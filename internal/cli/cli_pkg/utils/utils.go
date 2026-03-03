@@ -191,13 +191,13 @@ func PrintYaml(body []byte) {
 }
 
 func PrintToml(cmdPath string, body []byte) {
-	var data interface{}
+	var data any
 	if err := json.Unmarshal(body, &data); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
 
-	wrappedData := map[string]interface{}{
+	wrappedData := map[string]any{
 		cmdPath: data,
 	}
 

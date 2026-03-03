@@ -167,7 +167,8 @@ func (q *Queries) DeleteNode(ctx context.Context, nodeID int64) error {
 }
 
 const nukeEverything = `-- name: NukeEverything :exec
-DELETE FROM clusters
+DELETE FROM
+    clusters
 `
 
 func (q *Queries) NukeEverything(ctx context.Context) error {

@@ -1,0 +1,10 @@
+version: v2
+plugins:
+  - local: protoc-gen-go
+    out: .
+    opt:
+      - module=github.com/0xveya/gns3util
+  - local: protoc-gen-go-drpc
+    out: .
+    opt:
+      - module=github.com/0xveya/gns3util

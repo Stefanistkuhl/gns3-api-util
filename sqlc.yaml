@@ -1,0 +1,24 @@
+version: "2"
+sql:
+  - engine: "sqlite"
+    queries:
+      - "./internal/cli/cli_pkg/cluster/db/querys/inserts.sql"
+      - "./internal/cli/cli_pkg/cluster/db/querys/selects.sql"
+      - "./internal/cli/cli_pkg/cluster/db/querys/updates.sql"
+      - "./internal/cli/cli_pkg/cluster/db/querys/deletes.sql"
+    schema: "./internal/cli/cli_pkg/cluster/db/schema.sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "./internal/cli/cli_pkg/cluster/db/sqlc"
+  - engine: "sqlite"
+    queries:
+      - "./internal/file-store/db/queries/inserts.sql"
+      - "./internal/file-store/db/queries/selects.sql"
+      - "./internal/file-store/db/queries/updates.sql"
+      - "./internal/file-store/db/queries/deletes.sql"
+    schema: "./internal/file-store/db/schema.sql"
+    gen:
+      go:
+        package: "sqlc_file_store"
+        out: "./internal/file-store/db/sqlc_file_store"

@@ -40,7 +40,14 @@ scripts/test.yml
 *.yml
 !.golangci.yml
 docs/
-docs/
+!sqlc.yaml
+!internal/shared/proto/buf.yaml
+!internal/shared/proto/buf.gen.yaml
+
+tmp/
+certs/
+.env
+*.etcd
 
 # GitHub Actions workflow test files
 .github/event.json

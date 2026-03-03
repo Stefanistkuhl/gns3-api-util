@@ -1,6 +1,7 @@
 [env]
 BUILD_DIR = "dist"
 VERSION = "{{exec(command='git describe --tags --always --dirty')}}"
+_.file = ".env"
 
 [tools]
 go = "1.25.7"
@@ -8,9 +9,14 @@ sqlite = "3.51.2"
 golangci-lint = "2.10.1"
 sqlc = "1.30.0"
 goreleaser = "2.14.1"
+protoc = "29.6"
+buf = "1.66.0"
+air = "1.62.0"
 "github:nrempel/sleek" = "v0.5.0"
 "go:mvdan.cc/gofumpt" = "0.9.2"
 "go:golang.org/x/tools/cmd/goimports" = "0.42.0"
+"go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.5"
+"go:storj.io/drpc/cmd/protoc-gen-go-drpc" = "v0.0.34"
 
 [tasks.test]
 description = "Run tests"
@@ -23,6 +29,19 @@ run = "go run ./cmd/gns3util/main.go"
 [tasks.build-cli]
 description = "Build for current platform"
 run = "go build -v -o $BUILD_DIR/gns3util ./cmd/gns3util"
+
+[tasks.run-master]
+description = "Start the master node"
+run = "go run ./cmd/master"
+env = { CLUSTER_PRIV_KEY = "" }
+
+[tasks.run-filestore]
+description = "Start the filestore node"
+run = "go run ./cmd/file-store"
+
+[tasks.run-cluster]
+description = "run cluster components"
+depends = ["run-master", "run-filestore"]
 
 [tasks.build-all]
 description = "Build for all platforms using Goreleaser"
@@ -38,7 +57,7 @@ run = "goreleaser release --snapshot --clean"
 
 [tasks.format]
 description = "Run all formatters (Go and SQL)"
-depends = ["format-go", "format-sql"]
+depends = ["format-go", "format-sql", "format-proto"]
 
 [tasks."format-go"]
 description = "Format Go code with goimports and gofumpt"
@@ -51,13 +70,45 @@ run = [
   "sleek './internal/cli/cli_pkg/cluster/db/schema.sql'",
 ]
 
+[tasks."format-proto"]
+description = "Format protobuf files with buf"
+run = "buf format internal/shared/proto -w"
+
 [tasks.lint]
-description = "Run linter"
+description = "Run all linters"
+depends = ["lint-go", "lint-proto"]
+
+[tasks."lint-go"]
+description = "Run Go linter"
 run = "golangci-lint run -c .golangci.yml"
+
+[tasks."lint-proto"]
+description = "Run protobuf linter"
+run = "buf lint internal/shared/proto"
+
+[tasks.dev-cluster]
+description = "Run all dev tasks"
+depends = ["dev-master", "dev-filestore"]
+
+[tasks.dev-master]
+description = "Run all dev master tasks"
+run = "air -c air-master.toml"
+
+[tasks.dev-filestore]
+description = "Run all dev filestore tasks"
+run = "air -c air-file-store.toml"
 
 [tasks.sqlc]
 description = "Generate SQL files"
 run = "sqlc generate"
+
+[tasks.proto]
+description = "Generate all protobuf and dRPC files"
+run = "buf generate internal/shared/proto --template internal/shared/proto/buf.gen.yaml"
+
+[tasks.generate]
+description = "Generate all files"
+depends = ["sqlc", "proto"]
 
 [tasks.release]
 description = "Create a production release"
