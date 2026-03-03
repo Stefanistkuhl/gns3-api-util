@@ -6,8 +6,9 @@ import (
 )
 
 type Master struct {
-	IDMgr *auth.IdentityManager
-	Store *state.StateManager
+	IDMgr  *auth.IdentityManager
+	Store  *state.StateManager
+	TLSDir string
 }
 
 type CertUploadRequest struct {
@@ -18,9 +19,12 @@ type CertUploadRequest struct {
 type JoinClusterRequest struct {
 	Name     string   `json:"name"`
 	PeerURLs []string `json:"peer_urls"`
+	CSRPEM   []byte   `json:"csr_pem"`
 }
 
 type JoinClusterResponse struct {
 	MemberID uint64 `json:"member_id"`
 	Cluster  string `json:"cluster"`
+	CertPEM  []byte `json:"cert_pem"`
+	CACert   []byte `json:"ca_cert"`
 }

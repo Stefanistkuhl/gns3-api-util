@@ -2,17 +2,18 @@ package handlers
 
 import (
 	"context"
-	"crypto/tls"
+	"crypto/ed25519"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
 
 	"github.com/0xveya/gns3util/pkg/web/auth"
+	"github.com/0xveya/gns3util/pkg/web/certs"
 )
 
 func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +27,41 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 	var req JoinClusterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	caCertPath := filepath.Join(m.TLSDir, "node.crt")
+	caKeyPath := filepath.Join(m.TLSDir, "node.key")
+
+	caCertPEM, err := os.ReadFile(caCertPath)
+	if err != nil {
+		http.Error(w, "Failed to read Master CA cert", http.StatusInternalServerError)
+		return
+	}
+	caKeyPEM, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		http.Error(w, "Failed to read Master CA key", http.StatusInternalServerError)
+		return
+	}
+
+	caBlock, _ := pem.Decode(caCertPEM)
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil {
+		http.Error(w, "Failed to parse Master CA cert", http.StatusInternalServerError)
+		return
+	}
+
+	keyBlock, _ := pem.Decode(caKeyPEM)
+	parsedKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		return
+	}
+	caPrivKey := parsedKey.(ed25519.PrivateKey)
+
+	signedCertPEM, err := certs.SignCSR(req.CSRPEM, caCert, caPrivKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to sign CSR: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -53,11 +89,12 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 	resp := JoinClusterResponse{
 		MemberID: memberResp.Member.ID,
 		Cluster:  cluster,
+		CertPEM:  signedCertPEM,
+		CACert:   caCertPEM,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	encodeErr := json.NewEncoder(w).Encode(resp)
-	if encodeErr != nil {
+	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
 		http.Error(w, fmt.Sprintf("Failed to encode response: %v", encodeErr), http.StatusInternalServerError)
 		return
 	}
@@ -138,88 +175,4 @@ func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte("OK"))
-}
-
-func (m *Master) HandleUploadCert(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, 10<<20)
-
-	rawContentType := r.Header.Get("Content-Type")
-	contentType := strings.Split(rawContentType, ";")[0]
-	var certPEM, keyPEM []byte
-
-	switch strings.ToLower(strings.TrimSpace(contentType)) {
-	case "application/json":
-		var req CertUploadRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
-			return
-		}
-		certPEM = []byte(req.CertPEM)
-		keyPEM = []byte(req.KeyPEM)
-
-	case "multipart/form-data":
-		if err := r.ParseMultipartForm(10 << 20); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to parse multipart: %v", err), http.StatusBadRequest)
-			return
-		}
-
-		certFile, _, err := r.FormFile("cert")
-		if err != nil {
-			http.Error(w, "cert file required", http.StatusBadRequest)
-			return
-		}
-		defer certFile.Close()
-		certPEM, err = io.ReadAll(certFile)
-		if err != nil {
-			http.Error(w, "Failed to read cert", http.StatusBadRequest)
-			return
-		}
-
-		keyFile, _, err := r.FormFile("key")
-		if err != nil {
-			http.Error(w, "key file required", http.StatusBadRequest)
-			return
-		}
-		defer keyFile.Close()
-		keyPEM, err = io.ReadAll(keyFile)
-		if err != nil {
-			http.Error(w, "Failed to read key", http.StatusBadRequest)
-			return
-		}
-
-	default:
-		http.Error(w, "Content-Type must be application/json or multipart/form-data", http.StatusBadRequest)
-		return
-	}
-
-	if _, err := tls.X509KeyPair(certPEM, keyPEM); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid cert/key pair: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	if err := m.Store.PutCertificate(ctx, certPEM, keyPEM); err != nil {
-		http.Error(w, "Failed to store certificate", http.StatusInternalServerError)
-		return
-	}
-
-	log.Printf("Certificate stored in etcd")
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"ok"}`))
-}
-
-func (m *Master) HandleGetCert(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
-	certPEM, _, err := m.Store.GetCertificate(ctx)
-	if err != nil {
-		http.Error(w, "Certificate not found", http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/x-pem-file")
-	w.Write(certPEM)
 }

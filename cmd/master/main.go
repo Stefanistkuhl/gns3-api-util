@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -23,6 +24,7 @@ import (
 	"github.com/0xveya/gns3util/internal/master/handlers"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/state"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
@@ -34,16 +36,15 @@ import (
 )
 
 type MasterConfig struct {
-	RootPassword   string `env:"ROOT_PASSWORD" type:"secret" required:"true"`
+	TLSDir         string `env:"MASTER_TLS_DIR" type:"string" default:"/data/master/tls/"`
 	APIPort        int    `env:"MASTER_API_PORT" type:"port" default:"8443"`
 	DrpcPort       int    `env:"MASTER_STORE_DRPC_PORT" type:"port" default:"2748"`
 	APIListenAddr  string `env:"MASTER_API_LISTEN_ADDR" type:"listen" default:"0.0.0.0"`
 	EtcdPort       int    `env:"MASTER_ETCD_API_PORT" type:"port" default:"2379"`
 	EtcdListenAddr string `env:"MASTER_ETCD_API_LISTEN_ADDR" type:"listen" default:"0.0.0.0"`
 	PrivKeyStr     string `env:"CLUSTER_PRIV_KEY" type:"string"`
-	TLSSubject     string `env:"MASTER_TLS_SUBJ" type:"string" default:"/CN=localhost"`
-	TLSCertFile    string `env:"MASTER_TLS_CERT_FILE" type:"string"`
-	TLSKeyFile     string `env:"MASTER_TLS_KEY_FILE" type:"string"`
+	TLSSubject     string `env:"MASTER_TLS_SUBJ" type:"string" default:"/CN=root"`
+	DataDir        string `env:"MASTER_DATA_DIR" type:"string" default:"/data/master/etcd/"`
 }
 
 var cfg MasterConfig
@@ -57,7 +58,40 @@ func init() {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	etcdState, err := state.StartMaster("./master.etcd")
+
+	certPath := filepath.Join(cfg.TLSDir, "node.crt")
+	keyPath := filepath.Join(cfg.TLSDir, "node.key")
+	caPath := filepath.Join(cfg.TLSDir, "ca.crt")
+
+	cm := &certs.CertManager{}
+
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err == nil {
+		cm.SetCertificate(&cert)
+	} else {
+		log.Println("No local CA certificate found, generating self-signed Ed25519 CA...")
+
+		certPEM, keyPEM, err := generateSelfSignedCert(cfg.TLSSubject)
+		if err != nil {
+			log.Fatalf("Failed to generate cert: %v", err)
+		}
+
+		if err := os.MkdirAll(cfg.TLSDir, 0700); err != nil {
+			log.Fatalf("Failed to create tls dir: %v", err)
+		}
+		os.WriteFile(certPath, certPEM, 0644)
+		os.WriteFile(keyPath, keyPEM, 0600)
+		os.WriteFile(caPath, certPEM, 0644)
+
+		cert, err = tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			log.Fatalf("Failed to load generated cert: %v", err)
+		}
+		cm.SetCertificate(&cert)
+		log.Printf("Generated self-signed certificate with subject: %s", cfg.TLSSubject)
+	}
+
+	etcdState, err := state.StartMaster(cfg.DataDir, cfg.TLSDir)
 	if err != nil {
 		log.Fatalf("Failed to start etcd: %v", err)
 	}
@@ -65,7 +99,7 @@ func main() {
 	store, err := state.NewStateManager(
 		[]string{"localhost:" + strconv.Itoa(cfg.EtcdPort)},
 		nil,
-		"root", cfg.RootPassword,
+		cfg.TLSDir,
 	)
 	if err != nil {
 		log.Fatalf("Failed to connect to etcd: %v", err)
@@ -102,8 +136,9 @@ func main() {
 	}
 
 	master := &handlers.Master{
-		IDMgr: idMgr,
-		Store: store,
+		IDMgr:  idMgr,
+		Store:  store,
+		TLSDir: cfg.TLSDir,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -117,35 +152,6 @@ func main() {
 		store.Close()
 		os.Exit(0)
 	}()
-
-	cm := &certs.CertManager{}
-
-	if cfg.TLSCertFile != "" && cfg.TLSKeyFile != "" {
-		cert, err := tls.LoadX509KeyPair(cfg.TLSCertFile, cfg.TLSKeyFile)
-		if err != nil {
-			log.Fatalf("Failed to load TLS cert: %v", err)
-		}
-		cm.SetCertificate(&cert)
-	} else {
-		err = cm.LoadFromEtcd(ctx, store)
-		if err != nil {
-			log.Println("No certificate in etcd, generating self-signed...")
-			certPEM, keyPEM, err := generateSelfSignedCert(cfg.TLSSubject)
-			if err != nil {
-				log.Fatalf("Failed to generate cert: %v", err)
-			}
-			if err := store.PutCertificate(ctx, certPEM, keyPEM); err != nil {
-				log.Printf("Warning: failed to upload cert to etcd: %v", err)
-			}
-			if err := cm.LoadFromEtcd(ctx, store); err != nil {
-				log.Fatalf("Failed to load generated cert: %v", err)
-			}
-			log.Printf("Generated self-signed certificate with subject: %s", cfg.TLSSubject)
-		}
-	}
-
-	notify := store.WatchCertificate(ctx)
-	cm.WatchEtcd(ctx, store, notify)
 
 	m := drpcmux.New()
 	r := chi.NewRouter()
@@ -197,8 +203,6 @@ func setupRouter(r chi.Router, master *handlers.Master) {
 	r.Post("/auth/token", master.HandleCreateToken)
 	r.Post("/auth/grant", master.HandleGrantAccess)
 	r.Post("/auth/revoke", master.HandleRevokeAccess)
-	r.Post("/certs/upload", master.HandleUploadCert)
-	r.Get("/certs", master.HandleGetCert)
 	r.Post("/cluster/join", master.HandleJoinCluster)
 }
 
@@ -218,29 +222,37 @@ func bootstrapIfNeeded(ctx context.Context, cli *clientv3.Client) error {
 }
 
 func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	template := x509.Certificate{
-		SerialNumber: serial,
-		Subject:      pkix.Name{CommonName: strings.TrimPrefix(subject, "/CN=")},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		SerialNumber:          serial,
+		Subject:               pkix.Name{CommonName: strings.TrimPrefix(subject, "/CN=")},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           nwutils.GetLocalIPs(),
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, pubKey, privKey)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	keyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
 
 	return certPEM, keyPEM, nil
 }

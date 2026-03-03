@@ -1,5 +1,3 @@
-# Go / Build
-
 # Binaries
 *.exe
 *.exe~
@@ -19,23 +17,12 @@ dist/
 go.work
 
 # Dependencies
-
 # vendor/
 
-# Configuration Files
-
-# YAML configuration (keep specific exceptions)
-*.yaml
-*.yml
-!.goreleaser.yaml
-!.golangci.yml
-!sqlc.yaml
-!internal/shared/proto/buf.yaml
-!internal/shared/proto/buf.gen.yaml
-
-# Environment files and certs
+# Sensitive Files
 .env
-certs/
+tls-master/
+tls-file-store/
 
 # Project-Specific
 
@@ -57,12 +44,10 @@ scripts/test.yml
 # Documentation
 docs/
 
-# Temporary / Cache
-
+# Temporary / Cache / unrelated
 tmp/
 *.etcd
 
 # GitHub Actions / CI
-
 .github/event.json
 .actrc

@@ -48,3 +48,21 @@ func ParseURL(urlStr string) (*url.URL, bool) {
 	}
 	return u, true
 }
+
+func GetLocalIPs() []net.IP {
+	var ips []net.IP
+	ips = append(ips, net.ParseIP("127.0.0.1"), net.ParseIP("::1"))
+
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ips
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				ips = append(ips, ipnet.IP)
+			}
+		}
+	}
+	return ips
+}

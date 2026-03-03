@@ -2,7 +2,11 @@ package state
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,12 +18,32 @@ type StateManager struct {
 	LocalClient  *clientv3.Client
 }
 
-func NewStateManager(masterEndpoints, localEndpoints []string, username, password string) (*StateManager, error) {
+func NewStateManager(masterEndpoints, localEndpoints []string, tlsDir string) (*StateManager, error) {
+	certFile := filepath.Join(tlsDir, "node.crt")
+	keyFile := filepath.Join(tlsDir, "node.key")
+	caFile := filepath.Join(tlsDir, "ca.crt")
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load client cert/key: %w", err)
+	}
+
+	caData, err := os.ReadFile(caFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load CA cert: %w", err)
+	}
+	caPool := x509.NewCertPool()
+	caPool.AppendCertsFromPEM(caData)
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caPool,
+	}
+
 	masterCli, err := clientv3.New(clientv3.Config{
 		Endpoints:   masterEndpoints,
 		DialTimeout: 5 * time.Second,
-		Username:    username,
-		Password:    password,
+		TLS:         tlsConfig,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to master: %w", err)
@@ -30,8 +54,7 @@ func NewStateManager(masterEndpoints, localEndpoints []string, username, passwor
 		localCli, err = clientv3.New(clientv3.Config{
 			Endpoints:   localEndpoints,
 			DialTimeout: 5 * time.Second,
-			Username:    username,
-			Password:    password,
+			TLS:         tlsConfig,
 		})
 		if err != nil {
 			masterCli.Close()
@@ -68,15 +91,6 @@ func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, sc
 	return err
 }
 
-func (s *StateManager) PutCertificate(ctx context.Context, certPEM, keyPEM []byte) error {
-	_, err := s.MasterClient.Put(ctx, "/tls/cert", string(certPEM))
-	if err != nil {
-		return err
-	}
-	_, err = s.MasterClient.Put(ctx, "/tls/key", string(keyPEM))
-	return err
-}
-
 func (s *StateManager) CheckPermission(ctx context.Context, userID string, requiredScope string) (bool, error) {
 	key := fmt.Sprintf("/auth/scopes/%s", userID)
 	resp, err := s.LocalClient.Get(ctx, key, clientv3.WithSerializable())
@@ -85,46 +99,4 @@ func (s *StateManager) CheckPermission(ctx context.Context, userID string, requi
 	}
 
 	return strings.Contains(string(resp.Kvs[0].Value), requiredScope), nil
-}
-
-func (s *StateManager) GetCertificate(ctx context.Context) (certPEM, keyPEM []byte, err error) {
-	certResp, err := s.LocalClient.Get(ctx, "/tls/cert", clientv3.WithSerializable())
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(certResp.Kvs) == 0 {
-		return nil, nil, fmt.Errorf("certificate not found in etcd")
-	}
-
-	keyResp, err := s.LocalClient.Get(ctx, "/tls/key", clientv3.WithSerializable())
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(keyResp.Kvs) == 0 {
-		return nil, nil, fmt.Errorf("key not found in etcd")
-	}
-
-	return certResp.Kvs[0].Value, keyResp.Kvs[0].Value, nil
-}
-
-func (s *StateManager) WatchCertificate(ctx context.Context) <-chan struct{} {
-	notify := make(chan struct{}, 1)
-
-	go func() {
-		defer close(notify)
-		watchChan := s.MasterClient.Watch(ctx, "/tls/", clientv3.WithPrefix())
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-watchChan:
-				select {
-				case notify <- struct{}{}:
-				default:
-				}
-			}
-		}
-	}()
-
-	return notify
 }
