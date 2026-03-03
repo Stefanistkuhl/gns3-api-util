@@ -1,58 +1,68 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go
-# Edit at https://www.toptal.com/developers/gitignore?templates=go
+# Go / Build
 
-### Go ###
-# If you prefer the allow list template instead of the deny list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-#
-# Binaries for programs and plugins
+# Binaries
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 bin/
+dist/
 
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
-*.gns3project
-CLI_STRUCTURE.md
-
-# Dependency directories (remove the comment below to include it)
-# vendor/
 
 # Go workspace file
 go.work
 
-# End of https://www.toptal.com/developers/gitignore/api/go
+# Dependencies
 
-old_code/
-/gns3util
-onboaring/
-api.json
-test_class.json
-scripts/test.yml
+# vendor/
+
+# Configuration Files
+
+# YAML configuration (keep specific exceptions)
 *.yaml
-!.goreleaser.yaml
 *.yml
+!.goreleaser.yaml
 !.golangci.yml
-docs/
 !sqlc.yaml
 !internal/shared/proto/buf.yaml
 !internal/shared/proto/buf.gen.yaml
 
-tmp/
-certs/
+# Environment files and certs
 .env
+certs/
+
+# Project-Specific
+
+# Legacy / old code
+old_code/
+onboaring/
+
+# GNS3 specific
+*.gns3project
+/gns3util
+
+# API / test files
+api.json
+test_class.json
+
+# Scripts
+scripts/test.yml
+
+# Documentation
+docs/
+
+# Temporary / Cache
+
+tmp/
 *.etcd
 
-# GitHub Actions workflow test files
+# GitHub Actions / CI
+
 .github/event.json
 .actrc
-
-# Build artifacts
-dist/
-;
