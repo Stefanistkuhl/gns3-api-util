@@ -30,6 +30,7 @@ import (
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/grandcat/zeroconf"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
@@ -45,6 +46,7 @@ type MasterConfig struct {
 	PrivKeyStr     string `env:"CLUSTER_PRIV_KEY" type:"string"`
 	TLSSubject     string `env:"MASTER_TLS_SUBJ" type:"string" default:"/CN=root"`
 	DataDir        string `env:"MASTER_DATA_DIR" type:"string" default:"/data/master/etcd/"`
+	EnableMDNS     bool   `env:"MASTER_ENABLE_MDNS" type:"bool" default:"true"`
 }
 
 var cfg MasterConfig
@@ -172,6 +174,28 @@ func main() {
 	drpcListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.APIListenAddr, cfg.DrpcPort))
 	if err != nil {
 		log.Fatalf("Failed to listen for drpc: %v", err)
+	}
+	host, hostNameErr := os.Hostname()
+	if hostNameErr != nil {
+		log.Fatalf("Failed to get hostname: %v", hostNameErr)
+	}
+	if cfg.EnableMDNS {
+		mdnsServer, err := zeroconf.Register(
+			host,
+			"_gns3util_master_api._tcp",
+			"local.",
+			cfg.APIPort,
+			[]string{"info=gns3util master api"},
+			nwutils.GetActiveMulticastInterfaces(),
+		)
+		if err != nil {
+			log.Fatalf("Failed to start mdns server: %v", err)
+		}
+		defer mdnsServer.Shutdown()
+
+		log.Printf("Registering mDNS service: name=%s, type=%s, port=%d",
+			host, "_gns3util_master_api._tcp", cfg.APIPort)
+		log.Printf("Starting mdns discovery server")
 	}
 
 	log.Printf("Starting Master Node on :%d", cfg.APIPort)

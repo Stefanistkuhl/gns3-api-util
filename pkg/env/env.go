@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
@@ -17,6 +18,7 @@ const (
 	EnvTypeURL    EnvType = "url"
 	EnvTypeListen EnvType = "listen"
 	EnvTypeSecret EnvType = "secret"
+	EnvTypeBool   EnvType = "bool"
 )
 
 type FieldConfig struct {
@@ -111,6 +113,8 @@ func getValidator(typ EnvType) func(string) bool {
 		return func(s string) bool {
 			return len(s) >= 8
 		}
+	case EnvTypeBool:
+		return isValidBool
 	default:
 		return func(s string) bool {
 			return s != ""
@@ -135,7 +139,15 @@ func setFieldValue(fieldVal reflect.Value, envVal string, cfg *FieldConfig) erro
 			return fmt.Errorf("invalid port value %s: ", envVal)
 		}
 		fieldVal.SetInt(int64(port))
-
+	case EnvTypeBool:
+		if fieldVal.Kind() != reflect.Bool {
+			return fmt.Errorf("field type mismatch: expected bool")
+		}
+		b, err := parseBool(envVal)
+		if err != nil {
+			return err
+		}
+		fieldVal.SetBool(b)
 	default:
 		if fieldVal.Kind() == reflect.String {
 			fieldVal.SetString(envVal)
@@ -143,4 +155,21 @@ func setFieldValue(fieldVal reflect.Value, envVal string, cfg *FieldConfig) erro
 	}
 
 	return nil
+}
+
+func isValidBool(s string) bool {
+	_, err := parseBool(s)
+	return err == nil
+}
+
+func parseBool(s string) (bool, error) {
+	s = strings.ToLower(s)
+	switch s {
+	case "true", "1", "yes", "on":
+		return true, nil
+	case "false", "0", "no", "off":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid bool value: %s", s)
+	}
 }

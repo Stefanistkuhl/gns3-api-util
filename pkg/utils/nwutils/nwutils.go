@@ -66,3 +66,26 @@ func GetLocalIPs() []net.IP {
 	}
 	return ips
 }
+
+func GetActiveMulticastInterfaces() []net.Interface {
+	var validIfaces []net.Interface
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+
+	for _, i := range ifaces {
+		if i.Flags&net.FlagUp == 0 {
+			continue
+		}
+		if i.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if i.Flags&net.FlagMulticast == 0 {
+			continue
+		}
+
+		validIfaces = append(validIfaces, i)
+	}
+	return validIfaces
+}
