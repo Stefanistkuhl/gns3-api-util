@@ -74,17 +74,30 @@ func main() {
 	} else {
 		log.Println("No local CA certificate found, generating self-signed Ed25519 CA...")
 
-		certPEM, keyPEM, err := generateSelfSignedCert(cfg.TLSSubject)
-		if err != nil {
-			log.Fatalf("Failed to generate cert: %v", err)
+		certPEM, keyPEM, genCertErr := generateSelfSignedCert(cfg.TLSSubject)
+		if genCertErr != nil {
+			log.Fatalf("Failed to generate cert: %v", genCertErr)
 		}
 
-		if err := os.MkdirAll(cfg.TLSDir, 0700); err != nil {
-			log.Fatalf("Failed to create tls dir: %v", err)
+		if mkdirErr := os.MkdirAll(cfg.TLSDir, 0o700); mkdirErr != nil {
+			log.Printf("Failed to create tls dir: %v", mkdirErr)
+			return
 		}
-		os.WriteFile(certPath, certPEM, 0644)
-		os.WriteFile(keyPath, keyPEM, 0600)
-		os.WriteFile(caPath, certPEM, 0644)
+		certErr := os.WriteFile(certPath, certPEM, 0o600)
+		if certErr != nil {
+			log.Printf("Failed to write node.crt: %v", certErr)
+			return
+		}
+		keyErr := os.WriteFile(keyPath, keyPEM, 0o600)
+		if keyErr != nil {
+			log.Printf("Failed to write node.key: %v", keyErr)
+			return
+		}
+		caErr := os.WriteFile(caPath, certPEM, 0o600)
+		if caErr != nil {
+			log.Printf("Failed to write ca.crt: %v", caErr)
+			return
+		}
 
 		cert, err = tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
@@ -97,10 +110,13 @@ func main() {
 		if parseCertErr != nil {
 			log.Fatalf("failed to parse CA: %v", parseCertErr)
 		}
-		caPrivKey := cert.PrivateKey.(ed25519.PrivateKey)
-		adminCertPEM, adminKeyPEM, err := generateAdminCert(caX509, caPrivKey)
-		if err != nil {
-			log.Fatalf("Failed to generate admin cert: %v", err)
+		caPrivKey, ok := cert.PrivateKey.(ed25519.PrivateKey)
+		if !ok {
+			log.Fatalf("failed to parse CA: %v", parseCertErr)
+		}
+		adminCertPEM, adminKeyPEM, genAdminCertErr := generateAdminCert(caX509, caPrivKey)
+		if genAdminCertErr != nil {
+			log.Fatalf("Failed to generate admin cert: %v", genAdminCertErr)
 		}
 		accessConfig := clusteraccess.CreateClusterAcessConfig(
 			fmt.Sprintf("https://%s:%d", nwutils.GetFirstNonLoopbackIP(), cfg.APIPort),
@@ -108,13 +124,17 @@ func main() {
 			adminCertPEM,
 			adminKeyPEM,
 		)
-		accessConfig.WriteAccessConfig(filepath.Join(cfg.TLSDir, "cluster_access.toml"))
-
+		writeErr := accessConfig.WriteAccessConfig(filepath.Join(cfg.TLSDir, "cluster_access.toml"))
+		if writeErr != nil {
+			log.Printf("Failed to write cluster_access.toml: %v", writeErr)
+			return
+		}
 	}
 
-	etcdState, err := state.StartMaster(cfg.DataDir, cfg.TLSDir)
-	if err != nil {
-		log.Fatalf("Failed to start etcd: %v", err)
+	etcdState, startEtcdErr := state.StartMaster(cfg.DataDir, cfg.TLSDir)
+	if startEtcdErr != nil {
+		log.Printf("Failed to start etcd: %v", startEtcdErr)
+		return
 	}
 
 	store, err := state.NewStateManager(
@@ -123,32 +143,37 @@ func main() {
 		cfg.TLSDir,
 	)
 	if err != nil {
-		log.Fatalf("Failed to connect to etcd: %v", err)
+		log.Printf("Failed to connect to etcd: %v", err)
+		return
 	}
 
-	if err := bootstrapIfNeeded(ctx, store.MasterClient); err != nil {
-		log.Fatalf("Failed to bootstrap auth: %v", err)
+	if bootstrapErr := bootstrapIfNeeded(ctx, store.MasterClient); bootstrapErr != nil {
+		log.Printf("Failed to bootstrap auth: %v", bootstrapErr)
+		return
 	}
 
 	var idMgr *auth.IdentityManager
 
 	if cfg.PrivKeyStr == "" {
-		pubKey, privKey, err := auth.GenerateKeyPair()
-		if err != nil {
-			log.Fatalf("Failed to generate keys: %v", err)
+		pubKey, privKey, genKeyErr := auth.GenerateKeyPair()
+		if genKeyErr != nil {
+			log.Printf("Failed to generate keys: %v", genKeyErr)
+			return
 		}
 		log.Printf("Generated new key pair")
 		log.Printf("CLUSTER_PUB_KEY=%s", auth.EncodePublicKey(pubKey))
 		log.Printf("CLUSTER_PRIV_KEY=%s", auth.EncodePrivateKey(privKey))
 
-		idMgr, err = auth.NewIdentityManager(privKey)
-		if err != nil {
-			log.Fatalf("Failed to create identity manager: %v", err)
+		var idMgrErr error
+		idMgr, idMgrErr = auth.NewIdentityManager(privKey)
+		if idMgrErr != nil {
+			log.Printf("Failed to create identity manager: %v", idMgrErr)
+			return
 		}
 	} else {
-		privKey, err := auth.DecodePrivateKey(cfg.PrivKeyStr)
-		if err != nil {
-			log.Fatalf("Failed to decode private key: %v", err)
+		privKey, decodePrivKeyErr := auth.DecodePrivateKey(cfg.PrivKeyStr)
+		if decodePrivKeyErr != nil {
+			log.Fatalf("Failed to decode private key: %v", decodePrivKeyErr)
 		}
 		var idMgrErr error
 		idMgr, idMgrErr = auth.NewIdentityManager(privKey)
@@ -171,7 +196,10 @@ func main() {
 		log.Println("Shutting down...")
 		cancel()
 		etcdState.Server.Close()
-		store.Close()
+		closeErr := store.Close()
+		if closeErr != nil {
+			log.Fatalf("Failed to close state manager: %v", closeErr)
+		}
 		os.Exit(0)
 	}()
 
@@ -184,20 +212,24 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:      fmt.Sprintf(":%d", cfg.APIPort),
-		Handler:   r,
-		TLSConfig: tlsConfig,
+		Addr:              fmt.Sprintf(":%d", cfg.APIPort),
+		Handler:           r,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	drpcServer := drpcserver.New(m)
 
-	drpcListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.APIListenAddr, cfg.DrpcPort))
+	var lis net.ListenConfig
+	drpcListener, err := lis.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.APIListenAddr, cfg.DrpcPort))
 	if err != nil {
-		log.Fatalf("Failed to listen for drpc: %v", err)
+		log.Printf("Failed to listen for drpc: %v", err)
+		return
 	}
 	host, hostNameErr := os.Hostname()
 	if hostNameErr != nil {
-		log.Fatalf("Failed to get hostname: %v", hostNameErr)
+		log.Printf("Failed to get hostname: %v", hostNameErr)
+		return
 	}
 	if cfg.EnableMDNS {
 		mdnsServer, err := zeroconf.Register(
@@ -209,7 +241,8 @@ func main() {
 			nwutils.GetActiveMulticastInterfaces(),
 		)
 		if err != nil {
-			log.Fatalf("Failed to start mdns server: %v", err)
+			log.Printf("Failed to start mdns server: %v", err)
+			return
 		}
 		defer mdnsServer.Shutdown()
 

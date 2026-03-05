@@ -30,8 +30,9 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	caCertPath := filepath.Join(m.TLSDir, "node.crt")
-	caKeyPath := filepath.Join(m.TLSDir, "node.key")
+	cleanPath := filepath.Clean(m.TLSDir)
+	caCertPath := filepath.Join(cleanPath, "node.crt")
+	caKeyPath := filepath.Join(cleanPath, "node.key")
 
 	caCertPEM, err := os.ReadFile(caCertPath)
 	if err != nil {
@@ -57,7 +58,11 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
 		return
 	}
-	caPrivKey := parsedKey.(ed25519.PrivateKey)
+	caPrivKey, ok := parsedKey.(ed25519.PrivateKey)
+	if !ok {
+		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		return
+	}
 
 	signedCertPEM, err := certs.SignCSR(req.CSRPEM, caCert, caPrivKey)
 	if err != nil {
@@ -129,10 +134,14 @@ func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := map[string]string{
+		"token": token,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	_, writeErr := fmt.Fprintf(w, `{"token":"%s"}`, token)
-	if writeErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
 		return
 	}
 }
@@ -154,7 +163,11 @@ func (m *Master) HandleGrantAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("OK"))
+	_, writeErr := w.Write([]byte("OK"))
+	if writeErr != nil {
+		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
@@ -174,5 +187,9 @@ func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("OK"))
+	_, writeErr := w.Write([]byte("OK"))
+	if writeErr != nil {
+		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+		return
+	}
 }

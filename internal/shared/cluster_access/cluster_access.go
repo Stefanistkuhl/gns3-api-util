@@ -27,7 +27,7 @@ func (c *ClientConfig) WriteAccessConfig(path string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, dat, 0600)
+	return os.WriteFile(path, dat, 0o600)
 }
 
 func (c *ClientConfig) CheckIfAccessConfigExists(path string) bool {

@@ -21,18 +21,18 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string) (csrPEM []byte, err error) {
 		return nil, err
 	}
 
-	keyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
-	if err != nil {
-		return nil, err
+	keyBytes, marshalErr := x509.MarshalPKCS8PrivateKey(privKey)
+	if marshalErr != nil {
+		return nil, marshalErr
 	}
 
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
 
-	if err := os.MkdirAll(tlsDir, 0700); err != nil {
-		return nil, err
+	if mkdirErr := os.MkdirAll(tlsDir, 0o700); mkdirErr != nil {
+		return nil, mkdirErr
 	}
-	if err := os.WriteFile(filepath.Join(tlsDir, "node.key"), keyPEM, 0600); err != nil {
-		return nil, err
+	if writeErr := os.WriteFile(filepath.Join(tlsDir, "node.key"), keyPEM, 0o600); writeErr != nil {
+		return nil, writeErr
 	}
 
 	subj := pkix.Name{
@@ -45,9 +45,9 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string) (csrPEM []byte, err error) {
 		SignatureAlgorithm: x509.PureEd25519,
 	}
 
-	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &template, privKey)
-	if err != nil {
-		return nil, err
+	csrBytes, createErr := x509.CreateCertificateRequest(rand.Reader, &template, privKey)
+	if createErr != nil {
+		return nil, createErr
 	}
 
 	csrPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes})
@@ -64,8 +64,8 @@ func SignCSR(csrPEM []byte, caCert *x509.Certificate, caPrivKey ed25519.PrivateK
 	if err != nil {
 		return nil, err
 	}
-	if err := csr.CheckSignature(); err != nil {
-		return nil, fmt.Errorf("invalid CSR signature: %v", err)
+	if signatureCheckErr := csr.CheckSignature(); signatureCheckErr != nil {
+		return nil, fmt.Errorf("invalid CSR signature: %w", signatureCheckErr)
 	}
 
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)

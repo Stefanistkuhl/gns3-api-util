@@ -19,9 +19,10 @@ type StateManager struct {
 }
 
 func NewStateManager(masterEndpoints, localEndpoints []string, tlsDir string) (*StateManager, error) {
-	certFile := filepath.Join(tlsDir, "node.crt")
-	keyFile := filepath.Join(tlsDir, "node.key")
-	caFile := filepath.Join(tlsDir, "ca.crt")
+	cleanDir := filepath.Clean(tlsDir)
+	certFile := filepath.Join(cleanDir, "node.crt")
+	keyFile := filepath.Join(cleanDir, "node.key")
+	caFile := filepath.Join(cleanDir, "ca.crt")
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
@@ -57,7 +58,10 @@ func NewStateManager(masterEndpoints, localEndpoints []string, tlsDir string) (*
 			TLS:         tlsConfig,
 		})
 		if err != nil {
-			masterCli.Close()
+			closeErr := masterCli.Close()
+			if closeErr != nil {
+				return nil, fmt.Errorf("failed to close master client: %w", closeErr)
+			}
 			return nil, fmt.Errorf("failed to connect to local replica: %w", err)
 		}
 	} else {
@@ -91,7 +95,7 @@ func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, sc
 	return err
 }
 
-func (s *StateManager) CheckPermission(ctx context.Context, userID string, requiredScope string) (bool, error) {
+func (s *StateManager) CheckPermission(ctx context.Context, userID, requiredScope string) (bool, error) {
 	key := fmt.Sprintf("/auth/scopes/%s", userID)
 	resp, err := s.LocalClient.Get(ctx, key, clientv3.WithSerializable())
 	if err != nil || len(resp.Kvs) == 0 {

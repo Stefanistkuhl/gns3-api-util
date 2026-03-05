@@ -77,7 +77,7 @@ func StartEmbedded(cfg *EtcdConfig) (*InternalState, error) {
 	return &InternalState{Server: e}, nil
 }
 
-func StartMaster(dataDir string, tlsDir string) (*InternalState, error) {
+func StartMaster(dataDir, tlsDir string) (*InternalState, error) {
 	return StartEmbedded(&EtcdConfig{
 		DataDir:    dataDir,
 		ClientPort: "2379",
@@ -145,7 +145,7 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 	return nil
 }
 
-func StartFileStore(dataDir, initialCluster, tlsDir string, nodeName string) (*InternalState, error) {
+func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string) (*InternalState, error) {
 	memberDir := filepath.Join(dataDir, "member")
 	_, err := os.Stat(memberDir)
 	hasData := err == nil

@@ -59,8 +59,12 @@ type IdentityManager struct {
 }
 
 func NewIdentityManager(privKey ed25519.PrivateKey) (*IdentityManager, error) {
+	pub, ok := privKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("invalid key type: expected ed25519.PublicKey, got %T", privKey.Public())
+	}
 	return &IdentityManager{
-		publicKey:  privKey.Public().(ed25519.PublicKey),
+		publicKey:  pub,
 		privateKey: privKey,
 	}, nil
 }

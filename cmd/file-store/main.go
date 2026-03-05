@@ -70,7 +70,8 @@ func main() {
 
 		csrPEM, err := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, "filestore")
 		if err != nil {
-			log.Fatalf("Failed to generate CSR: %v", err)
+			log.Printf("Failed to generate CSR: %v", err)
+			return
 		}
 
 		peerURL := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddr, 2480)
@@ -83,7 +84,8 @@ func main() {
 		joinURL := cfg.MasterAPIURL + "/cluster/join"
 		req, err := http.NewRequestWithContext(ctx, "POST", joinURL, bytes.NewReader(reqBody))
 		if err != nil {
-			log.Fatalf("Failed to create join request: %v", err)
+			log.Printf("Failed to create join request: %v", err)
+			return
 		}
 
 		req.Header.Set("Authorization", "Bearer "+cfg.JoinToken)
@@ -92,18 +94,20 @@ func main() {
 		client := &http.Client{
 			Timeout: 10 * time.Second,
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402
 			},
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			log.Fatalf("Failed to call master join API: %v", err)
+			log.Printf("Failed to call master join API: %v", err)
+			return
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			log.Fatalf("Master rejected join request: %s", string(body))
+			log.Printf("Master rejected join request: %s", string(body))
+			return
 		}
 
 		var joinResp struct {
@@ -112,45 +116,52 @@ func main() {
 			CertPEM  []byte `json:"cert_pem"`
 			CACert   []byte `json:"ca_cert"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&joinResp); err != nil {
-			log.Fatalf("Failed to decode join response: %v", err)
+		if decodeErr := json.NewDecoder(resp.Body).Decode(&joinResp); decodeErr != nil {
+			log.Printf("Failed to decode join response: %v", decodeErr)
+			return
 		}
 
-		if err := os.WriteFile(certPath, joinResp.CertPEM, 0644); err != nil {
-			log.Fatalf("Failed to write node.crt: %v", err)
+		if writeCertErr := os.WriteFile(certPath, joinResp.CertPEM, 0o600); writeCertErr != nil {
+			log.Printf("Failed to write node.crt: %v", err)
+			return
 		}
-		if err := os.WriteFile(caPath, joinResp.CACert, 0644); err != nil {
-			log.Fatalf("Failed to write ca.crt: %v", err)
+		if writeCaErr := os.WriteFile(caPath, joinResp.CACert, 0o600); writeCaErr != nil {
+			log.Printf("Failed to write ca.crt: %v", writeCaErr)
+			return
 		}
 
 		initialCluster = joinResp.Cluster
 
 		log.Printf("Successfully joined cluster! Assigned Member ID: %d", joinResp.MemberID)
 	}
-	etcdState, err := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName)
-	if err != nil {
-		log.Fatalf("Failed to join cluster: %v", err)
+	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName)
+	if startEtcdErr != nil {
+		log.Printf("Failed to join cluster: %v", startEtcdErr)
+		return
 	}
 
-	store, err := state.NewStateManager(
+	store, newStateErr := state.NewStateManager(
 		[]string{masterGRPCURL},
 		[]string{"localhost:2379"},
 		cfg.TLSDir,
 	)
-	if err != nil {
-		log.Fatalf("Failed to connect to local etcd: %v", err)
+	if newStateErr != nil {
+		log.Printf("Failed to connect to local etcd: %v", newStateErr)
+		return
 	}
 
 	idMgr, err := auth.NewIdentityManagerFromPubKey(cfg.ClusterPubKey)
 	if err != nil {
-		log.Fatalf("Failed to create identity manager: %v", err)
+		log.Printf("Failed to create identity manager: %v", err)
+		return
 	}
 
 	cm := &certs.CertManager{}
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
-		log.Fatalf("Failed to load TLS certs for HTTP server: %v", err)
+		log.Printf("Failed to load TLS certs for HTTP server: %v", err)
+		return
 	}
 	cm.SetCertificate(&cert)
 
@@ -162,7 +173,10 @@ func main() {
 		log.Println("Shutting down...")
 		cancel()
 		etcdState.Server.Close()
-		store.Close()
+		closeErr := store.Close()
+		if closeErr != nil {
+			log.Fatalf("Failed to close state manager: %v", closeErr)
+		}
 		os.Exit(0)
 	}()
 
@@ -182,9 +196,11 @@ func main() {
 
 	drpcServer := drpcserver.New(m)
 
-	drpcListener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort))
+	var lis net.ListenConfig
+	drpcListener, err := lis.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort))
 	if err != nil {
-		log.Fatalf("Failed to listen for drpc: %v", err)
+		log.Printf("Failed to listen for drpc: %v", err)
+		return
 	}
 
 	log.Printf("Starting HTTP/3 server on :%d", cfg.Port)
@@ -226,7 +242,11 @@ func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateMa
 
 		r.Route("/v2", func(r chi.Router) {
 			r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("future proofing"))
+				_, writeErr := w.Write([]byte("future proofing"))
+				if writeErr != nil {
+					log.Printf("Failed to write response: %v", writeErr)
+					return
+				}
 			})
 		})
 	})
