@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/0xveya/gns3util/internal/master/handlers"
+	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/state"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
@@ -91,6 +92,24 @@ func main() {
 		}
 		cm.SetCertificate(&cert)
 		log.Printf("Generated self-signed certificate with subject: %s", cfg.TLSSubject)
+
+		caX509, parseCertErr := x509.ParseCertificate(cert.Certificate[0])
+		if parseCertErr != nil {
+			log.Fatalf("failed to parse CA: %v", parseCertErr)
+		}
+		caPrivKey := cert.PrivateKey.(ed25519.PrivateKey)
+		adminCertPEM, adminKeyPEM, err := generateAdminCert(caX509, caPrivKey)
+		if err != nil {
+			log.Fatalf("Failed to generate admin cert: %v", err)
+		}
+		accessConfig := clusteraccess.CreateClusterAcessConfig(
+			fmt.Sprintf("https://%s:%d", nwutils.GetFirstNonLoopbackIP(), cfg.APIPort),
+			certPEM,
+			adminCertPEM,
+			adminKeyPEM,
+		)
+		accessConfig.WriteAccessConfig(filepath.Join(cfg.TLSDir, "cluster_access.toml"))
+
 	}
 
 	etcdState, err := state.StartMaster(cfg.DataDir, cfg.TLSDir)
@@ -131,9 +150,10 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to decode private key: %v", err)
 		}
-		idMgr, err = auth.NewIdentityManager(privKey)
-		if err != nil {
-			log.Fatalf("Failed to create identity manager: %v", err)
+		var idMgrErr error
+		idMgr, idMgrErr = auth.NewIdentityManager(privKey)
+		if idMgrErr != nil {
+			log.Fatalf("Failed to create identity manager: %v", idMgrErr)
 		}
 	}
 
@@ -273,6 +293,36 @@ func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) 
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
 
 	keyBytes, err := x509.MarshalPKCS8PrivateKey(privKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
+
+	return certPEM, keyPEM, nil
+}
+
+func generateAdminCert(caCert *x509.Certificate, caPrivKey any) (certPEM, keyPEM []byte, err error) {
+	adminPubKey, adminPrivKey, genAdminKeyErr := ed25519.GenerateKey(rand.Reader)
+	if genAdminKeyErr != nil {
+		return nil, nil, genAdminKeyErr
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			CommonName:   "admin",
+			Organization: []string{"system:masters"},
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, caCert, adminPubKey, caPrivKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyBytes, err := x509.MarshalPKCS8PrivateKey(adminPrivKey)
 	if err != nil {
 		return nil, nil, err
 	}

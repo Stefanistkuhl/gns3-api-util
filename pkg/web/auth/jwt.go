@@ -30,7 +30,7 @@ func NewClaims(userID, role string, userScopes []string, ttl time.Duration) *Cla
 		Scopes: userScopes,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
-			Issuer:    "storage-cluster",
+			Issuer:    "gns3util-cluster",
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 			ID:        fmt.Sprintf("%s-%d", userID, now.UnixNano()),
