@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/0xveya/gns3util/pkg/state"
@@ -52,13 +53,7 @@ func RequireScope(store *state.StateManager, requiredScope string) func(http.Han
 				return
 			}
 
-			hasInToken := false
-			for _, scope := range claims.Scopes {
-				if scope == requiredScope {
-					hasInToken = true
-					break
-				}
-			}
+			hasInToken := slices.Contains(claims.Scopes, requiredScope)
 
 			if !hasInToken {
 				http.Error(w, "Forbidden: Scope not in token", http.StatusForbidden)

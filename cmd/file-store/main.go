@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	"github.com/0xveya/gns3util/pkg/env"
+	"github.com/0xveya/gns3util/pkg/otel"
 	"github.com/0xveya/gns3util/pkg/state"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
@@ -27,6 +29,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/quic-go/quic-go/http3"
+	"github.com/riandyrn/otelchi"
+	"go.opentelemetry.io/otel/log/global"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
 )
@@ -43,8 +47,11 @@ type FilestoreConfig struct {
 	ClusterPubKey string `env:"CLUSTER_PUB_KEY" type:"string" required:"true"`
 	TLSDir        string `env:"FILE_STORE_TLS_DIR" type:"string" default:"/data/filestore/tls/"`
 	DataDir       string `env:"FILE_STORE_DATA_DIR" type:"string" default:"/data/filestore/etcd/"`
+	OTELEndpoint  string `env:"OTEL_ENDPOINT" type:"string" default:""`
+	AppName       string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
 }
 
+var logger *slog.Logger
 var cfg FilestoreConfig
 
 func init() {
@@ -57,6 +64,29 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	cfg.AppName += "-filestore"
+
+	shutdown, err := otel.Init(context.Background(), cfg.AppName, cfg.OTELEndpoint)
+	if err != nil {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("prefix", cfg.AppName)
+		logger.Error("Failed to initialize telemetry", "err", err)
+	} else {
+		defer func() { _ = shutdown(context.Background()) }()
+	}
+
+	otlpEnabled := cfg.OTELEndpoint != ""
+
+	stdoutHandler := slog.NewJSONHandler(os.Stdout, nil)
+	var handler slog.Handler = stdoutHandler
+
+	if otlpEnabled {
+		otlpLogger := global.GetLoggerProvider().Logger(cfg.AppName)
+		otlpHandler := otel.NewOTLPHandler(otlpLogger)
+		handler = otlpHandler
+	}
+
+	logger = slog.New(handler).With("prefix", cfg.AppName)
+
 	masterGRPCURL := nwutils.ConvertMasterAPIURL(cfg.MasterAPIURL)
 
 	certPath := filepath.Join(cfg.TLSDir, "node.crt")
@@ -65,26 +95,26 @@ func main() {
 
 	initialCluster := ""
 
-	if _, err := os.Stat(certPath); os.IsNotExist(err) {
-		log.Println("No local certificates found. Generating CSR and joining cluster...")
+	if _, statErr := os.Stat(certPath); os.IsNotExist(statErr) {
+		logger.Info("No local certificates found. Generating CSR and joining cluster...")
 
-		csrPEM, err := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, "filestore")
-		if err != nil {
-			log.Printf("Failed to generate CSR: %v", err)
+		csrPEM, genErr := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, "filestore")
+		if genErr != nil {
+			logger.Error("Failed to generate CSR", "err", genErr)
 			return
 		}
 
 		peerURL := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddr, 2480)
 		reqBody, _ := json.Marshal(map[string]any{
-			"name":      "filestore",
+			"name":      cfg.NodeName,
 			"peer_urls": []string{peerURL},
 			"csr_pem":   csrPEM,
 		})
 
 		joinURL := cfg.MasterAPIURL + "/cluster/join"
-		req, err := http.NewRequestWithContext(ctx, "POST", joinURL, bytes.NewReader(reqBody))
-		if err != nil {
-			log.Printf("Failed to create join request: %v", err)
+		req, reqErr := http.NewRequestWithContext(ctx, "POST", joinURL, bytes.NewReader(reqBody))
+		if reqErr != nil {
+			logger.Error("Failed to create join request", "err", reqErr)
 			return
 		}
 
@@ -97,16 +127,16 @@ func main() {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402
 			},
 		}
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Printf("Failed to call master join API: %v", err)
+		resp, respErr := client.Do(req)
+		if respErr != nil {
+			logger.Error("Failed to call master join API", "err", respErr)
 			return
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
-			log.Printf("Master rejected join request: %s", string(body))
+			logger.Error("Master rejected join request", "err", string(body))
 			return
 		}
 
@@ -117,26 +147,26 @@ func main() {
 			CACert   []byte `json:"ca_cert"`
 		}
 		if decodeErr := json.NewDecoder(resp.Body).Decode(&joinResp); decodeErr != nil {
-			log.Printf("Failed to decode join response: %v", decodeErr)
+			logger.Error("Failed to decode join response", "err", decodeErr)
 			return
 		}
 
 		if writeCertErr := os.WriteFile(certPath, joinResp.CertPEM, 0o600); writeCertErr != nil {
-			log.Printf("Failed to write node.crt: %v", err)
+			logger.Error("Failed to write node.crt", "err", writeCertErr)
 			return
 		}
 		if writeCaErr := os.WriteFile(caPath, joinResp.CACert, 0o600); writeCaErr != nil {
-			log.Printf("Failed to write ca.crt: %v", writeCaErr)
+			logger.Error("Failed to write ca.crt", "err", writeCaErr)
 			return
 		}
 
 		initialCluster = joinResp.Cluster
 
-		log.Printf("Successfully joined cluster! Assigned Member ID: %d", joinResp.MemberID)
+		logger.Info("Successfully joined cluster! Assigned Member ID", "member_id", joinResp.MemberID)
 	}
-	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName)
+	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName, handler, fmt.Sprintf("%s-etcd", cfg.AppName))
 	if startEtcdErr != nil {
-		log.Printf("Failed to join cluster: %v", startEtcdErr)
+		logger.Error("Failed to join cluster", "err", startEtcdErr)
 		return
 	}
 
@@ -146,21 +176,21 @@ func main() {
 		cfg.TLSDir,
 	)
 	if newStateErr != nil {
-		log.Printf("Failed to connect to local etcd: %v", newStateErr)
+		logger.Error("Failed to connect to local etcd", "err", newStateErr)
 		return
 	}
 
-	idMgr, err := auth.NewIdentityManagerFromPubKey(cfg.ClusterPubKey)
-	if err != nil {
-		log.Printf("Failed to create identity manager: %v", err)
+	idMgr, idMgrErr := auth.NewIdentityManagerFromPubKey(cfg.ClusterPubKey)
+	if idMgrErr != nil {
+		logger.Error("Failed to create identity manager", "err", idMgrErr)
 		return
 	}
 
 	cm := &certs.CertManager{}
 
-	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
-	if err != nil {
-		log.Printf("Failed to load TLS certs for HTTP server: %v", err)
+	cert, loadCertErr := tls.LoadX509KeyPair(certPath, keyPath)
+	if loadCertErr != nil {
+		logger.Error("Failed to load TLS certs for HTTP server", "err", loadCertErr)
 		return
 	}
 	cm.SetCertificate(&cert)
@@ -170,19 +200,19 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down...")
+		logger.Info("Shutting down...")
 		cancel()
 		etcdState.Server.Close()
 		closeErr := store.Close()
 		if closeErr != nil {
-			log.Fatalf("Failed to close state manager: %v", closeErr)
+			logger.Error("Failed to close state manager", "err", closeErr)
 		}
 		os.Exit(0)
 	}()
 
 	m := drpcmux.New()
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, store)
+	setupRouter(r, idMgr, store, otlpEnabled)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -199,12 +229,12 @@ func main() {
 	var lis net.ListenConfig
 	drpcListener, err := lis.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort))
 	if err != nil {
-		log.Printf("Failed to listen for drpc: %v", err)
+		logger.Error("Failed to listen for drpc", "err", err)
 		return
 	}
 
-	log.Printf("Starting HTTP/3 server on :%d", cfg.Port)
-	log.Printf("Starting drpc server on :%d", cfg.DrpcPort)
+	logger.Info("Starting HTTP/3 server", "port", cfg.Port)
+	logger.Info("Starting drpc server", "port", cfg.DrpcPort)
 
 	errChan := make(chan error, 2)
 
@@ -217,12 +247,29 @@ func main() {
 	}()
 
 	if err := <-errChan; err != nil {
-		log.Printf("Server error: %v", err)
+		logger.Error("Server error", "err", err)
 	}
 }
 
-func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateManager) {
-	r.Use(chimiddleware.Logger)
+func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateManager, otelEnabled bool) {
+	if !otelEnabled {
+		r.Use(chimiddleware.Logger)
+	} else {
+		r.Use(otelchi.Middleware(fmt.Sprintf("%s-api", cfg.AppName)))
+
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				ww := chimiddleware.NewWrapResponseWriter(w, req.ProtoMajor)
+				next.ServeHTTP(ww, req)
+
+				logger.InfoContext(req.Context(), "HTTP Request",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", ww.Status(),
+				)
+			})
+		})
+	}
 	r.Use(chimiddleware.Recoverer)
 
 	r.Get("/healthz", commonhandlers.HandleHealthz)
@@ -244,7 +291,7 @@ func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateMa
 			r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
 				_, writeErr := w.Write([]byte("future proofing"))
 				if writeErr != nil {
-					log.Printf("Failed to write response: %v", writeErr)
+					logger.Error("Failed to write response", "err", writeErr)
 					return
 				}
 			})

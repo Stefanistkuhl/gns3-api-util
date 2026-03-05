@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/0xveya/gns3util/pkg/otel"
 	"go.etcd.io/etcd/client/pkg/v3/transport"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/server/v3/embed"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type InternalState struct {
@@ -28,10 +32,19 @@ type EtcdConfig struct {
 	TLSDir     string
 }
 
-func StartEmbedded(cfg *EtcdConfig) (*InternalState, error) {
+func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
 	ec := embed.NewConfig()
 	ec.Dir = cfg.DataDir
 	ec.Name = cfg.Name
+
+	etcdLogger := slog.New(otlpHandler).With("prefix", otelName)
+
+	core := &otel.SlogCore{
+		Handler: etcdLogger.Handler(),
+		Level:   zap.NewAtomicLevelAt(zapcore.InfoLevel),
+	}
+	ec.ZapLoggerBuilder = embed.NewZapLoggerBuilder(zap.New(core))
+	ec.LogLevel = "info"
 
 	lpurl, _ := url.Parse("https://0.0.0.0:" + cfg.PeerPort)
 	lcurl, _ := url.Parse("https://0.0.0.0:" + cfg.ClientPort)
@@ -68,7 +81,10 @@ func StartEmbedded(cfg *EtcdConfig) (*InternalState, error) {
 
 	select {
 	case <-e.Server.ReadyNotify():
-		log.Printf("Etcd node '%s' ready on :%s", cfg.Name, cfg.ClientPort)
+		etcdLogger.Info("Etcd node ready",
+			"name", cfg.Name,
+			"port", cfg.ClientPort,
+		)
 	case <-time.After(60 * time.Second):
 		e.Server.Stop()
 		return nil, fmt.Errorf("etcd startup timeout")
@@ -77,7 +93,7 @@ func StartEmbedded(cfg *EtcdConfig) (*InternalState, error) {
 	return &InternalState{Server: e}, nil
 }
 
-func StartMaster(dataDir, tlsDir string) (*InternalState, error) {
+func StartMaster(dataDir, tlsDir string, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
 	return StartEmbedded(&EtcdConfig{
 		DataDir:    dataDir,
 		ClientPort: "2379",
@@ -86,7 +102,7 @@ func StartMaster(dataDir, tlsDir string) (*InternalState, error) {
 		Cluster:    "master=https://localhost:2380",
 		State:      "new",
 		TLSDir:     tlsDir,
-	})
+	}, otlpHandler, otelName)
 }
 
 func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
@@ -140,12 +156,13 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 	if err != nil {
 		return fmt.Errorf("enable auth: %w", err)
 	}
-	log.Println("Authentication enabled with mTLS!")
 
 	return nil
 }
 
-func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string) (*InternalState, error) {
+func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
+	logger := slog.New(otlpHandler).With("prefix", nodeName+"-etcd")
+
 	memberDir := filepath.Join(dataDir, "member")
 	_, err := os.Stat(memberDir)
 	hasData := err == nil
@@ -153,10 +170,11 @@ func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string) (*Internal
 	stateStr := "existing"
 
 	if hasData {
-		log.Println("Found existing etcd data, booting directly...")
+		logger.Info("Found existing etcd data, booting directly", "member_dir", memberDir)
 		initialCluster = ""
 	} else {
-		log.Println("No local data found, booting etcd from cluster join state...")
+		logger.Info("No local data found, booting etcd from cluster join state", "initial_cluster", initialCluster)
+		stateStr = "new"
 	}
 
 	return StartEmbedded(&EtcdConfig{
@@ -167,5 +185,5 @@ func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string) (*Internal
 		Cluster:    initialCluster,
 		State:      stateStr,
 		TLSDir:     tlsDir,
-	})
+	}, otlpHandler, otelName)
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	"github.com/0xveya/gns3util/internal/master/handlers"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/0xveya/gns3util/pkg/env"
+	"github.com/0xveya/gns3util/pkg/otel"
 	"github.com/0xveya/gns3util/pkg/state"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
@@ -32,7 +34,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/grandcat/zeroconf"
+	"github.com/riandyrn/otelchi"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.opentelemetry.io/otel/log/global"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
 )
@@ -48,8 +52,11 @@ type MasterConfig struct {
 	TLSSubject     string `env:"MASTER_TLS_SUBJ" type:"string" default:"/CN=root"`
 	DataDir        string `env:"MASTER_DATA_DIR" type:"string" default:"/data/master/etcd/"`
 	EnableMDNS     bool   `env:"MASTER_ENABLE_MDNS" type:"bool" default:"true"`
+	OTELEndpoint   string `env:"OTEL_ENDPOINT" type:"string" default:""`
+	AppName        string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
 }
 
+var logger *slog.Logger
 var cfg MasterConfig
 
 func init() {
@@ -62,6 +69,29 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	cfg.AppName += "-master"
+
+	shutdown, err := otel.Init(context.Background(), cfg.AppName, cfg.OTELEndpoint)
+	if err != nil {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("prefix", cfg.AppName)
+		logger.Error("Failed to initialize telemetry", "err", err)
+	} else {
+		defer func() { _ = shutdown(context.Background()) }()
+	}
+
+	otlpEnabled := cfg.OTELEndpoint != ""
+
+	stdoutHandler := slog.NewJSONHandler(os.Stdout, nil)
+	var handler slog.Handler = stdoutHandler
+
+	if otlpEnabled {
+		otlpLogger := global.GetLoggerProvider().Logger(cfg.AppName)
+		otlpHandler := otel.NewOTLPHandler(otlpLogger)
+		handler = otlpHandler
+	}
+
+	logger = slog.New(handler).With("prefix", cfg.AppName)
+
 	certPath := filepath.Join(cfg.TLSDir, "node.crt")
 	keyPath := filepath.Join(cfg.TLSDir, "node.key")
 	caPath := filepath.Join(cfg.TLSDir, "ca.crt")
@@ -72,51 +102,56 @@ func main() {
 	if err == nil {
 		cm.SetCertificate(&cert)
 	} else {
-		log.Println("No local CA certificate found, generating self-signed Ed25519 CA...")
+		logger.Info("No local CA certificate found, generating self-signed Ed25519 CA...")
 
 		certPEM, keyPEM, genCertErr := generateSelfSignedCert(cfg.TLSSubject)
 		if genCertErr != nil {
-			log.Fatalf("Failed to generate cert: %v", genCertErr)
+			logger.Error("Failed to generate cert", "err", genCertErr)
+			return
 		}
 
 		if mkdirErr := os.MkdirAll(cfg.TLSDir, 0o700); mkdirErr != nil {
-			log.Printf("Failed to create tls dir: %v", mkdirErr)
+			logger.Error("Failed to create tls dir", "err", mkdirErr)
 			return
 		}
 		certErr := os.WriteFile(certPath, certPEM, 0o600)
 		if certErr != nil {
-			log.Printf("Failed to write node.crt: %v", certErr)
+			logger.Error("Failed to write node.crt", "err", certErr)
 			return
 		}
 		keyErr := os.WriteFile(keyPath, keyPEM, 0o600)
 		if keyErr != nil {
-			log.Printf("Failed to write node.key: %v", keyErr)
+			logger.Error("Failed to write node.key", "err", keyErr)
 			return
 		}
 		caErr := os.WriteFile(caPath, certPEM, 0o600)
 		if caErr != nil {
-			log.Printf("Failed to write ca.crt: %v", caErr)
+			logger.Error("Failed to write ca.crt", "err", caErr)
 			return
 		}
 
 		cert, err = tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
-			log.Fatalf("Failed to load generated cert: %v", err)
+			logger.Error("Failed to load generated cert", "err", err)
+			return
 		}
 		cm.SetCertificate(&cert)
-		log.Printf("Generated self-signed certificate with subject: %s", cfg.TLSSubject)
+		logger.Info("Generated self-signed certificate with subject", "subject", cfg.TLSSubject)
 
 		caX509, parseCertErr := x509.ParseCertificate(cert.Certificate[0])
 		if parseCertErr != nil {
-			log.Fatalf("failed to parse CA: %v", parseCertErr)
+			logger.Error("failed to parse CA", "err", parseCertErr)
+			return
 		}
 		caPrivKey, ok := cert.PrivateKey.(ed25519.PrivateKey)
 		if !ok {
-			log.Fatalf("failed to parse CA: %v", parseCertErr)
+			logger.Error("failed to parse CA", "err", parseCertErr)
+			return
 		}
 		adminCertPEM, adminKeyPEM, genAdminCertErr := generateAdminCert(caX509, caPrivKey)
 		if genAdminCertErr != nil {
-			log.Fatalf("Failed to generate admin cert: %v", genAdminCertErr)
+			logger.Error("Failed to generate admin cert", "err", genAdminCertErr)
+			return
 		}
 		accessConfig := clusteraccess.CreateClusterAcessConfig(
 			fmt.Sprintf("https://%s:%d", nwutils.GetFirstNonLoopbackIP(), cfg.APIPort),
@@ -126,14 +161,14 @@ func main() {
 		)
 		writeErr := accessConfig.WriteAccessConfig(filepath.Join(cfg.TLSDir, "cluster_access.toml"))
 		if writeErr != nil {
-			log.Printf("Failed to write cluster_access.toml: %v", writeErr)
+			logger.Error("Failed to write cluster_access.toml", "err", writeErr)
 			return
 		}
 	}
 
-	etcdState, startEtcdErr := state.StartMaster(cfg.DataDir, cfg.TLSDir)
+	etcdState, startEtcdErr := state.StartMaster(cfg.DataDir, cfg.TLSDir, handler, fmt.Sprintf("%s-etcd", cfg.AppName))
 	if startEtcdErr != nil {
-		log.Printf("Failed to start etcd: %v", startEtcdErr)
+		logger.Error("Failed to start etcd", "err", startEtcdErr)
 		return
 	}
 
@@ -143,12 +178,12 @@ func main() {
 		cfg.TLSDir,
 	)
 	if err != nil {
-		log.Printf("Failed to connect to etcd: %v", err)
+		logger.Error("Failed to connect to etcd", "err", err)
 		return
 	}
 
 	if bootstrapErr := bootstrapIfNeeded(ctx, store.MasterClient); bootstrapErr != nil {
-		log.Printf("Failed to bootstrap auth: %v", bootstrapErr)
+		logger.Error("Failed to bootstrap auth", "err", bootstrapErr)
 		return
 	}
 
@@ -157,28 +192,28 @@ func main() {
 	if cfg.PrivKeyStr == "" {
 		pubKey, privKey, genKeyErr := auth.GenerateKeyPair()
 		if genKeyErr != nil {
-			log.Printf("Failed to generate keys: %v", genKeyErr)
+			logger.Error("Failed to generate keys", "err", genKeyErr)
 			return
 		}
-		log.Printf("Generated new key pair")
-		log.Printf("CLUSTER_PUB_KEY=%s", auth.EncodePublicKey(pubKey))
-		log.Printf("CLUSTER_PRIV_KEY=%s", auth.EncodePrivateKey(privKey))
+		logger.Info("Generated new key pair")
+		logger.Info("CLUSTER_PUB_KEY", "key", auth.EncodePublicKey(pubKey))
+		logger.Info("CLUSTER_PRIV_KEY", "key", auth.EncodePrivateKey(privKey))
 
 		var idMgrErr error
 		idMgr, idMgrErr = auth.NewIdentityManager(privKey)
 		if idMgrErr != nil {
-			log.Printf("Failed to create identity manager: %v", idMgrErr)
+			logger.Error("Failed to create identity manager", "err", idMgrErr)
 			return
 		}
 	} else {
 		privKey, decodePrivKeyErr := auth.DecodePrivateKey(cfg.PrivKeyStr)
 		if decodePrivKeyErr != nil {
-			log.Fatalf("Failed to decode private key: %v", decodePrivKeyErr)
+			logger.Error("Failed to decode private key", "err", decodePrivKeyErr)
 		}
 		var idMgrErr error
 		idMgr, idMgrErr = auth.NewIdentityManager(privKey)
 		if idMgrErr != nil {
-			log.Fatalf("Failed to create identity manager: %v", idMgrErr)
+			logger.Error("Failed to create identity manager", "err", idMgrErr)
 		}
 	}
 
@@ -193,19 +228,19 @@ func main() {
 
 	go func() {
 		<-sigChan
-		log.Println("Shutting down...")
+		logger.Info("Shutting down...")
 		cancel()
 		etcdState.Server.Close()
 		closeErr := store.Close()
 		if closeErr != nil {
-			log.Fatalf("Failed to close state manager: %v", closeErr)
+			logger.Error("Failed to close state manager", "err", closeErr)
 		}
 		os.Exit(0)
 	}()
 
 	m := drpcmux.New()
 	r := chi.NewRouter()
-	setupRouter(r, master)
+	setupRouter(r, master, otlpEnabled)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -223,12 +258,12 @@ func main() {
 	var lis net.ListenConfig
 	drpcListener, err := lis.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.APIListenAddr, cfg.DrpcPort))
 	if err != nil {
-		log.Printf("Failed to listen for drpc: %v", err)
+		logger.Error("Failed to listen for drpc", "err", err)
 		return
 	}
 	host, hostNameErr := os.Hostname()
 	if hostNameErr != nil {
-		log.Printf("Failed to get hostname: %v", hostNameErr)
+		logger.Error("Failed to get hostname", "err", hostNameErr)
 		return
 	}
 	if cfg.EnableMDNS {
@@ -241,18 +276,21 @@ func main() {
 			nwutils.GetActiveMulticastInterfaces(),
 		)
 		if err != nil {
-			log.Printf("Failed to start mdns server: %v", err)
+			logger.Error("Failed to start mdns server", "err", err)
 			return
 		}
 		defer mdnsServer.Shutdown()
 
-		log.Printf("Registering mDNS service: name=%s, type=%s, port=%d",
-			host, "_gns3util_master_api._tcp", cfg.APIPort)
-		log.Printf("Starting mdns discovery server")
+		logger.Info("Registering mDNS service",
+			"name", host,
+			"service", "_gns3util_master_api._tcp",
+			"port", cfg.APIPort,
+		)
+		logger.Info("Starting mdns discovery server")
 	}
 
-	log.Printf("Starting Master Node on :%d", cfg.APIPort)
-	log.Printf("Starting drpc server on :%d", cfg.DrpcPort)
+	logger.Info("Starting Master Node", "port", cfg.APIPort)
+	logger.Info("Starting drpc server", "port", cfg.DrpcPort)
 
 	errChan := make(chan error, 2)
 
@@ -266,13 +304,30 @@ func main() {
 
 	for range 2 {
 		if err := <-errChan; err != nil {
-			log.Printf("Server error: %v", err)
+			logger.Error("Server error", "err", err)
 		}
 	}
 }
 
-func setupRouter(r chi.Router, master *handlers.Master) {
-	r.Use(chimiddleware.Logger)
+func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
+	if !otelEnabled {
+		r.Use(chimiddleware.Logger)
+	} else {
+		r.Use(otelchi.Middleware(fmt.Sprintf("%s-api", cfg.AppName)))
+
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				ww := chimiddleware.NewWrapResponseWriter(w, req.ProtoMajor)
+				next.ServeHTTP(ww, req)
+
+				logger.InfoContext(req.Context(), "HTTP Request",
+					"method", req.Method,
+					"path", req.URL.Path,
+					"status", ww.Status(),
+				)
+			})
+		})
+	}
 	r.Use(chimiddleware.Recoverer)
 
 	r.Get("/healthz", commonhandlers.HandleHealthz)
@@ -290,11 +345,11 @@ func bootstrapIfNeeded(ctx context.Context, cli *clientv3.Client) error {
 	}
 
 	if authResp.Enabled {
-		log.Println("Auth already enabled, skipping bootstrap")
+		logger.Info("Auth already enabled, skipping bootstrap")
 		return nil
 	}
 
-	log.Println("Bootstrapping RBAC...")
+	logger.Info("Bootstrapping RBAC...")
 	return state.BootstrapMasterAuth(ctx, cli)
 }
 
