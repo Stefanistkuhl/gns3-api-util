@@ -14,17 +14,18 @@ type SlogCore struct {
 
 func (c *SlogCore) Enabled(l zapcore.Level) bool         { return c.Level.Enabled(l) }
 func (c *SlogCore) With(fs []zapcore.Field) zapcore.Core { return c }
-func (c *SlogCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+func (c *SlogCore) Check(e zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry { // nolint:gocritic
 	if c.Enabled(e.Level) {
 		return ce.AddCore(e, c)
 	}
 	return ce
 }
+
 func (c *SlogCore) Sync() error {
 	return nil
 }
 
-func (c *SlogCore) Write(e zapcore.Entry, fs []zapcore.Field) error {
+func (c *SlogCore) Write(e zapcore.Entry, fs []zapcore.Field) error { // nolint:gocritic
 	slLevel := slog.LevelInfo
 	switch e.Level {
 	case zapcore.DebugLevel:

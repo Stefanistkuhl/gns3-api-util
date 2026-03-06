@@ -23,19 +23,25 @@ type InternalState struct {
 }
 
 type EtcdConfig struct {
-	DataDir    string
-	ClientPort string
-	PeerPort   string
-	Name       string
-	Cluster    string
-	State      string
-	TLSDir     string
+	DataDir       string
+	ClientPort    string
+	PeerPort      string
+	Name          string
+	Cluster       string
+	State         string
+	TLSDir        string
+	AdvertiseAddr string
 }
 
 func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
 	ec := embed.NewConfig()
 	ec.Dir = cfg.DataDir
 	ec.Name = cfg.Name
+
+	advAddr := cfg.AdvertiseAddr
+	if advAddr == "" {
+		advAddr = "localhost"
+	}
 
 	etcdLogger := slog.New(otlpHandler).With("prefix", otelName)
 
@@ -48,8 +54,8 @@ func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (
 
 	lpurl, _ := url.Parse("https://0.0.0.0:" + cfg.PeerPort)
 	lcurl, _ := url.Parse("https://0.0.0.0:" + cfg.ClientPort)
-	acurl, _ := url.Parse("https://localhost:" + cfg.ClientPort)
-	apurl, _ := url.Parse("https://localhost:" + cfg.PeerPort)
+	acurl, _ := url.Parse(fmt.Sprintf("https://%s:%s", advAddr, cfg.ClientPort))
+	apurl, _ := url.Parse(fmt.Sprintf("https://%s:%s", advAddr, cfg.PeerPort))
 
 	ec.ListenPeerUrls = []url.URL{*lpurl}
 	ec.ListenClientUrls = []url.URL{*lcurl}
@@ -93,15 +99,22 @@ func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (
 	return &InternalState{Server: e}, nil
 }
 
-func StartMaster(dataDir, tlsDir string, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
+func StartMaster(dataDir, tlsDir string, otlpHandler slog.Handler, otelName, advertiseAddr string) (*InternalState, error) {
+	if advertiseAddr == "" {
+		advertiseAddr = "localhost"
+	}
+
+	masterClusterStr := fmt.Sprintf("master=https://%s:2380", advertiseAddr)
+
 	return StartEmbedded(&EtcdConfig{
-		DataDir:    dataDir,
-		ClientPort: "2379",
-		PeerPort:   "2380",
-		Name:       "master",
-		Cluster:    "master=https://localhost:2380",
-		State:      "new",
-		TLSDir:     tlsDir,
+		DataDir:       dataDir,
+		ClientPort:    "2379",
+		PeerPort:      "2380",
+		Name:          "master",
+		Cluster:       masterClusterStr,
+		State:         "new",
+		TLSDir:        tlsDir,
+		AdvertiseAddr: advertiseAddr,
 	}, otlpHandler, otelName)
 }
 
@@ -160,7 +173,7 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 	return nil
 }
 
-func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
+func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string, otlpHandler slog.Handler, otelName, advertiseAddr string) (*InternalState, error) {
 	logger := slog.New(otlpHandler).With("prefix", nodeName+"-etcd")
 
 	memberDir := filepath.Join(dataDir, "member")
@@ -174,16 +187,16 @@ func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string, otlpHandle
 		initialCluster = ""
 	} else {
 		logger.Info("No local data found, booting etcd from cluster join state", "initial_cluster", initialCluster)
-		stateStr = "new"
 	}
 
 	return StartEmbedded(&EtcdConfig{
-		DataDir:    dataDir,
-		ClientPort: "2479",
-		PeerPort:   "2480",
-		Name:       nodeName,
-		Cluster:    initialCluster,
-		State:      stateStr,
-		TLSDir:     tlsDir,
+		DataDir:       dataDir,
+		ClientPort:    "2479",
+		PeerPort:      "2480",
+		Name:          nodeName,
+		Cluster:       initialCluster,
+		State:         stateStr,
+		TLSDir:        tlsDir,
+		AdvertiseAddr: advertiseAddr,
 	}, otlpHandler, otelName)
 }

@@ -54,10 +54,13 @@ type MasterConfig struct {
 	EnableMDNS     bool   `env:"MASTER_ENABLE_MDNS" type:"bool" default:"true"`
 	OTELEndpoint   string `env:"OTEL_ENDPOINT" type:"string" default:""`
 	AppName        string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
+	AdvertiseAddr  string `env:"MASTER_ADVERTISE_ADDR" type:"string" default:"localhost"`
 }
 
-var logger *slog.Logger
-var cfg MasterConfig
+var (
+	logger *slog.Logger
+	cfg    MasterConfig
+)
 
 func init() {
 	if err := env.LoadConfig(&cfg); err != nil {
@@ -166,7 +169,7 @@ func main() {
 		}
 	}
 
-	etcdState, startEtcdErr := state.StartMaster(cfg.DataDir, cfg.TLSDir, handler, fmt.Sprintf("%s-etcd", cfg.AppName))
+	etcdState, startEtcdErr := state.StartMaster(cfg.DataDir, cfg.TLSDir, handler, fmt.Sprintf("%s-etcd", cfg.AppName), cfg.AdvertiseAddr)
 	if startEtcdErr != nil {
 		logger.Error("Failed to start etcd", "err", startEtcdErr)
 		return

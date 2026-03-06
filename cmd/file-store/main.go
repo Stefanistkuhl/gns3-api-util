@@ -51,8 +51,10 @@ type FilestoreConfig struct {
 	AppName       string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
 }
 
-var logger *slog.Logger
-var cfg FilestoreConfig
+var (
+	logger *slog.Logger
+	cfg    FilestoreConfig
+)
 
 func init() {
 	if err := env.LoadConfig(&cfg); err != nil {
@@ -98,7 +100,7 @@ func main() {
 	if _, statErr := os.Stat(certPath); os.IsNotExist(statErr) {
 		logger.Info("No local certificates found. Generating CSR and joining cluster...")
 
-		csrPEM, genErr := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, "filestore")
+		csrPEM, genErr := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, cfg.NodeName, []string{cfg.AdvertiseAddr})
 		if genErr != nil {
 			logger.Error("Failed to generate CSR", "err", genErr)
 			return
@@ -164,7 +166,15 @@ func main() {
 
 		logger.Info("Successfully joined cluster! Assigned Member ID", "member_id", joinResp.MemberID)
 	}
-	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName, handler, fmt.Sprintf("%s-etcd", cfg.AppName))
+	if initialCluster == "" {
+		memberDir := filepath.Join(cfg.DataDir, "member")
+		if _, statErr := os.Stat(memberDir); os.IsNotExist(statErr) {
+			logger.Error("FATAL: No local etcd data found, and no initial cluster string provided. Did the node fail to join?")
+			return
+		}
+	}
+
+	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName, handler, fmt.Sprintf("%s-etcd", cfg.AppName), cfg.AdvertiseAddr)
 	if startEtcdErr != nil {
 		logger.Error("Failed to join cluster", "err", startEtcdErr)
 		return

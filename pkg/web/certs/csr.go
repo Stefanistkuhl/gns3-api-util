@@ -15,7 +15,7 @@ import (
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
-func GenerateNodeKeyAndCSR(tlsDir, nodeName string) (csrPEM []byte, err error) {
+func GenerateNodeKeyAndCSR(tlsDir, nodeName string, domains []string) (csrPEM []byte, err error) {
 	_, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
@@ -40,9 +40,15 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string) (csrPEM []byte, err error) {
 		Organization: []string{"gns3util-cluster"},
 	}
 
+	if len(domains) == 0 {
+		domains = []string{"localhost"}
+	}
+
 	template := x509.CertificateRequest{
 		Subject:            subj,
 		SignatureAlgorithm: x509.PureEd25519,
+		DNSNames:           domains,
+		IPAddresses:        nwutils.GetLocalIPs(),
 	}
 
 	csrBytes, createErr := x509.CreateCertificateRequest(rand.Reader, &template, privKey)
@@ -78,8 +84,8 @@ func SignCSR(csrPEM []byte, caCert *x509.Certificate, caPrivKey ed25519.PrivateK
 		NotAfter:              time.Now().AddDate(1, 0, 0),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		DNSNames:              []string{"localhost"},
-		IPAddresses:           nwutils.GetLocalIPs(),
+		DNSNames:              csr.DNSNames,
+		IPAddresses:           csr.IPAddresses,
 		BasicConstraintsValid: true,
 	}
 
