@@ -1,0 +1,28 @@
+steps:
+  test:
+    image: golang:1.25-alpine
+    commands:
+      - apk add --no-cache curl bash git
+      - curl https://mise.jdx.dev/install.sh | sh
+      - export PATH="$HOME/.local/share/mise/bin:$PATH"
+      - mise install
+      - mise run lint
+      - mise run test
+      - mise run build
+    when:
+      - event: [push, pull_request]
+
+  release:
+    image: golang:1.25-alpine
+    environment:
+      GITEA_TOKEN:
+        from_secret: codeberg_token
+      GORELEASER_CURRENT_TAG: ${CI_COMMIT_TAG}
+    commands:
+      - apk add --no-cache curl bash git
+      - curl https://mise.jdx.dev/install.sh | sh
+      - export PATH="$HOME/.local/share/mise/bin:$PATH"
+      - mise install
+      - mise run release
+    when:
+      - event: tag

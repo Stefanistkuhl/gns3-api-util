@@ -20,8 +20,8 @@ WHERE
 `
 
 type UpdateClusterDescriptionParams struct {
-	Description sql.NullString
-	ClusterID   int64
+	Description sql.NullString `json:"description"`
+	ClusterID   int64          `json:"cluster_id"`
 }
 
 func (q *Queries) UpdateClusterDescription(ctx context.Context, arg UpdateClusterDescriptionParams) error {
@@ -44,13 +44,13 @@ WHERE
 `
 
 type UpdateNodeParams struct {
-	Protocol  string
-	AuthUser  string
-	Weight    int64
-	MaxGroups sql.NullInt64
-	ClusterID int64
-	Host      string
-	Port      int64
+	Protocol  string        `json:"protocol"`
+	AuthUser  string        `json:"auth_user"`
+	Weight    int64         `json:"weight"`
+	MaxGroups sql.NullInt64 `json:"max_groups"`
+	ClusterID int64         `json:"cluster_id"`
+	Host      string        `json:"host"`
+	Port      int64         `json:"port"`
 }
 
 func (q *Queries) UpdateNode(ctx context.Context, arg UpdateNodeParams) error {

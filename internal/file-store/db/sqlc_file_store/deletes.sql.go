@@ -9,14 +9,111 @@ import (
 	"context"
 )
 
-const deleteFilePermanent = `-- name: DeleteFilePermanent :exec
+const deleteAllClusterKV = `-- name: DeleteAllClusterKV :exec
+DELETE FROM
+    cluster_kv
+`
+
+func (q *Queries) DeleteAllClusterKV(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllClusterKV)
+	return err
+}
+
+const deleteAllClusterNodes = `-- name: DeleteAllClusterNodes :exec
+DELETE FROM
+    cluster_nodes
+`
+
+func (q *Queries) DeleteAllClusterNodes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllClusterNodes)
+	return err
+}
+
+const deleteAllUserPermissions = `-- name: DeleteAllUserPermissions :exec
+DELETE FROM
+    user_permissions
+`
+
+func (q *Queries) DeleteAllUserPermissions(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteAllUserPermissions)
+	return err
+}
+
+const deleteAllUserPermissionsForUser = `-- name: DeleteAllUserPermissionsForUser :exec
+DELETE FROM
+    user_permissions
+WHERE
+    user_id = ?
+`
+
+func (q *Queries) DeleteAllUserPermissionsForUser(ctx context.Context, userID string) error {
+	_, err := q.db.ExecContext(ctx, deleteAllUserPermissionsForUser, userID)
+	return err
+}
+
+const deleteClusterKV = `-- name: DeleteClusterKV :exec
+DELETE FROM
+    cluster_kv
+WHERE
+    KEY = ?
+`
+
+func (q *Queries) DeleteClusterKV(ctx context.Context, key string) error {
+	_, err := q.db.ExecContext(ctx, deleteClusterKV, key)
+	return err
+}
+
+const deleteClusterNode = `-- name: DeleteClusterNode :exec
+DELETE FROM
+    cluster_nodes
+WHERE
+    node_id = ?
+`
+
+func (q *Queries) DeleteClusterNode(ctx context.Context, nodeID string) error {
+	_, err := q.db.ExecContext(ctx, deleteClusterNode, nodeID)
+	return err
+}
+
+const deleteExpiredRevokedTokens = `-- name: DeleteExpiredRevokedTokens :exec
+DELETE FROM
+    revoked_tokens
+WHERE
+    expires_at IS NOT NULL
+    AND expires_at < CURRENT_TIMESTAMP
+`
+
+func (q *Queries) DeleteExpiredRevokedTokens(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredRevokedTokens)
+	return err
+}
+
+const deleteFile = `-- name: DeleteFile :exec
 DELETE FROM
     files
 WHERE
     file_uuid = ?
 `
 
-func (q *Queries) DeleteFilePermanent(ctx context.Context, fileUuid string) error {
-	_, err := q.db.ExecContext(ctx, deleteFilePermanent, fileUuid)
+func (q *Queries) DeleteFile(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, deleteFile, fileUuid)
+	return err
+}
+
+const deleteUserPermission = `-- name: DeleteUserPermission :exec
+DELETE FROM
+    user_permissions
+WHERE
+    user_id = ?
+    AND scope = ?
+`
+
+type DeleteUserPermissionParams struct {
+	UserID string `json:"user_id"`
+	Scope  string `json:"scope"`
+}
+
+func (q *Queries) DeleteUserPermission(ctx context.Context, arg DeleteUserPermissionParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUserPermission, arg.UserID, arg.Scope)
 	return err
 }

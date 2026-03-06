@@ -7,19 +7,22 @@ SET
 WHERE
     file_uuid = ?;
 
--- name: MarkLastAccessed :exec
+-- name: UpdateFileLastAccessedAt :exec
 UPDATE
     files
 SET
-    last_accessed_at = CURRENT_TIMESTAMP
+    last_accessed_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?;
 
--- name: TombstoneFile :exec
+-- name: UpdateFileMetadata :exec
 UPDATE
     files
 SET
-    STATUS = 'tombstoned',
+    filename = ?,
+    content_type = ?,
+    scope_label = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?;

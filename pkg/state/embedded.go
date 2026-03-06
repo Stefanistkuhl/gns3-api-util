@@ -3,7 +3,6 @@ package state
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -19,7 +18,9 @@ import (
 )
 
 type InternalState struct {
-	Server *embed.Etcd
+	Server     *embed.Etcd
+	Client     *clientv3.Client
+	SocketPath string
 }
 
 type EtcdConfig struct {
@@ -31,9 +32,15 @@ type EtcdConfig struct {
 	State         string
 	TLSDir        string
 	AdvertiseAddr string
+	UseUnixSocket bool
+	SocketDir     string
 }
 
-func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (*InternalState, error) {
+func StartEmbedded(
+	cfg *EtcdConfig,
+	otlpHandler slog.Handler,
+	otelName string,
+) (*InternalState, error) {
 	ec := embed.NewConfig()
 	ec.Dir = cfg.DataDir
 	ec.Name = cfg.Name
@@ -52,15 +59,49 @@ func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (
 	ec.ZapLoggerBuilder = embed.NewZapLoggerBuilder(zap.New(core))
 	ec.LogLevel = "info"
 
-	lpurl, _ := url.Parse("https://0.0.0.0:" + cfg.PeerPort)
-	lcurl, _ := url.Parse("https://0.0.0.0:" + cfg.ClientPort)
-	acurl, _ := url.Parse(fmt.Sprintf("https://%s:%s", advAddr, cfg.ClientPort))
-	apurl, _ := url.Parse(fmt.Sprintf("https://%s:%s", advAddr, cfg.PeerPort))
+	lpURL, _ := url.Parse("https://0.0.0.0:" + cfg.PeerPort)
+	apURL, _ := url.Parse(fmt.Sprintf("https://%s:%s", advAddr, cfg.PeerPort))
+	ec.ListenPeerUrls = []url.URL{*lpURL}
+	ec.AdvertisePeerUrls = []url.URL{*apURL}
 
-	ec.ListenPeerUrls = []url.URL{*lpurl}
-	ec.ListenClientUrls = []url.URL{*lcurl}
-	ec.AdvertiseClientUrls = []url.URL{*acurl}
-	ec.AdvertisePeerUrls = []url.URL{*apurl}
+	var socketPath string
+
+	if cfg.UseUnixSocket {
+		if cfg.SocketDir == "" {
+			cfg.SocketDir = filepath.Join(cfg.DataDir, "run")
+		}
+
+		if err := os.MkdirAll(cfg.SocketDir, 0o750); err != nil {
+			return nil, fmt.Errorf("failed to create socket directory: %w", err)
+		}
+
+		socketPath = filepath.Join(cfg.SocketDir, "etcd.sock")
+
+		if err := os.RemoveAll(socketPath); err != nil {
+			return nil, fmt.Errorf("failed to clean old socket: %w", err)
+		}
+
+		unixURL, err := url.Parse("unix://" + socketPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse unix socket url: %w", err)
+		}
+		ec.ListenClientUrls = []url.URL{*unixURL}
+
+		// etcd still wants advertise-client-urls to look like host:port.
+		// This is only to satisfy config validation; the filestore app will
+		// use the unix socket for local access.
+		acURL, err := url.Parse(fmt.Sprintf("https://127.0.0.1:%s", cfg.ClientPort))
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse advertise client url: %w", err)
+		}
+		ec.AdvertiseClientUrls = []url.URL{*acURL}
+	} else {
+		lcURL, _ := url.Parse("https://0.0.0.0:" + cfg.ClientPort)
+		acURL, _ := url.Parse(
+			fmt.Sprintf("https://%s:%s", advAddr, cfg.ClientPort))
+		ec.ListenClientUrls = []url.URL{*lcURL}
+		ec.AdvertiseClientUrls = []url.URL{*acURL}
+	}
 
 	ec.PeerTLSInfo = transport.TLSInfo{
 		CertFile:       filepath.Join(cfg.TLSDir, "node.crt"),
@@ -69,11 +110,13 @@ func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (
 		ClientCertAuth: true,
 	}
 
-	ec.ClientTLSInfo = transport.TLSInfo{
-		CertFile:       filepath.Join(cfg.TLSDir, "node.crt"),
-		KeyFile:        filepath.Join(cfg.TLSDir, "node.key"),
-		TrustedCAFile:  filepath.Join(cfg.TLSDir, "ca.crt"),
-		ClientCertAuth: true,
+	if !cfg.UseUnixSocket {
+		ec.ClientTLSInfo = transport.TLSInfo{
+			CertFile:       filepath.Join(cfg.TLSDir, "node.crt"),
+			KeyFile:        filepath.Join(cfg.TLSDir, "node.key"),
+			TrustedCAFile:  filepath.Join(cfg.TLSDir, "ca.crt"),
+			ClientCertAuth: true,
+		}
 	}
 
 	ec.InitialCluster = cfg.Cluster
@@ -87,19 +130,44 @@ func StartEmbedded(cfg *EtcdConfig, otlpHandler slog.Handler, otelName string) (
 
 	select {
 	case <-e.Server.ReadyNotify():
-		etcdLogger.Info("Etcd node ready",
+		etcdLogger.Info(
+			"Etcd node ready",
 			"name", cfg.Name,
-			"port", cfg.ClientPort,
+			"socket", socketPath,
+			"peer_port", cfg.PeerPort,
+			"client_port", cfg.ClientPort,
 		)
 	case <-time.After(60 * time.Second):
 		e.Server.Stop()
 		return nil, fmt.Errorf("etcd startup timeout")
 	}
 
-	return &InternalState{Server: e}, nil
+	var localCli *clientv3.Client
+	if cfg.UseUnixSocket {
+		localCli, err = clientv3.New(clientv3.Config{
+			Endpoints:   []string{"unix://" + socketPath},
+			DialTimeout: 2 * time.Second,
+		})
+		if err != nil {
+			e.Server.Stop()
+			return nil, fmt.Errorf("failed to create local client: %w", err)
+		}
+	}
+
+	return &InternalState{
+		Server:     e,
+		Client:     localCli,
+		SocketPath: socketPath,
+	}, nil
 }
 
-func StartMaster(dataDir, tlsDir string, otlpHandler slog.Handler, otelName, advertiseAddr string) (*InternalState, error) {
+func StartMaster(
+	dataDir,
+	tlsDir string,
+	otlpHandler slog.Handler,
+	otelName,
+	advertiseAddr string,
+) (*InternalState, error) {
 	if advertiseAddr == "" {
 		advertiseAddr = "localhost"
 	}
@@ -115,6 +183,53 @@ func StartMaster(dataDir, tlsDir string, otlpHandler slog.Handler, otelName, adv
 		State:         "new",
 		TLSDir:        tlsDir,
 		AdvertiseAddr: advertiseAddr,
+		UseUnixSocket: false,
+	}, otlpHandler, otelName)
+}
+
+func StartFileStore(
+	dataDir,
+	initialCluster,
+	tlsDir,
+	nodeName string,
+	otlpHandler slog.Handler,
+	otelName,
+	advertiseAddr string,
+) (*InternalState, error) {
+	logger := slog.New(otlpHandler).With("prefix", nodeName+"-etcd")
+
+	memberDir := filepath.Join(dataDir, "member")
+	_, err := os.Stat(memberDir)
+	hasData := err == nil
+
+	stateStr := "existing"
+
+	if hasData {
+		logger.Info(
+			"Found existing etcd data, booting directly",
+			"member_dir", memberDir,
+		)
+		initialCluster = ""
+	} else {
+		logger.Info(
+			"No local data found, booting etcd from cluster join state",
+			"initial_cluster", initialCluster,
+		)
+	}
+
+	socketDir := filepath.Join(dataDir, "run")
+
+	return StartEmbedded(&EtcdConfig{
+		DataDir:       dataDir,
+		ClientPort:    "2479",
+		PeerPort:      "2480",
+		Name:          nodeName,
+		Cluster:       initialCluster,
+		State:         stateStr,
+		TLSDir:        tlsDir,
+		AdvertiseAddr: advertiseAddr,
+		UseUnixSocket: true,
+		SocketDir:     socketDir,
 	}, otlpHandler, otelName)
 }
 
@@ -124,7 +239,6 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 		return fmt.Errorf("check auth status: %w", err)
 	}
 	if authResp.Enabled {
-		log.Println("Auth already enabled, skipping bootstrap")
 		return nil
 	}
 
@@ -133,7 +247,12 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 		return fmt.Errorf("create root role: %w", err)
 	}
 
-	_, err = client.UserAddWithOptions(ctx, "root", "", &clientv3.UserAddOptions{NoPassword: true})
+	_, err = client.UserAddWithOptions(
+		ctx,
+		"root",
+		"",
+		&clientv3.UserAddOptions{NoPassword: true},
+	)
 	if err != nil {
 		return fmt.Errorf("create root user: %w", err)
 	}
@@ -149,13 +268,22 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 	}
 
 	_, err = client.RoleGrantPermission(
-		ctx, "cluster-node", "\x00", "\x00", clientv3.PermissionType(clientv3.PermReadWrite),
+		ctx,
+		"cluster-node",
+		"\x00",
+		"\x00",
+		clientv3.PermissionType(clientv3.PermReadWrite),
 	)
 	if err != nil {
 		return fmt.Errorf("grant permissions to cluster-node: %w", err)
 	}
 
-	_, err = client.UserAddWithOptions(ctx, "filestore", "", &clientv3.UserAddOptions{NoPassword: true})
+	_, err = client.UserAddWithOptions(
+		ctx,
+		"filestore",
+		"",
+		&clientv3.UserAddOptions{NoPassword: true},
+	)
 	if err != nil {
 		return fmt.Errorf("create filestore user: %w", err)
 	}
@@ -171,32 +299,4 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 	}
 
 	return nil
-}
-
-func StartFileStore(dataDir, initialCluster, tlsDir, nodeName string, otlpHandler slog.Handler, otelName, advertiseAddr string) (*InternalState, error) {
-	logger := slog.New(otlpHandler).With("prefix", nodeName+"-etcd")
-
-	memberDir := filepath.Join(dataDir, "member")
-	_, err := os.Stat(memberDir)
-	hasData := err == nil
-
-	stateStr := "existing"
-
-	if hasData {
-		logger.Info("Found existing etcd data, booting directly", "member_dir", memberDir)
-		initialCluster = ""
-	} else {
-		logger.Info("No local data found, booting etcd from cluster join state", "initial_cluster", initialCluster)
-	}
-
-	return StartEmbedded(&EtcdConfig{
-		DataDir:       dataDir,
-		ClientPort:    "2479",
-		PeerPort:      "2480",
-		Name:          nodeName,
-		Cluster:       initialCluster,
-		State:         stateStr,
-		TLSDir:        tlsDir,
-		AdvertiseAddr: advertiseAddr,
-	}, otlpHandler, otelName)
 }

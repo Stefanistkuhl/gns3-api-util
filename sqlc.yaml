@@ -11,6 +11,11 @@ sql:
       go:
         package: "sqlc"
         out: "./internal/cli/cli_pkg/cluster/db/sqlc"
+        sql_package: "database/sql"
+        emit_interface: true
+        emit_empty_slices: true
+        emit_json_tags: true
+
   - engine: "sqlite"
     queries:
       - "./internal/file-store/db/queries/inserts.sql"
@@ -22,3 +27,7 @@ sql:
       go:
         package: "sqlc_file_store"
         out: "./internal/file-store/db/sqlc_file_store"
+        sql_package: "database/sql"
+        emit_interface: true
+        emit_empty_slices: true
+        emit_json_tags: true

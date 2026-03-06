@@ -10,7 +10,42 @@ import (
 	"database/sql"
 )
 
-const createFile = `-- name: CreateFile :one
+const insertBackup = `-- name: InsertBackup :exec
+INSERT INTO
+    backups (
+        file_uuid,
+        source_node_id,
+        backup_type,
+        is_compressed,
+        is_encrypted,
+        parent_backup_uuid
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?)
+`
+
+type InsertBackupParams struct {
+	FileUuid         string         `json:"file_uuid"`
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+}
+
+func (q *Queries) InsertBackup(ctx context.Context, arg InsertBackupParams) error {
+	_, err := q.db.ExecContext(ctx, insertBackup,
+		arg.FileUuid,
+		arg.SourceNodeID,
+		arg.BackupType,
+		arg.IsCompressed,
+		arg.IsEncrypted,
+		arg.ParentBackupUuid,
+	)
+	return err
+}
+
+const insertFile = `-- name: InsertFile :exec
 INSERT INTO
     files (
         file_uuid,
@@ -21,30 +56,30 @@ INSERT INTO
         content_type,
         scope_label,
         owner_id,
+        last_accessed_at,
         STATUS,
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-RETURNING
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
-type CreateFileParams struct {
-	FileUuid        string
-	FilePath        string
-	Filename        string
-	SizeBytes       int64
-	ChecksumSha256  string
-	ContentType     string
-	ScopeLabel      string
-	OwnerID         string
-	Status          sql.NullString
-	RetentionPeriod sql.NullInt64
+type InsertFileParams struct {
+	FileUuid        string         `json:"file_uuid"`
+	FilePath        string         `json:"file_path"`
+	Filename        string         `json:"filename"`
+	SizeBytes       int64          `json:"size_bytes"`
+	ChecksumSha256  string         `json:"checksum_sha256"`
+	ContentType     string         `json:"content_type"`
+	ScopeLabel      string         `json:"scope_label"`
+	OwnerID         string         `json:"owner_id"`
+	LastAccessedAt  sql.NullTime   `json:"last_accessed_at"`
+	Status          sql.NullString `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
 }
 
-func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
-	row := q.db.QueryRowContext(ctx, createFile,
+func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
+	_, err := q.db.ExecContext(ctx, insertFile,
 		arg.FileUuid,
 		arg.FilePath,
 		arg.Filename,
@@ -53,29 +88,65 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 		arg.ContentType,
 		arg.ScopeLabel,
 		arg.OwnerID,
+		arg.LastAccessedAt,
 		arg.Status,
 		arg.RetentionPeriod,
 	)
-	var i File
-	err := row.Scan(
-		&i.FileUuid,
-		&i.FilePath,
-		&i.Filename,
-		&i.SizeBytes,
-		&i.ChecksumSha256,
-		&i.ContentType,
-		&i.ScopeLabel,
-		&i.OwnerID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.LastAccessedAt,
-		&i.Status,
-		&i.RetentionPeriod,
-	)
-	return i, err
+	return err
 }
 
-const linkVMImage = `-- name: LinkVMImage :exec
+const insertProjectFile = `-- name: InsertProjectFile :exec
+INSERT INTO
+    project_files (
+        file_uuid,
+        project_id,
+        version_tag,
+        is_read_only
+    )
+VALUES
+    (?, ?, ?, ?)
+`
+
+type InsertProjectFileParams struct {
+	FileUuid   string         `json:"file_uuid"`
+	ProjectID  string         `json:"project_id"`
+	VersionTag sql.NullString `json:"version_tag"`
+	IsReadOnly sql.NullBool   `json:"is_read_only"`
+}
+
+func (q *Queries) InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error {
+	_, err := q.db.ExecContext(ctx, insertProjectFile,
+		arg.FileUuid,
+		arg.ProjectID,
+		arg.VersionTag,
+		arg.IsReadOnly,
+	)
+	return err
+}
+
+const insertUserPermission = `-- name: InsertUserPermission :exec
+INSERT INTO
+    user_permissions (
+        user_id,
+        scope,
+        granted_at,
+        updated_at
+    )
+VALUES
+    (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+`
+
+type InsertUserPermissionParams struct {
+	UserID string `json:"user_id"`
+	Scope  string `json:"scope"`
+}
+
+func (q *Queries) InsertUserPermission(ctx context.Context, arg InsertUserPermissionParams) error {
+	_, err := q.db.ExecContext(ctx, insertUserPermission, arg.UserID, arg.Scope)
+	return err
+}
+
+const insertVMImage = `-- name: InsertVMImage :exec
 INSERT INTO
     vm_images (
         file_uuid,
@@ -89,23 +160,184 @@ VALUES
     (?, ?, ?, ?, ?, ?)
 `
 
-type LinkVMImageParams struct {
-	FileUuid            string
-	VirtType            string
-	Format              string
-	Vcpus               sql.NullInt64
-	RamMb               sql.NullInt64
-	ExtraAttributesJson sql.NullString
+type InsertVMImageParams struct {
+	FileUuid            string         `json:"file_uuid"`
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
 }
 
-func (q *Queries) LinkVMImage(ctx context.Context, arg LinkVMImageParams) error {
-	_, err := q.db.ExecContext(ctx, linkVMImage,
+func (q *Queries) InsertVMImage(ctx context.Context, arg InsertVMImageParams) error {
+	_, err := q.db.ExecContext(ctx, insertVMImage,
 		arg.FileUuid,
 		arg.VirtType,
 		arg.Format,
 		arg.Vcpus,
 		arg.RamMb,
 		arg.ExtraAttributesJson,
+	)
+	return err
+}
+
+const revokeToken = `-- name: RevokeToken :exec
+INSERT INTO
+    revoked_tokens (
+        jti,
+        user_id,
+        revoked_at,
+        expires_at
+    )
+VALUES
+    (?, ?, CURRENT_TIMESTAMP, ?) ON CONFLICT(jti) DO
+UPDATE
+SET
+    user_id = excluded.user_id,
+    expires_at = excluded.expires_at
+`
+
+type RevokeTokenParams struct {
+	Jti       string       `json:"jti"`
+	UserID    string       `json:"user_id"`
+	ExpiresAt sql.NullTime `json:"expires_at"`
+}
+
+func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) error {
+	_, err := q.db.ExecContext(ctx, revokeToken, arg.Jti, arg.UserID, arg.ExpiresAt)
+	return err
+}
+
+const upsertClusterKV = `-- name: UpsertClusterKV :exec
+INSERT INTO
+    cluster_kv (
+        KEY,
+        value,
+        version,
+        updated_at
+    )
+VALUES
+    (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(KEY) DO
+UPDATE
+SET
+    value = excluded.value,
+    version = excluded.version,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertClusterKVParams struct {
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Version int64  `json:"version"`
+}
+
+func (q *Queries) UpsertClusterKV(ctx context.Context, arg UpsertClusterKVParams) error {
+	_, err := q.db.ExecContext(ctx, upsertClusterKV, arg.Key, arg.Value, arg.Version)
+	return err
+}
+
+const upsertClusterNode = `-- name: UpsertClusterNode :exec
+INSERT INTO
+    cluster_nodes (
+        node_id,
+        node_name,
+        node_kind,
+        api_url,
+        drpc_addr,
+        advertise_addr,
+        STATUS,
+        last_heartbeat_at,
+        created_at,
+        updated_at
+    )
+VALUES
+    (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+    ) ON CONFLICT(node_id) DO
+UPDATE
+SET
+    node_name = excluded.node_name,
+    node_kind = excluded.node_kind,
+    api_url = excluded.api_url,
+    drpc_addr = excluded.drpc_addr,
+    advertise_addr = excluded.advertise_addr,
+    STATUS = excluded.status,
+    last_heartbeat_at = excluded.last_heartbeat_at,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertClusterNodeParams struct {
+	NodeID          string         `json:"node_id"`
+	NodeName        string         `json:"node_name"`
+	NodeKind        string         `json:"node_kind"`
+	ApiUrl          sql.NullString `json:"api_url"`
+	DrpcAddr        sql.NullString `json:"drpc_addr"`
+	AdvertiseAddr   sql.NullString `json:"advertise_addr"`
+	Status          string         `json:"status"`
+	LastHeartbeatAt sql.NullTime   `json:"last_heartbeat_at"`
+}
+
+func (q *Queries) UpsertClusterNode(ctx context.Context, arg UpsertClusterNodeParams) error {
+	_, err := q.db.ExecContext(ctx, upsertClusterNode,
+		arg.NodeID,
+		arg.NodeName,
+		arg.NodeKind,
+		arg.ApiUrl,
+		arg.DrpcAddr,
+		arg.AdvertiseAddr,
+		arg.Status,
+		arg.LastHeartbeatAt,
+	)
+	return err
+}
+
+const upsertSyncState = `-- name: UpsertSyncState :exec
+INSERT INTO
+    sync_state (
+        replica_name,
+        last_full_sync_at,
+        last_incremental_sync_at,
+        last_source_revision,
+        last_status,
+        last_error
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?) ON CONFLICT(replica_name) DO
+UPDATE
+SET
+    last_full_sync_at = excluded.last_full_sync_at,
+    last_incremental_sync_at = excluded.last_incremental_sync_at,
+    last_source_revision = excluded.last_source_revision,
+    last_status = excluded.last_status,
+    last_error = excluded.last_error
+`
+
+type UpsertSyncStateParams struct {
+	ReplicaName           string         `json:"replica_name"`
+	LastFullSyncAt        sql.NullTime   `json:"last_full_sync_at"`
+	LastIncrementalSyncAt sql.NullTime   `json:"last_incremental_sync_at"`
+	LastSourceRevision    int64          `json:"last_source_revision"`
+	LastStatus            string         `json:"last_status"`
+	LastError             sql.NullString `json:"last_error"`
+}
+
+func (q *Queries) UpsertSyncState(ctx context.Context, arg UpsertSyncStateParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSyncState,
+		arg.ReplicaName,
+		arg.LastFullSyncAt,
+		arg.LastIncrementalSyncAt,
+		arg.LastSourceRevision,
+		arg.LastStatus,
+		arg.LastError,
 	)
 	return err
 }

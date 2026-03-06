@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"log/slog"
 	"net"
@@ -17,20 +17,23 @@ import (
 	"syscall"
 	"time"
 
+	dbpkg "github.com/0xveya/gns3util/internal/file-store/db"
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
+	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
+	syncsvc "github.com/0xveya/gns3util/internal/file-store/sync"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/otel"
-	"github.com/0xveya/gns3util/pkg/state"
-	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
+
 	"github.com/0xveya/gns3util/pkg/web/middleware"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/quic-go/quic-go/http3"
 	"github.com/riandyrn/otelchi"
 	"go.opentelemetry.io/otel/log/global"
+	_ "modernc.org/sqlite"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
 )
@@ -41,14 +44,15 @@ type FilestoreConfig struct {
 	DrpcPort      int    `env:"FILE_STORE_DRPC_PORT" type:"port" default:"2749"`
 	ListenAddr    string `env:"FILE_STORE_API_LISTEN_ADDR" type:"listen" default:"0.0.0.0"`
 	AdvertiseAddr string `env:"FILE_STORE_ADVERTISE_ADDR" type:"string" default:"localhost"`
-	MasterAPIURL  string `env:"MASTER_API_URL" type:"url" default:"http://localhost:8443"`
-	EtcdPort      int    `env:"FILE_STORE_ETCD_API_PORT" type:"port" default:"2479"`
-	JoinToken     string `env:"JOIN_TOKEN" type:"secret" required:"true"`
+	MasterAPIURL  string `env:"MASTER_API_URL" type:"url" default:"https://localhost:8443"`
+	MasterDRPC    string `env:"MASTER_DRPC_ADDR" type:"string" default:"localhost:2748"`
 	ClusterPubKey string `env:"CLUSTER_PUB_KEY" type:"string" required:"true"`
 	TLSDir        string `env:"FILE_STORE_TLS_DIR" type:"string" default:"/data/filestore/tls/"`
-	DataDir       string `env:"FILE_STORE_DATA_DIR" type:"string" default:"/data/filestore/etcd/"`
 	OTELEndpoint  string `env:"OTEL_ENDPOINT" type:"string" default:""`
 	AppName       string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
+	SyncInterval  int    `env:"FILE_STORE_SYNC_INTERVAL_SEC" type:"int" default:"15"`
+	JoinToken     string `env:"JOIN_TOKEN" type:"string" default:""`
+	DB_PATH       string `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
 }
 
 var (
@@ -83,127 +87,69 @@ func main() {
 
 	if otlpEnabled {
 		otlpLogger := global.GetLoggerProvider().Logger(cfg.AppName)
-		otlpHandler := otel.NewOTLPHandler(otlpLogger)
-		handler = otlpHandler
+		handler = otel.NewOTLPHandler(otlpLogger)
 	}
 
 	logger = slog.New(handler).With("prefix", cfg.AppName)
-
-	masterGRPCURL := nwutils.ConvertMasterAPIURL(cfg.MasterAPIURL)
 
 	certPath := filepath.Join(cfg.TLSDir, "node.crt")
 	keyPath := filepath.Join(cfg.TLSDir, "node.key")
 	caPath := filepath.Join(cfg.TLSDir, "ca.crt")
 
-	initialCluster := ""
+	if _, statErr := os.Stat(certPath); statErr != nil {
+		logger.Info("Certificates not found locally. Bootstrapping from Master...")
 
-	if _, statErr := os.Stat(certPath); os.IsNotExist(statErr) {
-		logger.Info("No local certificates found. Generating CSR and joining cluster...")
-
-		csrPEM, genErr := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, cfg.NodeName, []string{cfg.AdvertiseAddr})
+		csrPEM, genErr := certs.GenerateNodeKeyAndCSR(cfg.TLSDir, cfg.NodeName, []string{"localhost", cfg.AdvertiseAddr})
 		if genErr != nil {
 			logger.Error("Failed to generate CSR", "err", genErr)
 			return
 		}
 
-		peerURL := fmt.Sprintf("https://%s:%d", cfg.AdvertiseAddr, 2480)
-		reqBody, _ := json.Marshal(map[string]any{
-			"name":      cfg.NodeName,
-			"peer_urls": []string{peerURL},
-			"csr_pem":   csrPEM,
-		})
-
-		joinURL := cfg.MasterAPIURL + "/cluster/join"
-		req, reqErr := http.NewRequestWithContext(ctx, "POST", joinURL, bytes.NewReader(reqBody))
-		if reqErr != nil {
-			logger.Error("Failed to create join request", "err", reqErr)
+		bootstrapErr := bootstrapCertificates(cfg.MasterAPIURL, csrPEM, certPath, caPath, cfg.JoinToken, "", ctx)
+		if bootstrapErr != nil {
+			logger.Error("Failed to bootstrap certificates from Master", "err", bootstrapErr)
 			return
 		}
-
-		req.Header.Set("Authorization", "Bearer "+cfg.JoinToken)
-		req.Header.Set("Content-Type", "application/json")
-
-		client := &http.Client{
-			Timeout: 10 * time.Second,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402
-			},
-		}
-		resp, respErr := client.Do(req)
-		if respErr != nil {
-			logger.Error("Failed to call master join API", "err", respErr)
-			return
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			logger.Error("Master rejected join request", "err", string(body))
-			return
-		}
-
-		var joinResp struct {
-			MemberID uint64 `json:"member_id"`
-			Cluster  string `json:"cluster"`
-			CertPEM  []byte `json:"cert_pem"`
-			CACert   []byte `json:"ca_cert"`
-		}
-		if decodeErr := json.NewDecoder(resp.Body).Decode(&joinResp); decodeErr != nil {
-			logger.Error("Failed to decode join response", "err", decodeErr)
-			return
-		}
-
-		if writeCertErr := os.WriteFile(certPath, joinResp.CertPEM, 0o600); writeCertErr != nil {
-			logger.Error("Failed to write node.crt", "err", writeCertErr)
-			return
-		}
-		if writeCaErr := os.WriteFile(caPath, joinResp.CACert, 0o600); writeCaErr != nil {
-			logger.Error("Failed to write ca.crt", "err", writeCaErr)
-			return
-		}
-
-		initialCluster = joinResp.Cluster
-
-		logger.Info("Successfully joined cluster! Assigned Member ID", "member_id", joinResp.MemberID)
-	}
-	if initialCluster == "" {
-		memberDir := filepath.Join(cfg.DataDir, "member")
-		if _, statErr := os.Stat(memberDir); os.IsNotExist(statErr) {
-			logger.Error("FATAL: No local etcd data found, and no initial cluster string provided. Did the node fail to join?")
-			return
-		}
+		logger.Info("Successfully bootstrapped certificates")
 	}
 
-	etcdState, startEtcdErr := state.StartFileStore(cfg.DataDir, initialCluster, cfg.TLSDir, cfg.NodeName, handler, fmt.Sprintf("%s-etcd", cfg.AppName), cfg.AdvertiseAddr)
-	if startEtcdErr != nil {
-		logger.Error("Failed to join cluster", "err", startEtcdErr)
+	dbStore, err := dbpkg.NewStore(cfg.DB_PATH)
+	if err != nil {
+		logger.Error("Failed to open sqlite store", "err", err)
 		return
 	}
+	defer dbStore.DB.Close()
 
-	store, newStateErr := state.NewStateManager(
-		[]string{masterGRPCURL},
-		[]string{"localhost:2379"},
-		cfg.TLSDir,
-	)
-	if newStateErr != nil {
-		logger.Error("Failed to connect to local etcd", "err", newStateErr)
-		return
-	}
-
-	idMgr, idMgrErr := auth.NewIdentityManagerFromPubKey(cfg.ClusterPubKey)
-	if idMgrErr != nil {
-		logger.Error("Failed to create identity manager", "err", idMgrErr)
+	idMgr, err := auth.NewIdentityManagerFromPubKey(cfg.ClusterPubKey)
+	if err != nil {
+		logger.Error("Failed to create identity manager", "err", err)
 		return
 	}
 
 	cm := &certs.CertManager{}
-
-	cert, loadCertErr := tls.LoadX509KeyPair(certPath, keyPath)
-	if loadCertErr != nil {
-		logger.Error("Failed to load TLS certs for HTTP server", "err", loadCertErr)
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		logger.Error("Failed to load TLS certs for HTTP server", "err", err)
 		return
 	}
 	cm.SetCertificate(&cert)
+
+	syncClient, err := filerpc.NewMasterSyncClient(ctx, cfg.MasterDRPC, cfg.TLSDir)
+	if err != nil {
+		logger.Error("Failed to create master sync client", "err", err)
+		return
+	}
+	defer syncClient.Close()
+
+	syncService := syncsvc.NewService(dbStore, syncClient, cfg.NodeName)
+	go func() {
+		if svcErr := syncService.Run(
+			ctx,
+			time.Duration(cfg.SyncInterval)*time.Second,
+		); svcErr != nil {
+			logger.Error("Sync service stopped", "err", svcErr)
+		}
+	}()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -212,24 +158,28 @@ func main() {
 		<-sigChan
 		logger.Info("Shutting down...")
 		cancel()
-		etcdState.Server.Close()
-		closeErr := store.Close()
-		if closeErr != nil {
-			logger.Error("Failed to close state manager", "err", closeErr)
-		}
 		os.Exit(0)
 	}()
 
 	m := drpcmux.New()
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, store, otlpEnabled)
+	setupRouter(r, idMgr, dbStore, otlpEnabled)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
 	}
 
+	apiAddr := fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.Port)
+
+	tcpServer := &http.Server{
+		Addr:              apiAddr,
+		Handler:           r,
+		TLSConfig:         tlsConfig,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
 	h3Server := &http3.Server{
-		Addr:      fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.Port),
+		Addr:      apiAddr,
 		Handler:   r,
 		TLSConfig: tlsConfig,
 	}
@@ -237,7 +187,11 @@ func main() {
 	drpcServer := drpcserver.New(m)
 
 	var lis net.ListenConfig
-	drpcListener, err := lis.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort))
+	drpcListener, err := lis.Listen(
+		ctx,
+		"tcp",
+		fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort),
+	)
 	if err != nil {
 		logger.Error("Failed to listen for drpc", "err", err)
 		return
@@ -246,7 +200,11 @@ func main() {
 	logger.Info("Starting HTTP/3 server", "port", cfg.Port)
 	logger.Info("Starting drpc server", "port", cfg.DrpcPort)
 
-	errChan := make(chan error, 2)
+	errChan := make(chan error, 3)
+
+	go func() {
+		errChan <- tcpServer.ListenAndServeTLS("", "")
+	}()
 
 	go func() {
 		errChan <- h3Server.ListenAndServe()
@@ -261,12 +219,16 @@ func main() {
 	}
 }
 
-func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateManager, otelEnabled bool) {
+func setupRouter(
+	r chi.Router,
+	idMgr *auth.IdentityManager,
+	store *dbpkg.Store,
+	otelEnabled bool,
+) {
 	if !otelEnabled {
 		r.Use(chimiddleware.Logger)
 	} else {
 		r.Use(otelchi.Middleware(fmt.Sprintf("%s-api", cfg.AppName)))
-
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 				ww := chimiddleware.NewWrapResponseWriter(w, req.ProtoMajor)
@@ -286,25 +248,66 @@ func setupRouter(r chi.Router, idMgr *auth.IdentityManager, store *state.StateMa
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/v1", func(r chi.Router) {
-			r.Group(func(r chi.Router) {
-				r.Use(middleware.AuthMiddleware(idMgr))
+			r.Use(middleware.AuthMiddleware(idMgr))
 
-				r.With(middleware.RequireScope(store, "files:read")).
-					Get("/files", handlers.UploadFileHandler)
+			r.With(middleware.RequireScope(store, "files:read")).
+				Get("/files", handlers.DownloadFileHandler)
 
-				r.With(middleware.RequireScope(store, "files:write")).
-					Post("/files", handlers.UploadFileHandler)
-			})
-		})
-
-		r.Route("/v2", func(r chi.Router) {
-			r.Get("/status", func(w http.ResponseWriter, r *http.Request) {
-				_, writeErr := w.Write([]byte("future proofing"))
-				if writeErr != nil {
-					logger.Error("Failed to write response", "err", writeErr)
-					return
-				}
-			})
+			r.With(middleware.RequireScope(store, "files:write")).
+				Post("/files", handlers.UploadFileHandler)
 		})
 	})
+}
+
+func bootstrapCertificates(masterURL string, csrPEM []byte, certPath, caPath, token, masterCACert string, ctx context.Context) error {
+	payload, _ := json.Marshal(map[string]string{"csr": string(csrPEM)})
+
+	reqURL := masterURL + "/cluster/join/filestore"
+	req, _ := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(payload))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	tlsConfig := &tls.Config{}
+
+	if masterCACert != "" {
+		caPool := x509.NewCertPool()
+		if !caPool.AppendCertsFromPEM([]byte(masterCACert)) {
+			return fmt.Errorf("failed to parse provided MASTER_CA_CERT")
+		}
+		tlsConfig.RootCAs = caPool
+	} else {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: tlsConfig,
+		},
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("master rejected join request: status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		NodeCert string `json:"node_cert"`
+		CACert   string `json:"ca_cert"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(certPath, []byte(result.NodeCert), 0o600); err != nil {
+		return err
+	}
+	if err := os.WriteFile(caPath, []byte(result.CACert), 0o600); err != nil {
+		return err
+	}
+
+	return nil
 }

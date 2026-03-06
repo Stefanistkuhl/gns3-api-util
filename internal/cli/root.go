@@ -72,6 +72,14 @@ var rootCmd = &cobra.Command{
 			}
 		}
 		if !skipServer {
+			for c := cmd; c != nil; c = c.Parent() {
+				if c.Name() == "ctl" {
+					skipServer = true
+					break
+				}
+			}
+		}
+		if !skipServer {
 			if f := cmd.InheritedFlags().Lookup("cluster"); f != nil {
 				if v, _ := cmd.InheritedFlags().GetString("cluster"); v != "" {
 					skipServer = true
@@ -169,6 +177,7 @@ func init() {
 
 	rootCmd.AddCommand(NewClusterCmdGroup())
 	rootCmd.AddCommand(NewShareCmdGroup())
+	rootCmd.AddCommand(NewCtlCmdGroup())
 	carapace.Gen(rootCmd).FlagCompletion(carapace.ActionMap{
 		"key-file": carapace.ActionFiles(),
 		"server":   carapace.ActionValues("http://localhost:3080", "https://gns3.example.com"),

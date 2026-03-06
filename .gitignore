@@ -6,6 +6,9 @@
 *.dylib
 bin/
 dist/
+gns3util
+master
+file-store
 
 # Test binary, built with `go test -c`
 *.test
@@ -28,7 +31,7 @@ tls-file-store/
 
 # Legacy / old code
 old_code/
-onboaring/
+onboarding/
 
 # GNS3 specific
 *.gns3project
@@ -47,6 +50,7 @@ docs/
 # Temporary / Cache / unrelated
 tmp/
 *.etcd
+data/
 
 # GitHub Actions / CI
 .github/event.json

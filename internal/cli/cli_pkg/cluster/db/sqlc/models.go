@@ -9,54 +9,54 @@ import (
 )
 
 type Class struct {
-	ClassID     int64
-	ClusterID   int64
-	Name        string
-	Description sql.NullString
+	ClassID     int64          `json:"class_id"`
+	ClusterID   int64          `json:"cluster_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 type Cluster struct {
-	ClusterID   int64
-	Name        string
-	Description sql.NullString
+	ClusterID   int64          `json:"cluster_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 type Exercise struct {
-	ExerciseID  int64
-	ProjectUuid string
-	GroupID     int64
-	Name        string
-	State       sql.NullString
-	CreatedAt   sql.NullTime
+	ExerciseID  int64          `json:"exercise_id"`
+	ProjectUuid string         `json:"project_uuid"`
+	GroupID     int64          `json:"group_id"`
+	Name        string         `json:"name"`
+	State       sql.NullString `json:"state"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
 }
 
 type Group struct {
-	GroupID int64
-	ClassID int64
-	Name    string
+	GroupID int64  `json:"group_id"`
+	ClassID int64  `json:"class_id"`
+	Name    string `json:"name"`
 }
 
 type GroupAssignment struct {
-	GroupID    int64
-	NodeID     int64
-	AssignedAt sql.NullTime
+	GroupID    int64        `json:"group_id"`
+	NodeID     int64        `json:"node_id"`
+	AssignedAt sql.NullTime `json:"assigned_at"`
 }
 
 type Node struct {
-	NodeID    int64
-	ClusterID int64
-	Protocol  string
-	AuthUser  string
-	Host      string
-	Port      int64
-	Weight    int64
-	MaxGroups sql.NullInt64
+	NodeID    int64         `json:"node_id"`
+	ClusterID int64         `json:"cluster_id"`
+	Protocol  string        `json:"protocol"`
+	AuthUser  string        `json:"auth_user"`
+	Host      string        `json:"host"`
+	Port      int64         `json:"port"`
+	Weight    int64         `json:"weight"`
+	MaxGroups sql.NullInt64 `json:"max_groups"`
 }
 
 type User struct {
-	UserID          int64
-	Username        string
-	FullName        sql.NullString
-	GroupID         int64
-	DefaultPassword string
+	UserID          int64          `json:"user_id"`
+	Username        string         `json:"username"`
+	FullName        sql.NullString `json:"full_name"`
+	GroupID         int64          `json:"group_id"`
+	DefaultPassword string         `json:"default_password"`
 }

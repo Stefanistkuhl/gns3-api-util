@@ -10,47 +10,118 @@ import (
 	"database/sql"
 )
 
-const getFileWithVMData = `-- name: GetFileWithVMData :one
+const getBackupByFileUUID = `-- name: GetBackupByFileUUID :one
 SELECT
-    f.file_uuid, f.file_path, f.filename, f.size_bytes, f.checksum_sha256, f.content_type, f.scope_label, f.owner_id, f.created_at, f.updated_at, f.last_accessed_at, f.status, f.retention_period,
-    v.virt_type,
-    v.format,
-    v.vcpus,
-    v.ram_mb,
-    v.extra_attributes_json
+    file_uuid,
+    source_node_id,
+    backup_type,
+    is_compressed,
+    is_encrypted,
+    parent_backup_uuid
 FROM
-    files f
-    LEFT JOIN vm_images v ON f.file_uuid = v.file_uuid
+    backups
 WHERE
-    f.file_uuid = ?
-LIMIT
-    1
+    file_uuid = ?
 `
 
-type GetFileWithVMDataRow struct {
-	FileUuid            string
-	FilePath            string
-	Filename            string
-	SizeBytes           int64
-	ChecksumSha256      string
-	ContentType         string
-	ScopeLabel          string
-	OwnerID             string
-	CreatedAt           sql.NullTime
-	UpdatedAt           sql.NullTime
-	LastAccessedAt      sql.NullTime
-	Status              sql.NullString
-	RetentionPeriod     sql.NullInt64
-	VirtType            sql.NullString
-	Format              sql.NullString
-	Vcpus               sql.NullInt64
-	RamMb               sql.NullInt64
-	ExtraAttributesJson sql.NullString
+func (q *Queries) GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error) {
+	row := q.db.QueryRowContext(ctx, getBackupByFileUUID, fileUuid)
+	var i Backup
+	err := row.Scan(
+		&i.FileUuid,
+		&i.SourceNodeID,
+		&i.BackupType,
+		&i.IsCompressed,
+		&i.IsEncrypted,
+		&i.ParentBackupUuid,
+	)
+	return i, err
 }
 
-func (q *Queries) GetFileWithVMData(ctx context.Context, fileUuid string) (GetFileWithVMDataRow, error) {
-	row := q.db.QueryRowContext(ctx, getFileWithVMData, fileUuid)
-	var i GetFileWithVMDataRow
+const getClusterKV = `-- name: GetClusterKV :one
+SELECT
+    KEY,
+    value,
+    version,
+    updated_at
+FROM
+    cluster_kv
+WHERE
+    KEY = ?
+`
+
+func (q *Queries) GetClusterKV(ctx context.Context, key string) (ClusterKv, error) {
+	row := q.db.QueryRowContext(ctx, getClusterKV, key)
+	var i ClusterKv
+	err := row.Scan(
+		&i.Key,
+		&i.Value,
+		&i.Version,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getClusterNode = `-- name: GetClusterNode :one
+SELECT
+    node_id,
+    node_name,
+    node_kind,
+    api_url,
+    drpc_addr,
+    advertise_addr,
+    STATUS,
+    last_heartbeat_at,
+    created_at,
+    updated_at
+FROM
+    cluster_nodes
+WHERE
+    node_id = ?
+`
+
+func (q *Queries) GetClusterNode(ctx context.Context, nodeID string) (ClusterNode, error) {
+	row := q.db.QueryRowContext(ctx, getClusterNode, nodeID)
+	var i ClusterNode
+	err := row.Scan(
+		&i.NodeID,
+		&i.NodeName,
+		&i.NodeKind,
+		&i.ApiUrl,
+		&i.DrpcAddr,
+		&i.AdvertiseAddr,
+		&i.Status,
+		&i.LastHeartbeatAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFileByUUID = `-- name: GetFileByUUID :one
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) GetFileByUUID(ctx context.Context, fileUuid string) (File, error) {
+	row := q.db.QueryRowContext(ctx, getFileByUUID, fileUuid)
+	var i File
 	err := row.Scan(
 		&i.FileUuid,
 		&i.FilePath,
@@ -65,6 +136,81 @@ func (q *Queries) GetFileWithVMData(ctx context.Context, fileUuid string) (GetFi
 		&i.LastAccessedAt,
 		&i.Status,
 		&i.RetentionPeriod,
+	)
+	return i, err
+}
+
+const getProjectFileByFileUUID = `-- name: GetProjectFileByFileUUID :one
+SELECT
+    file_uuid,
+    project_id,
+    version_tag,
+    is_read_only
+FROM
+    project_files
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error) {
+	row := q.db.QueryRowContext(ctx, getProjectFileByFileUUID, fileUuid)
+	var i ProjectFile
+	err := row.Scan(
+		&i.FileUuid,
+		&i.ProjectID,
+		&i.VersionTag,
+		&i.IsReadOnly,
+	)
+	return i, err
+}
+
+const getSyncState = `-- name: GetSyncState :one
+SELECT
+    replica_name,
+    last_full_sync_at,
+    last_incremental_sync_at,
+    last_source_revision,
+    last_status,
+    last_error
+FROM
+    sync_state
+WHERE
+    replica_name = ?
+`
+
+func (q *Queries) GetSyncState(ctx context.Context, replicaName string) (SyncState, error) {
+	row := q.db.QueryRowContext(ctx, getSyncState, replicaName)
+	var i SyncState
+	err := row.Scan(
+		&i.ReplicaName,
+		&i.LastFullSyncAt,
+		&i.LastIncrementalSyncAt,
+		&i.LastSourceRevision,
+		&i.LastStatus,
+		&i.LastError,
+	)
+	return i, err
+}
+
+const getVMImageByFileUUID = `-- name: GetVMImageByFileUUID :one
+SELECT
+    file_uuid,
+    virt_type,
+    format,
+    vcpus,
+    ram_mb,
+    extra_attributes_json
+FROM
+    vm_images
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error) {
+	row := q.db.QueryRowContext(ctx, getVMImageByFileUUID, fileUuid)
+	var i VmImage
+	err := row.Scan(
+		&i.FileUuid,
 		&i.VirtType,
 		&i.Format,
 		&i.Vcpus,
@@ -74,25 +220,282 @@ func (q *Queries) GetFileWithVMData(ctx context.Context, fileUuid string) (GetFi
 	return i, err
 }
 
-const listFilesByScope = `-- name: ListFilesByScope :many
+const isTokenRevoked = `-- name: IsTokenRevoked :one
 SELECT
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
-FROM
-    files
-WHERE
-    scope_label = ?
-    AND STATUS = 'available'
-ORDER BY
-    created_at DESC
+    EXISTS (
+        SELECT
+            1
+        FROM
+            revoked_tokens
+        WHERE
+            jti = ?
+    ) AS is_revoked
 `
 
-func (q *Queries) ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, listFilesByScope, scopeLabel)
+func (q *Queries) IsTokenRevoked(ctx context.Context, jti string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, isTokenRevoked, jti)
+	var is_revoked int64
+	err := row.Scan(&is_revoked)
+	return is_revoked, err
+}
+
+const listAllUserPermissions = `-- name: ListAllUserPermissions :many
+SELECT
+    user_id,
+    scope,
+    granted_at,
+    updated_at
+FROM
+    user_permissions
+ORDER BY
+    user_id ASC,
+    scope ASC
+`
+
+func (q *Queries) ListAllUserPermissions(ctx context.Context) ([]UserPermission, error) {
+	rows, err := q.db.QueryContext(ctx, listAllUserPermissions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	items := []UserPermission{}
+	for rows.Next() {
+		var i UserPermission
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Scope,
+			&i.GrantedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterKV = `-- name: ListClusterKV :many
+SELECT
+    KEY,
+    value,
+    version,
+    updated_at
+FROM
+    cluster_kv
+ORDER BY
+    KEY ASC
+`
+
+func (q *Queries) ListClusterKV(ctx context.Context) ([]ClusterKv, error) {
+	rows, err := q.db.QueryContext(ctx, listClusterKV)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClusterKv{}
+	for rows.Next() {
+		var i ClusterKv
+		if err := rows.Scan(
+			&i.Key,
+			&i.Value,
+			&i.Version,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterKVByPrefix = `-- name: ListClusterKVByPrefix :many
+SELECT
+    KEY,
+    value,
+    version,
+    updated_at
+FROM
+    cluster_kv
+WHERE
+    KEY LIKE (? || '%')
+ORDER BY
+    KEY ASC
+`
+
+func (q *Queries) ListClusterKVByPrefix(ctx context.Context, dollar_1 sql.NullString) ([]ClusterKv, error) {
+	rows, err := q.db.QueryContext(ctx, listClusterKVByPrefix, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClusterKv{}
+	for rows.Next() {
+		var i ClusterKv
+		if err := rows.Scan(
+			&i.Key,
+			&i.Value,
+			&i.Version,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterNodes = `-- name: ListClusterNodes :many
+SELECT
+    node_id,
+    node_name,
+    node_kind,
+    api_url,
+    drpc_addr,
+    advertise_addr,
+    STATUS,
+    last_heartbeat_at,
+    created_at,
+    updated_at
+FROM
+    cluster_nodes
+ORDER BY
+    node_name ASC
+`
+
+func (q *Queries) ListClusterNodes(ctx context.Context) ([]ClusterNode, error) {
+	rows, err := q.db.QueryContext(ctx, listClusterNodes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClusterNode{}
+	for rows.Next() {
+		var i ClusterNode
+		if err := rows.Scan(
+			&i.NodeID,
+			&i.NodeName,
+			&i.NodeKind,
+			&i.ApiUrl,
+			&i.DrpcAddr,
+			&i.AdvertiseAddr,
+			&i.Status,
+			&i.LastHeartbeatAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listClusterNodesByKind = `-- name: ListClusterNodesByKind :many
+SELECT
+    node_id,
+    node_name,
+    node_kind,
+    api_url,
+    drpc_addr,
+    advertise_addr,
+    STATUS,
+    last_heartbeat_at,
+    created_at,
+    updated_at
+FROM
+    cluster_nodes
+WHERE
+    node_kind = ?
+ORDER BY
+    node_name ASC
+`
+
+func (q *Queries) ListClusterNodesByKind(ctx context.Context, nodeKind string) ([]ClusterNode, error) {
+	rows, err := q.db.QueryContext(ctx, listClusterNodesByKind, nodeKind)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClusterNode{}
+	for rows.Next() {
+		var i ClusterNode
+		if err := rows.Scan(
+			&i.NodeID,
+			&i.NodeName,
+			&i.NodeKind,
+			&i.ApiUrl,
+			&i.DrpcAddr,
+			&i.AdvertiseAddr,
+			&i.Status,
+			&i.LastHeartbeatAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFiles = `-- name: ListFiles :many
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+ORDER BY
+    created_at DESC
+`
+
+func (q *Queries) ListFiles(ctx context.Context) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, listFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
 	for rows.Next() {
 		var i File
 		if err := rows.Scan(
@@ -121,4 +524,211 @@ func (q *Queries) ListFilesByScope(ctx context.Context, scopeLabel string) ([]Fi
 		return nil, err
 	}
 	return items, nil
+}
+
+const listFilesByOwner = `-- name: ListFilesByOwner :many
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    owner_id = ?
+ORDER BY
+    created_at DESC
+`
+
+func (q *Queries) ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, listFilesByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.FilePath,
+			&i.Filename,
+			&i.SizeBytes,
+			&i.ChecksumSha256,
+			&i.ContentType,
+			&i.ScopeLabel,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastAccessedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByScope = `-- name: ListFilesByScope :many
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    scope_label = ?
+ORDER BY
+    created_at DESC
+`
+
+func (q *Queries) ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, listFilesByScope, scopeLabel)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.FilePath,
+			&i.Filename,
+			&i.SizeBytes,
+			&i.ChecksumSha256,
+			&i.ContentType,
+			&i.ScopeLabel,
+			&i.OwnerID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastAccessedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserPermissions = `-- name: ListUserPermissions :many
+SELECT
+    user_id,
+    scope,
+    granted_at,
+    updated_at
+FROM
+    user_permissions
+WHERE
+    user_id = ?
+ORDER BY
+    scope ASC
+`
+
+func (q *Queries) ListUserPermissions(ctx context.Context, userID string) ([]UserPermission, error) {
+	rows, err := q.db.QueryContext(ctx, listUserPermissions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []UserPermission{}
+	for rows.Next() {
+		var i UserPermission
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Scope,
+			&i.GrantedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const userHasPermission = `-- name: UserHasPermission :one
+SELECT
+    EXISTS (
+        SELECT
+            1
+        FROM
+            user_permissions
+        WHERE
+            user_id = ?
+            AND scope = ?
+    ) AS has_permission
+`
+
+type UserHasPermissionParams struct {
+	UserID string `json:"user_id"`
+	Scope  string `json:"scope"`
+}
+
+func (q *Queries) UserHasPermission(ctx context.Context, arg UserHasPermissionParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, userHasPermission, arg.UserID, arg.Scope)
+	var has_permission int64
+	err := row.Scan(&has_permission)
+	return has_permission, err
+}
+
+const userIsSuperuser = `-- name: UserIsSuperuser :one
+SELECT
+    EXISTS (
+        SELECT
+            1
+        FROM
+            user_permissions
+        WHERE
+            user_id = ?
+            AND scope = 'superuser'
+    ) AS is_superuser
+`
+
+func (q *Queries) UserIsSuperuser(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, userIsSuperuser, userID)
+	var is_superuser int64
+	err := row.Scan(&is_superuser)
+	return is_superuser, err
 }

@@ -18,8 +18,8 @@ VALUES
 `
 
 type AssignGroupToNodeParams struct {
-	NodeID  int64
-	GroupID int64
+	NodeID  int64 `json:"node_id"`
+	GroupID int64 `json:"group_id"`
 }
 
 func (q *Queries) AssignGroupToNode(ctx context.Context, arg AssignGroupToNodeParams) error {
@@ -35,9 +35,9 @@ VALUES
 `
 
 type CreateClassParams struct {
-	ClusterID   int64
-	Name        string
-	Description sql.NullString
+	ClusterID   int64          `json:"cluster_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 func (q *Queries) CreateClass(ctx context.Context, arg CreateClassParams) error {
@@ -55,9 +55,9 @@ RETURNING
 `
 
 type CreateClassReturningParams struct {
-	ClusterID   int64
-	Name        string
-	Description sql.NullString
+	ClusterID   int64          `json:"cluster_id"`
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 func (q *Queries) CreateClassReturning(ctx context.Context, arg CreateClassReturningParams) (int64, error) {
@@ -79,8 +79,8 @@ RETURNING
 `
 
 type CreateClusterParams struct {
-	Name        string
-	Description sql.NullString
+	Name        string         `json:"name"`
+	Description sql.NullString `json:"description"`
 }
 
 func (q *Queries) CreateCluster(ctx context.Context, arg CreateClusterParams) (Cluster, error) {
@@ -98,8 +98,8 @@ VALUES
 `
 
 type CreateGroupParams struct {
-	ClassID int64
-	Name    string
+	ClassID int64  `json:"class_id"`
+	Name    string `json:"name"`
 }
 
 func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) error {
@@ -117,8 +117,8 @@ RETURNING
 `
 
 type CreateGroupReturningParams struct {
-	ClassID int64
-	Name    string
+	ClassID int64  `json:"class_id"`
+	Name    string `json:"name"`
 }
 
 func (q *Queries) CreateGroupReturning(ctx context.Context, arg CreateGroupReturningParams) (int64, error) {
@@ -136,10 +136,10 @@ VALUES
 `
 
 type CreateUserParams struct {
-	GroupID         int64
-	Username        string
-	FullName        sql.NullString
-	DefaultPassword string
+	GroupID         int64          `json:"group_id"`
+	Username        string         `json:"username"`
+	FullName        sql.NullString `json:"full_name"`
+	DefaultPassword string         `json:"default_password"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -162,10 +162,10 @@ RETURNING
 `
 
 type CreateUserReturningParams struct {
-	GroupID         int64
-	Username        string
-	FullName        sql.NullString
-	DefaultPassword string
+	GroupID         int64          `json:"group_id"`
+	Username        string         `json:"username"`
+	FullName        sql.NullString `json:"full_name"`
+	DefaultPassword string         `json:"default_password"`
 }
 
 func (q *Queries) CreateUserReturning(ctx context.Context, arg CreateUserReturningParams) (int64, error) {
@@ -188,10 +188,10 @@ VALUES
 `
 
 type InsertExerciseRecordParams struct {
-	ProjectUuid string
-	GroupID     int64
-	Name        string
-	State       sql.NullString
+	ProjectUuid string         `json:"project_uuid"`
+	GroupID     int64          `json:"group_id"`
+	Name        string         `json:"name"`
+	State       sql.NullString `json:"state"`
 }
 
 func (q *Queries) InsertExerciseRecord(ctx context.Context, arg InsertExerciseRecordParams) error {
@@ -220,13 +220,13 @@ VALUES
 `
 
 type InsertNodeParams struct {
-	ClusterID int64
-	Protocol  string
-	Host      string
-	Port      int64
-	Weight    int64
-	MaxGroups sql.NullInt64
-	AuthUser  string
+	ClusterID int64         `json:"cluster_id"`
+	Protocol  string        `json:"protocol"`
+	Host      string        `json:"host"`
+	Port      int64         `json:"port"`
+	Weight    int64         `json:"weight"`
+	MaxGroups sql.NullInt64 `json:"max_groups"`
+	AuthUser  string        `json:"auth_user"`
 }
 
 func (q *Queries) InsertNode(ctx context.Context, arg InsertNodeParams) error {
@@ -267,13 +267,13 @@ RETURNING
 `
 
 type InsertNodeIntoClusterParams struct {
-	ClusterID int64
-	Protocol  string
-	Host      string
-	Port      int64
-	Weight    int64
-	MaxGroups sql.NullInt64
-	AuthUser  string
+	ClusterID int64         `json:"cluster_id"`
+	Protocol  string        `json:"protocol"`
+	Host      string        `json:"host"`
+	Port      int64         `json:"port"`
+	Weight    int64         `json:"weight"`
+	MaxGroups sql.NullInt64 `json:"max_groups"`
+	AuthUser  string        `json:"auth_user"`
 }
 
 func (q *Queries) InsertNodeIntoCluster(ctx context.Context, arg InsertNodeIntoClusterParams) (Node, error) {

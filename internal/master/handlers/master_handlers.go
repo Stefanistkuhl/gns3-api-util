@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/0xveya/gns3util/pkg/web/auth"
@@ -106,31 +108,39 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
-	userID := r.URL.Query().Get("user_id")
-	role := r.URL.Query().Get("role")
-
-	if userID == "" {
-		http.Error(w, "user_id required", http.StatusBadRequest)
+	var req CreateTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	if role == "" {
-		role = "worker"
+
+	if req.UserID == "" {
+		http.Error(w, "user_id required\n", http.StatusBadRequest)
+		return
 	}
 
-	scopes := []string{"files:read", "files:write"}
+	if req.Role == "" {
+		req.Role = "worker"
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := m.Store.PutUserPermissions(ctx, userID, scopes); err != nil {
-		http.Error(w, "Failed to store permissions", http.StatusInternalServerError)
+	scopesStr, err := m.Store.GetUserScopes(ctx, req.UserID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to fetch user permissions: %v. Run 'ctl create user' first.\n", err), http.StatusForbidden)
 		return
 	}
 
-	claims := auth.NewClaims(userID, role, scopes, 24*time.Hour)
+	var scopes []string
+	if scopesStr != "" {
+		scopes = strings.Split(scopesStr, ",")
+	}
+
+	claims := auth.NewClaims(req.UserID, req.Role, scopes, 365*24*time.Hour)
 	token, err := m.IDMgr.Mint(claims)
 	if err != nil {
-		http.Error(w, "Failed to mint token", http.StatusInternalServerError)
+		http.Error(w, "Failed to mint token\n", http.StatusInternalServerError)
 		return
 	}
 
@@ -158,7 +168,24 @@ func (m *Master) HandleGrantAccess(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	if err := m.Store.PutUserPermissions(ctx, userID, []string{scope}); err != nil {
+	existingScopesStr, err := m.Store.GetUserScopes(ctx, userID)
+	if err != nil && !strings.Contains(err.Error(), "user not found") {
+		http.Error(w, fmt.Sprintf("Failed to fetch existing permissions: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	var scopes []string
+	if existingScopesStr != "" {
+		scopes = strings.Split(existingScopesStr, ",")
+	}
+
+	hasScope := slices.Contains(scopes, scope)
+
+	if !hasScope {
+		scopes = append(scopes, scope)
+	}
+
+	if err := m.Store.PutUserPermissions(ctx, userID, scopes); err != nil {
 		http.Error(w, "Failed to grant access", http.StatusInternalServerError)
 		return
 	}
@@ -190,6 +217,72 @@ func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 	_, writeErr := w.Write([]byte("OK"))
 	if writeErr != nil {
 		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
+	expectedToken := os.Getenv("JOIN_TOKEN")
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "Bearer "+expectedToken {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req JoinFilestoreRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	cleanPath := filepath.Clean(m.TLSDir)
+	caCertPath := filepath.Join(cleanPath, "node.crt")
+	caKeyPath := filepath.Join(cleanPath, "node.key")
+
+	caCertPEM, err := os.ReadFile(caCertPath)
+	if err != nil {
+		http.Error(w, "Failed to read Master CA cert", http.StatusInternalServerError)
+		return
+	}
+	caKeyPEM, err := os.ReadFile(caKeyPath)
+	if err != nil {
+		http.Error(w, "Failed to read Master CA key", http.StatusInternalServerError)
+		return
+	}
+
+	caBlock, _ := pem.Decode(caCertPEM)
+	caCert, err := x509.ParseCertificate(caBlock.Bytes)
+	if err != nil {
+		http.Error(w, "Failed to parse Master CA cert", http.StatusInternalServerError)
+		return
+	}
+
+	keyBlock, _ := pem.Decode(caKeyPEM)
+	parsedKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		return
+	}
+	caPrivKey, ok := parsedKey.(ed25519.PrivateKey)
+	if !ok {
+		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		return
+	}
+
+	signedCertPEM, err := certs.SignCSR([]byte(req.CSRPEM), caCert, caPrivKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to sign CSR: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	resp := JoinFilestoreResponse{
+		NodeCert: string(signedCertPEM),
+		CACert:   string(caCertPEM),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
+		http.Error(w, fmt.Sprintf("Failed to encode response: %v", encodeErr), http.StatusInternalServerError)
 		return
 	}
 }

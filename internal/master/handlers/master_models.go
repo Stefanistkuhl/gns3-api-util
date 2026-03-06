@@ -28,3 +28,18 @@ type JoinClusterResponse struct {
 	CertPEM  []byte `json:"cert_pem"`
 	CACert   []byte `json:"ca_cert"`
 }
+
+type CreateTokenRequest struct {
+	UserID string `json:"user_id"`
+	Role   string `json:"role"`
+}
+
+type JoinFilestoreRequest struct {
+	CSRPEM string `json:"csr"`
+	Name   string `json:"name"`
+}
+
+type JoinFilestoreResponse struct {
+	NodeCert string `json:"node_cert"`
+	CACert   string `json:"ca_cert"`
+}

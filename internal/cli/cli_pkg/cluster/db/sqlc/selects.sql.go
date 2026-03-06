@@ -46,8 +46,8 @@ SELECT
 `
 
 type CheckIfClassExistsParams struct {
-	ClusterID int64
-	Name      string
+	ClusterID int64  `json:"cluster_id"`
+	Name      string `json:"name"`
 }
 
 func (q *Queries) CheckIfClassExists(ctx context.Context, arg CheckIfClassExistsParams) (int64, error) {
@@ -95,9 +95,9 @@ SELECT
 `
 
 type CheckIfNodeExistsParams struct {
-	ClusterID int64
-	Host      string
-	Port      int64
+	ClusterID int64  `json:"cluster_id"`
+	Host      string `json:"host"`
+	Port      int64  `json:"port"`
 }
 
 func (q *Queries) CheckIfNodeExists(ctx context.Context, arg CheckIfNodeExistsParams) (int64, error) {
@@ -126,7 +126,7 @@ func (q *Queries) GetAllExerciseNameFromCluster(ctx context.Context, name string
 		return nil, err
 	}
 	defer rows.Close()
-	var items []interface{}
+	items := []interface{}{}
 	for rows.Next() {
 		var column_1 interface{}
 		if err := rows.Scan(&column_1); err != nil {
@@ -166,11 +166,11 @@ ORDER BY
 `
 
 type GetClassDisributionRow struct {
-	ClassName string
-	ClassDesc sql.NullString
-	NodeUrl   interface{}
-	GroupName string
-	Username  string
+	ClassName string         `json:"class_name"`
+	ClassDesc sql.NullString `json:"class_desc"`
+	NodeUrl   interface{}    `json:"node_url"`
+	GroupName string         `json:"group_name"`
+	Username  string         `json:"username"`
 }
 
 func (q *Queries) GetClassDisribution(ctx context.Context, clusterID int64) ([]GetClassDisributionRow, error) {
@@ -179,7 +179,7 @@ func (q *Queries) GetClassDisribution(ctx context.Context, clusterID int64) ([]G
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetClassDisributionRow
+	items := []GetClassDisributionRow{}
 	for rows.Next() {
 		var i GetClassDisributionRow
 		if err := rows.Scan(
@@ -222,7 +222,7 @@ func (q *Queries) GetClasses(ctx context.Context, clusterID int64) ([]Class, err
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Class
+	items := []Class{}
 	for rows.Next() {
 		var i Class
 		if err := rows.Scan(
@@ -281,7 +281,7 @@ func (q *Queries) GetClusters(ctx context.Context) ([]Cluster, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Cluster
+	items := []Cluster{}
 	for rows.Next() {
 		var i Cluster
 		if err := rows.Scan(&i.ClusterID, &i.Name, &i.Description); err != nil {
@@ -321,18 +321,18 @@ WHERE
 `
 
 type GetExercisesForDeletionParams struct {
-	Name    string
-	Column2 interface{}
-	Name_2  string
-	Column4 interface{}
-	Name_3  string
+	Name    string      `json:"name"`
+	Column2 interface{} `json:"column_2"`
+	Name_2  string      `json:"name_2"`
+	Column4 interface{} `json:"column_4"`
+	Name_3  string      `json:"name_3"`
 }
 
 type GetExercisesForDeletionRow struct {
-	ProjectUuid string
-	Name        string
-	ClassName   string
-	GroupName   string
+	ProjectUuid string `json:"project_uuid"`
+	Name        string `json:"name"`
+	ClassName   string `json:"class_name"`
+	GroupName   string `json:"group_name"`
 }
 
 func (q *Queries) GetExercisesForDeletion(ctx context.Context, arg GetExercisesForDeletionParams) ([]GetExercisesForDeletionRow, error) {
@@ -347,7 +347,7 @@ func (q *Queries) GetExercisesForDeletion(ctx context.Context, arg GetExercisesF
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetExercisesForDeletionRow
+	items := []GetExercisesForDeletionRow{}
 	for rows.Next() {
 		var i GetExercisesForDeletionRow
 		if err := rows.Scan(
@@ -394,13 +394,13 @@ ORDER BY
 `
 
 type GetNodeExercisesForClusterRow struct {
-	NodeUrl      interface{}
-	ExerciseName string
-	ProjectUuid  string
-	GroupName    string
-	State        sql.NullString
-	ClassID      int64
-	Name         string
+	NodeUrl      interface{}    `json:"node_url"`
+	ExerciseName string         `json:"exercise_name"`
+	ProjectUuid  string         `json:"project_uuid"`
+	GroupName    string         `json:"group_name"`
+	State        sql.NullString `json:"state"`
+	ClassID      int64          `json:"class_id"`
+	Name         string         `json:"name"`
 }
 
 func (q *Queries) GetNodeExercisesForCluster(ctx context.Context, clusterID int64) ([]GetNodeExercisesForClusterRow, error) {
@@ -409,7 +409,7 @@ func (q *Queries) GetNodeExercisesForCluster(ctx context.Context, clusterID int6
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNodeExercisesForClusterRow
+	items := []GetNodeExercisesForClusterRow{}
 	for rows.Next() {
 		var i GetNodeExercisesForClusterRow
 		if err := rows.Scan(
@@ -448,8 +448,8 @@ GROUP BY
 `
 
 type GetNodeGroupAssignmentsRow struct {
-	NodeID int64
-	Count  int64
+	NodeID int64 `json:"node_id"`
+	Count  int64 `json:"count"`
 }
 
 func (q *Queries) GetNodeGroupAssignments(ctx context.Context, clusterID int64) ([]GetNodeGroupAssignmentsRow, error) {
@@ -458,7 +458,7 @@ func (q *Queries) GetNodeGroupAssignments(ctx context.Context, clusterID int64) 
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNodeGroupAssignmentsRow
+	items := []GetNodeGroupAssignmentsRow{}
 	for rows.Next() {
 		var i GetNodeGroupAssignmentsRow
 		if err := rows.Scan(&i.NodeID, &i.Count); err != nil {
@@ -498,16 +498,16 @@ ORDER BY
 `
 
 type GetNodeGroupNamesForClassParams struct {
-	ClusterID int64
-	Name      string
+	ClusterID int64  `json:"cluster_id"`
+	Name      string `json:"name"`
 }
 
 type GetNodeGroupNamesForClassRow struct {
-	NodeUrl         interface{}
-	GroupName       string
-	Username        string
-	FullName        sql.NullString
-	DefaultPassword string
+	NodeUrl         interface{}    `json:"node_url"`
+	GroupName       string         `json:"group_name"`
+	Username        string         `json:"username"`
+	FullName        sql.NullString `json:"full_name"`
+	DefaultPassword string         `json:"default_password"`
 }
 
 func (q *Queries) GetNodeGroupNamesForClass(ctx context.Context, arg GetNodeGroupNamesForClassParams) ([]GetNodeGroupNamesForClassRow, error) {
@@ -516,7 +516,7 @@ func (q *Queries) GetNodeGroupNamesForClass(ctx context.Context, arg GetNodeGrou
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GetNodeGroupNamesForClassRow
+	items := []GetNodeGroupNamesForClassRow{}
 	for rows.Next() {
 		var i GetNodeGroupNamesForClassRow
 		if err := rows.Scan(
@@ -561,7 +561,7 @@ func (q *Queries) GetNodes(ctx context.Context) ([]Node, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Node
+	items := []Node{}
 	for rows.Next() {
 		var i Node
 		if err := rows.Scan(
@@ -609,7 +609,7 @@ func (q *Queries) GetNodesFromClusterID(ctx context.Context, clusterID int64) ([
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Node
+	items := []Node{}
 	for rows.Next() {
 		var i Node
 		if err := rows.Scan(

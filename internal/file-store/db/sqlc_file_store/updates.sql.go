@@ -10,32 +10,47 @@ import (
 	"database/sql"
 )
 
-const markLastAccessed = `-- name: MarkLastAccessed :exec
+const updateFileLastAccessedAt = `-- name: UpdateFileLastAccessedAt :exec
 UPDATE
     files
 SET
-    last_accessed_at = CURRENT_TIMESTAMP
-WHERE
-    file_uuid = ?
-`
-
-func (q *Queries) MarkLastAccessed(ctx context.Context, fileUuid string) error {
-	_, err := q.db.ExecContext(ctx, markLastAccessed, fileUuid)
-	return err
-}
-
-const tombstoneFile = `-- name: TombstoneFile :exec
-UPDATE
-    files
-SET
-    STATUS = 'tombstoned',
+    last_accessed_at = CURRENT_TIMESTAMP,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?
 `
 
-func (q *Queries) TombstoneFile(ctx context.Context, fileUuid string) error {
-	_, err := q.db.ExecContext(ctx, tombstoneFile, fileUuid)
+func (q *Queries) UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, updateFileLastAccessedAt, fileUuid)
+	return err
+}
+
+const updateFileMetadata = `-- name: UpdateFileMetadata :exec
+UPDATE
+    files
+SET
+    filename = ?,
+    content_type = ?,
+    scope_label = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?
+`
+
+type UpdateFileMetadataParams struct {
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	ScopeLabel  string `json:"scope_label"`
+	FileUuid    string `json:"file_uuid"`
+}
+
+func (q *Queries) UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, updateFileMetadata,
+		arg.Filename,
+		arg.ContentType,
+		arg.ScopeLabel,
+		arg.FileUuid,
+	)
 	return err
 }
 
@@ -50,8 +65,8 @@ WHERE
 `
 
 type UpdateFileStatusParams struct {
-	Status   sql.NullString
-	FileUuid string
+	Status   sql.NullString `json:"status"`
+	FileUuid string         `json:"file_uuid"`
 }
 
 func (q *Queries) UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error {

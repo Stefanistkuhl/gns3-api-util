@@ -17,12 +17,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/0xveya/gns3util/internal/master/handlers"
+	"github.com/0xveya/gns3util/internal/master/rpc"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/otel"
@@ -32,10 +32,11 @@ import (
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
 	"github.com/go-chi/chi/v5"
+
+	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/grandcat/zeroconf"
 	"github.com/riandyrn/otelchi"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.opentelemetry.io/otel/log/global"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
@@ -100,6 +101,12 @@ func main() {
 	caPath := filepath.Join(cfg.TLSDir, "ca.crt")
 
 	cm := &certs.CertManager{}
+
+	if cfg.PrivKeyStr != "" {
+		logger.Info("Loaded private key from environment")
+	} else {
+		logger.Warn("No private key in environment, generating a temporary one!")
+	}
 
 	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err == nil {
@@ -175,18 +182,18 @@ func main() {
 		return
 	}
 
-	store, err := state.NewStateManager(
-		[]string{"localhost:" + strconv.Itoa(cfg.EtcdPort)},
-		nil,
+	store, storeErr := state.NewMasterStateManager(
+		[]string{fmt.Sprintf("https://localhost:%d", cfg.EtcdPort)},
 		cfg.TLSDir,
 	)
-	if err != nil {
-		logger.Error("Failed to connect to etcd", "err", err)
+	if storeErr != nil {
+		logger.Error("Failed to connect to etcd", "err", storeErr)
 		return
 	}
+	defer store.Close()
 
-	if bootstrapErr := bootstrapIfNeeded(ctx, store.MasterClient); bootstrapErr != nil {
-		logger.Error("Failed to bootstrap auth", "err", bootstrapErr)
+	if bootstrapErr := state.BootstrapMasterAuth(ctx, store.MasterClient); bootstrapErr != nil {
+		logger.Error("Failed to bootstrap etcd auth", "bootstrapErr", bootstrapErr)
 		return
 	}
 
@@ -242,6 +249,11 @@ func main() {
 	}()
 
 	m := drpcmux.New()
+	syncSvc := rpc.NewSyncService(store)
+	if registerErr := pb.DRPCRegisterMasterSyncService(m, syncSvc); registerErr != nil {
+		logger.Error("Failed to register sync service", "err", registerErr)
+		return
+	}
 	r := chi.NewRouter()
 	setupRouter(r, master, otlpEnabled)
 
@@ -264,6 +276,30 @@ func main() {
 		logger.Error("Failed to listen for drpc", "err", err)
 		return
 	}
+
+	caPath = filepath.Join(cfg.TLSDir, "ca.crt") //#nosec G304
+	var caData []byte
+	var readErr error
+	caData, readErr = os.ReadFile(caPath) //#nosec G304
+	if readErr != nil {
+		logger.Error("Failed to read CA for dRPC TLS", "err", readErr)
+		return
+	}
+
+	caPool := x509.NewCertPool()
+	if !caPool.AppendCertsFromPEM(caData) {
+		logger.Error("Failed to append CA cert for dRPC TLS")
+		return
+	}
+
+	drpcTLSConfig := &tls.Config{
+		GetCertificate: cm.GetCertificate,
+		ClientAuth:     tls.RequireAndVerifyClientCert,
+		ClientCAs:      caPool,
+		MinVersion:     tls.VersionTLS13,
+	}
+
+	tlsDRPCListener := tls.NewListener(drpcListener, drpcTLSConfig)
 	host, hostNameErr := os.Hostname()
 	if hostNameErr != nil {
 		logger.Error("Failed to get hostname", "err", hostNameErr)
@@ -302,7 +338,7 @@ func main() {
 	}()
 
 	go func() {
-		errChan <- drpcServer.Serve(ctx, drpcListener)
+		errChan <- drpcServer.Serve(ctx, tlsDRPCListener)
 	}()
 
 	for range 2 {
@@ -339,21 +375,7 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 	r.Post("/auth/grant", master.HandleGrantAccess)
 	r.Post("/auth/revoke", master.HandleRevokeAccess)
 	r.Post("/cluster/join", master.HandleJoinCluster)
-}
-
-func bootstrapIfNeeded(ctx context.Context, cli *clientv3.Client) error {
-	authResp, err := cli.AuthStatus(ctx)
-	if err != nil {
-		return err
-	}
-
-	if authResp.Enabled {
-		logger.Info("Auth already enabled, skipping bootstrap")
-		return nil
-	}
-
-	logger.Info("Bootstrapping RBAC...")
-	return state.BootstrapMasterAuth(ctx, cli)
+	r.Post("/cluster/join/filestore", master.HandleJoinFilestore)
 }
 
 func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) {
@@ -400,7 +422,7 @@ func generateAdminCert(caCert *x509.Certificate, caPrivKey any) (certPEM, keyPEM
 	template := x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
-			CommonName:   "admin",
+			CommonName:   "root",
 			Organization: []string{"system:masters"},
 		},
 		NotBefore:   time.Now(),

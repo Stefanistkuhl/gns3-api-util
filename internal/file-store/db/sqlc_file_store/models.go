@@ -9,42 +9,85 @@ import (
 )
 
 type Backup struct {
-	FileUuid         string
-	SourceNodeID     sql.NullString
-	BackupType       string
-	IsCompressed     sql.NullBool
-	IsEncrypted      sql.NullBool
-	ParentBackupUuid sql.NullString
+	FileUuid         string         `json:"file_uuid"`
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+}
+
+type ClusterKv struct {
+	Key       string       `json:"key"`
+	Value     string       `json:"value"`
+	Version   int64        `json:"version"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
+}
+
+type ClusterNode struct {
+	NodeID          string         `json:"node_id"`
+	NodeName        string         `json:"node_name"`
+	NodeKind        string         `json:"node_kind"`
+	ApiUrl          sql.NullString `json:"api_url"`
+	DrpcAddr        sql.NullString `json:"drpc_addr"`
+	AdvertiseAddr   sql.NullString `json:"advertise_addr"`
+	Status          string         `json:"status"`
+	LastHeartbeatAt sql.NullTime   `json:"last_heartbeat_at"`
+	CreatedAt       sql.NullTime   `json:"created_at"`
+	UpdatedAt       sql.NullTime   `json:"updated_at"`
 }
 
 type File struct {
-	FileUuid        string
-	FilePath        string
-	Filename        string
-	SizeBytes       int64
-	ChecksumSha256  string
-	ContentType     string
-	ScopeLabel      string
-	OwnerID         string
-	CreatedAt       sql.NullTime
-	UpdatedAt       sql.NullTime
-	LastAccessedAt  sql.NullTime
-	Status          sql.NullString
-	RetentionPeriod sql.NullInt64
+	FileUuid        string         `json:"file_uuid"`
+	FilePath        string         `json:"file_path"`
+	Filename        string         `json:"filename"`
+	SizeBytes       int64          `json:"size_bytes"`
+	ChecksumSha256  string         `json:"checksum_sha256"`
+	ContentType     string         `json:"content_type"`
+	ScopeLabel      string         `json:"scope_label"`
+	OwnerID         string         `json:"owner_id"`
+	CreatedAt       sql.NullTime   `json:"created_at"`
+	UpdatedAt       sql.NullTime   `json:"updated_at"`
+	LastAccessedAt  sql.NullTime   `json:"last_accessed_at"`
+	Status          sql.NullString `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
 }
 
 type ProjectFile struct {
-	FileUuid   string
-	ProjectID  string
-	VersionTag sql.NullString
-	IsReadOnly sql.NullBool
+	FileUuid   string         `json:"file_uuid"`
+	ProjectID  string         `json:"project_id"`
+	VersionTag sql.NullString `json:"version_tag"`
+	IsReadOnly sql.NullBool   `json:"is_read_only"`
+}
+
+type RevokedToken struct {
+	Jti       string       `json:"jti"`
+	UserID    string       `json:"user_id"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+	ExpiresAt sql.NullTime `json:"expires_at"`
+}
+
+type SyncState struct {
+	ReplicaName           string         `json:"replica_name"`
+	LastFullSyncAt        sql.NullTime   `json:"last_full_sync_at"`
+	LastIncrementalSyncAt sql.NullTime   `json:"last_incremental_sync_at"`
+	LastSourceRevision    int64          `json:"last_source_revision"`
+	LastStatus            string         `json:"last_status"`
+	LastError             sql.NullString `json:"last_error"`
+}
+
+type UserPermission struct {
+	UserID    string       `json:"user_id"`
+	Scope     string       `json:"scope"`
+	GrantedAt sql.NullTime `json:"granted_at"`
+	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 type VmImage struct {
-	FileUuid            string
-	VirtType            string
-	Format              string
-	Vcpus               sql.NullInt64
-	RamMb               sql.NullInt64
-	ExtraAttributesJson sql.NullString
+	FileUuid            string         `json:"file_uuid"`
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
 }

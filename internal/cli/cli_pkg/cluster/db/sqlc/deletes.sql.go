@@ -101,8 +101,8 @@ WHERE
 `
 
 type DeleteExerciseForClassOnNodeParams struct {
-	Name   string
-	NodeID int64
+	Name   string `json:"name"`
+	NodeID int64  `json:"node_id"`
 }
 
 func (q *Queries) DeleteExerciseForClassOnNode(ctx context.Context, arg DeleteExerciseForClassOnNodeParams) error {
@@ -145,8 +145,8 @@ WHERE
 `
 
 type DeleteExerciseScopedParams struct {
-	Name   string
-	Name_2 string
+	Name   string `json:"name"`
+	Name_2 string `json:"name_2"`
 }
 
 func (q *Queries) DeleteExerciseScoped(ctx context.Context, arg DeleteExerciseScopedParams) error {
@@ -185,8 +185,8 @@ WHERE
 `
 
 type UnassignGroupFromNodeParams struct {
-	NodeID  int64
-	GroupID int64
+	NodeID  int64 `json:"node_id"`
+	GroupID int64 `json:"group_id"`
 }
 
 func (q *Queries) UnassignGroupFromNode(ctx context.Context, arg UnassignGroupFromNodeParams) error {
