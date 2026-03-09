@@ -1,11 +1,9 @@
--- name: InsertFile :exec
+-- name: InitFile :one
 INSERT INTO
     files (
         file_uuid,
-        file_path,
         filename,
         size_bytes,
-        checksum_sha256,
         content_type,
         scope_label,
         owner_id,
@@ -14,7 +12,9 @@ INSERT INTO
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    (?, ?, ?, ?, ?, ?, ?, 'uploading', ?)
+RETURNING
+    *;
 
 -- name: InsertVMImage :exec
 INSERT INTO
@@ -41,6 +41,24 @@ INSERT INTO
     )
 VALUES
     (?, ?, ?, ?, ?, ?);
+
+-- name: InsertFile :exec
+INSERT INTO
+    files (
+        file_uuid,
+        file_path,
+        filename,
+        size_bytes,
+        checksum_sha256,
+        content_type,
+        scope_label,
+        owner_id,
+        last_accessed_at,
+        STATUS,
+        retention_period
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertProjectFile :exec
 INSERT INTO

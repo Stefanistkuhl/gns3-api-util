@@ -19,13 +19,16 @@ type Querier interface {
 	DeleteExpiredRevokedTokens(ctx context.Context) error
 	DeleteFile(ctx context.Context, fileUuid string) error
 	DeleteUserPermission(ctx context.Context, arg DeleteUserPermissionParams) error
+	FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error)
 	GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error)
 	GetClusterKV(ctx context.Context, key string) (ClusterKv, error)
 	GetClusterNode(ctx context.Context, nodeID string) (ClusterNode, error)
 	GetFileByUUID(ctx context.Context, fileUuid string) (File, error)
+	GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error)
 	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error)
 	GetSyncState(ctx context.Context, replicaName string) (SyncState, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
+	InitFile(ctx context.Context, arg InitFileParams) (File, error)
 	InsertBackup(ctx context.Context, arg InsertBackupParams) error
 	InsertFile(ctx context.Context, arg InsertFileParams) error
 	InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error
@@ -41,6 +44,7 @@ type Querier interface {
 	ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error)
 	ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error)
 	ListUserPermissions(ctx context.Context, userID string) ([]UserPermission, error)
+	MarkFileTombstoned(ctx context.Context, fileUuid string) error
 	RevokeToken(ctx context.Context, arg RevokeTokenParams) error
 	UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error
 	UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error

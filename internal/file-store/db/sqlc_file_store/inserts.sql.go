@@ -8,7 +8,69 @@ package sqlc_file_store
 import (
 	"context"
 	"database/sql"
+
+	"github.com/0xveya/gns3util/internal/file-store/models"
 )
+
+const initFile = `-- name: InitFile :one
+INSERT INTO
+    files (
+        file_uuid,
+        filename,
+        size_bytes,
+        content_type,
+        scope_label,
+        owner_id,
+        last_accessed_at,
+        STATUS,
+        retention_period
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?, ?, 'uploading', ?)
+RETURNING
+    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
+`
+
+type InitFileParams struct {
+	FileUuid        string        `json:"file_uuid"`
+	Filename        string        `json:"filename"`
+	SizeBytes       int64         `json:"size_bytes"`
+	ContentType     string        `json:"content_type"`
+	ScopeLabel      string        `json:"scope_label"`
+	OwnerID         string        `json:"owner_id"`
+	LastAccessedAt  sql.NullTime  `json:"last_accessed_at"`
+	RetentionPeriod sql.NullInt64 `json:"retention_period"`
+}
+
+func (q *Queries) InitFile(ctx context.Context, arg InitFileParams) (File, error) {
+	row := q.db.QueryRowContext(ctx, initFile,
+		arg.FileUuid,
+		arg.Filename,
+		arg.SizeBytes,
+		arg.ContentType,
+		arg.ScopeLabel,
+		arg.OwnerID,
+		arg.LastAccessedAt,
+		arg.RetentionPeriod,
+	)
+	var i File
+	err := row.Scan(
+		&i.FileUuid,
+		&i.FilePath,
+		&i.Filename,
+		&i.SizeBytes,
+		&i.ChecksumSha256,
+		&i.ContentType,
+		&i.ScopeLabel,
+		&i.OwnerID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastAccessedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+	)
+	return i, err
+}
 
 const insertBackup = `-- name: InsertBackup :exec
 INSERT INTO
@@ -65,17 +127,17 @@ VALUES
 `
 
 type InsertFileParams struct {
-	FileUuid        string         `json:"file_uuid"`
-	FilePath        string         `json:"file_path"`
-	Filename        string         `json:"filename"`
-	SizeBytes       int64          `json:"size_bytes"`
-	ChecksumSha256  string         `json:"checksum_sha256"`
-	ContentType     string         `json:"content_type"`
-	ScopeLabel      string         `json:"scope_label"`
-	OwnerID         string         `json:"owner_id"`
-	LastAccessedAt  sql.NullTime   `json:"last_accessed_at"`
-	Status          sql.NullString `json:"status"`
-	RetentionPeriod sql.NullInt64  `json:"retention_period"`
+	FileUuid        string            `json:"file_uuid"`
+	FilePath        string            `json:"file_path"`
+	Filename        string            `json:"filename"`
+	SizeBytes       int64             `json:"size_bytes"`
+	ChecksumSha256  string            `json:"checksum_sha256"`
+	ContentType     string            `json:"content_type"`
+	ScopeLabel      string            `json:"scope_label"`
+	OwnerID         string            `json:"owner_id"`
+	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
+	Status          models.FileStatus `json:"status"`
+	RetentionPeriod sql.NullInt64     `json:"retention_period"`
 }
 
 func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {

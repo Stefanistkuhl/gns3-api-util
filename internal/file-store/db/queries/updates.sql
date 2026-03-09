@@ -26,3 +26,26 @@ SET
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?;
+
+-- name: FinalizeFile :one
+UPDATE
+    files
+SET
+    checksum_sha256 = ?,
+    size_bytes = ?,
+    file_path = ?,
+    STATUS = 'available',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?
+RETURNING
+    *;
+
+-- name: MarkFileTombstoned :exec
+UPDATE
+    files
+SET
+    STATUS = 'tombstoned',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?;

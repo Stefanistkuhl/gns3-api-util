@@ -279,3 +279,11 @@ FROM
     sync_state
 WHERE
     replica_name = ?;
+
+-- name: GetOwnerOfFileByUUID :one
+SELECT
+    owner_id
+FROM
+    files
+WHERE
+    file_uuid = ?;

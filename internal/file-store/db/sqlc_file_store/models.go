@@ -6,6 +6,8 @@ package sqlc_file_store
 
 import (
 	"database/sql"
+
+	"github.com/0xveya/gns3util/internal/file-store/models"
 )
 
 type Backup struct {
@@ -38,19 +40,19 @@ type ClusterNode struct {
 }
 
 type File struct {
-	FileUuid        string         `json:"file_uuid"`
-	FilePath        string         `json:"file_path"`
-	Filename        string         `json:"filename"`
-	SizeBytes       int64          `json:"size_bytes"`
-	ChecksumSha256  string         `json:"checksum_sha256"`
-	ContentType     string         `json:"content_type"`
-	ScopeLabel      string         `json:"scope_label"`
-	OwnerID         string         `json:"owner_id"`
-	CreatedAt       sql.NullTime   `json:"created_at"`
-	UpdatedAt       sql.NullTime   `json:"updated_at"`
-	LastAccessedAt  sql.NullTime   `json:"last_accessed_at"`
-	Status          sql.NullString `json:"status"`
-	RetentionPeriod sql.NullInt64  `json:"retention_period"`
+	FileUuid        string            `json:"file_uuid"`
+	FilePath        string            `json:"file_path"`
+	Filename        string            `json:"filename"`
+	SizeBytes       int64             `json:"size_bytes"`
+	ChecksumSha256  string            `json:"checksum_sha256"`
+	ContentType     string            `json:"content_type"`
+	ScopeLabel      string            `json:"scope_label"`
+	OwnerID         string            `json:"owner_id"`
+	CreatedAt       sql.NullTime      `json:"created_at"`
+	UpdatedAt       sql.NullTime      `json:"updated_at"`
+	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
+	Status          models.FileStatus `json:"status"`
+	RetentionPeriod sql.NullInt64     `json:"retention_period"`
 }
 
 type ProjectFile struct {

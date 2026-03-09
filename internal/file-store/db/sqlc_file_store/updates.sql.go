@@ -7,8 +7,72 @@ package sqlc_file_store
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/0xveya/gns3util/internal/file-store/models"
 )
+
+const finalizeFile = `-- name: FinalizeFile :one
+UPDATE
+    files
+SET
+    checksum_sha256 = ?,
+    size_bytes = ?,
+    file_path = ?,
+    STATUS = 'available',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?
+RETURNING
+    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
+`
+
+type FinalizeFileParams struct {
+	ChecksumSha256 string `json:"checksum_sha256"`
+	SizeBytes      int64  `json:"size_bytes"`
+	FilePath       string `json:"file_path"`
+	FileUuid       string `json:"file_uuid"`
+}
+
+func (q *Queries) FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error) {
+	row := q.db.QueryRowContext(ctx, finalizeFile,
+		arg.ChecksumSha256,
+		arg.SizeBytes,
+		arg.FilePath,
+		arg.FileUuid,
+	)
+	var i File
+	err := row.Scan(
+		&i.FileUuid,
+		&i.FilePath,
+		&i.Filename,
+		&i.SizeBytes,
+		&i.ChecksumSha256,
+		&i.ContentType,
+		&i.ScopeLabel,
+		&i.OwnerID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastAccessedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+	)
+	return i, err
+}
+
+const markFileTombstoned = `-- name: MarkFileTombstoned :exec
+UPDATE
+    files
+SET
+    STATUS = 'tombstoned',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) MarkFileTombstoned(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, markFileTombstoned, fileUuid)
+	return err
+}
 
 const updateFileLastAccessedAt = `-- name: UpdateFileLastAccessedAt :exec
 UPDATE
@@ -65,8 +129,8 @@ WHERE
 `
 
 type UpdateFileStatusParams struct {
-	Status   sql.NullString `json:"status"`
-	FileUuid string         `json:"file_uuid"`
+	Status   models.FileStatus `json:"status"`
+	FileUuid string            `json:"file_uuid"`
 }
 
 func (q *Queries) UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error {

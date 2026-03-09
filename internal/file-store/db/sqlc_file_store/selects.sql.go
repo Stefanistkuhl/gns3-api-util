@@ -140,6 +140,22 @@ func (q *Queries) GetFileByUUID(ctx context.Context, fileUuid string) (File, err
 	return i, err
 }
 
+const getOwnerOfFileByUUID = `-- name: GetOwnerOfFileByUUID :one
+SELECT
+    owner_id
+FROM
+    files
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getOwnerOfFileByUUID, fileUuid)
+	var owner_id string
+	err := row.Scan(&owner_id)
+	return owner_id, err
+}
+
 const getProjectFileByFileUUID = `-- name: GetProjectFileByFileUUID :one
 SELECT
     file_uuid,

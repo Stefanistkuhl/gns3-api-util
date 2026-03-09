@@ -18,6 +18,7 @@ import (
 	"time"
 
 	dbpkg "github.com/0xveya/gns3util/internal/file-store/db"
+	"github.com/0xveya/gns3util/internal/file-store/fs"
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
 	syncsvc "github.com/0xveya/gns3util/internal/file-store/sync"
@@ -53,6 +54,7 @@ type FilestoreConfig struct {
 	SyncInterval  int    `env:"FILE_STORE_SYNC_INTERVAL_SEC" type:"int" default:"15"`
 	JoinToken     string `env:"JOIN_TOKEN" type:"string" default:""`
 	DB_PATH       string `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
+	DATA_DIR      string `env:"FILE_STORE_DATA_PATH" type:"string" default:"/data/storrage/"`
 }
 
 var (
@@ -113,6 +115,12 @@ func main() {
 		logger.Info("Successfully bootstrapped certificates")
 	}
 
+	fsState, createDirsErr := fs.CreateDirStructure(cfg.DATA_DIR)
+	if createDirsErr != nil {
+		logger.Error("Failed to create need directorys to store files", "err", createDirsErr)
+		return
+	}
+
 	dbStore, err := dbpkg.NewStore(cfg.DB_PATH)
 	if err != nil {
 		logger.Error("Failed to open sqlite store", "err", err)
@@ -163,7 +171,7 @@ func main() {
 
 	m := drpcmux.New()
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, dbStore, otlpEnabled)
+	setupRouter(r, idMgr, dbStore, otlpEnabled, fsState)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -224,7 +232,9 @@ func setupRouter(
 	idMgr *auth.IdentityManager,
 	store *dbpkg.Store,
 	otelEnabled bool,
+	dirs fs.Dirs,
 ) {
+	handlersStruct := &handlers.FilestoreHandlers{Store: store, Logger: logger, Dirs: &dirs}
 	if !otelEnabled {
 		r.Use(chimiddleware.Logger)
 	} else {
@@ -250,11 +260,23 @@ func setupRouter(
 		r.Route("/v1", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(idMgr))
 
-			r.With(middleware.RequireScope(store, "files:read")).
-				Get("/files", handlers.DownloadFileHandler)
+			r.Route("/files", func(r chi.Router) {
+				r.With(middleware.RequireScope(store, "files:write")).
+					Post("/", handlersStruct.HandleInitUpload)
 
-			r.With(middleware.RequireScope(store, "files:write")).
-				Post("/files", handlers.UploadFileHandler)
+				r.Route("/{file_uuid}", func(r chi.Router) {
+					r.With(middleware.RequireScope(store, "files:read")).
+						Get("/", handlersStruct.DownloadFileHandler)
+
+					r.Route("/content", func(r chi.Router) {
+						r.With(middleware.RequireScope(store, "files:read")).
+							Get("/", handlersStruct.GetUploadStatus)
+
+						r.With(middleware.RequireScope(store, "files:write")).
+							Put("/", handlersStruct.HandleStreamUpload)
+					})
+				})
+			})
 		})
 	})
 }
