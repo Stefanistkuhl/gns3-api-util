@@ -10,11 +10,50 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 )
 
-type GNS3Key struct {
+type ServiceType string
+
+const (
+	TypeGNS3Server       ServiceType = "gns3_server"
+	TypeClusterMaster    ServiceType = "cluster_master"
+	TypeClusterNode      ServiceType = "cluster_node"
+	TypeClusterFileStore ServiceType = "cluster_filestore"
+)
+
+type LegacyGNS3Key struct {
 	ServerURL   string `json:"server_url"`
 	User        string `json:"user"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
+}
+
+type KeyFileV2 struct {
+	Version        int               `json:"version"`
+	StandaloneGNS3 []GNS3ServerEntry `json:"standalone_gns3,omitempty"`
+	Clusters       []ClusterEntry    `json:"clusters,omitempty"`
+}
+
+type GNS3ServerEntry struct {
+	Name        string `json:"name,omitempty"`
+	URL         string `json:"url"`
+	User        string `json:"user"`
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+}
+
+type ClusterEntry struct {
+	Name   string         `json:"name"`
+	Master ServiceEntry   `json:"master"`
+	Nodes  []ServiceEntry `json:"nodes,omitempty"`
+
+	GNS3Servers []GNS3ServerEntry `json:"gns3_servers,omitempty"`
+}
+
+type ServiceEntry struct {
+	Type        ServiceType `json:"type"`
+	URL         string      `json:"url"`
+	User        string      `json:"user"`
+	AccessToken string      `json:"access_token"`
+	TokenType   string      `json:"token_type"`
 }
 
 func ExpandPath(p string) (string, error) {
@@ -57,31 +96,117 @@ func GetGNS3Dir() (string, error) {
 	return gns3Dir, nil
 }
 
-func LoadGNS3KeysFile(path string) ([]GNS3Key, error) {
+func LoadGNS3KeysFile(path string) (*KeyFileV2, error) {
 	f, err := os.Open(path) // #nosec G304
 	if os.IsNotExist(err) {
-		return nil, nil
+		return &KeyFileV2{Version: 2}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not open %q: %w", path, err)
 	}
 	defer func() {
-		if err := f.Close(); err != nil {
-			fmt.Printf("failed to close file: %v", err)
+		if closeErr := f.Close(); closeErr != nil {
+			fmt.Printf("failed to close file: %v", closeErr)
 		}
 	}()
 
-	var keys []GNS3Key
-	dec := json.NewDecoder(f)
+	buf := make([]byte, 1)
+	n, readErr := f.Read(buf)
+	if readErr == io.EOF || n == 0 {
+		return &KeyFileV2{Version: 2}, nil
+	}
+	if readErr != nil {
+		return nil, fmt.Errorf("failed to read file: %w", readErr)
+	}
+
+	if _, seekErr := f.Seek(0, 0); seekErr != nil {
+		return nil, fmt.Errorf("failed to seek: %w", seekErr)
+	}
+
+	if buf[0] == '{' && isV2Format(f) {
+		if _, seekErr := f.Seek(0, 0); seekErr != nil {
+			return nil, seekErr
+		}
+		var kf KeyFileV2
+		if decodeErr := json.NewDecoder(f).Decode(&kf); decodeErr != nil {
+			return nil, fmt.Errorf("failed to decode V2: %w", decodeErr)
+		}
+		return &kf, nil
+	}
+
+	// If not V2, rewind and parse as legacy
+	if _, seekErr := f.Seek(0, 0); seekErr != nil {
+		return nil, seekErr
+	}
+
+	kf, err := parseLegacyFormat(f)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = SaveKeysFile(path, kf)
+
+	return kf, nil
+}
+
+func parseLegacyFormat(r io.Reader) (*KeyFileV2, error) {
+	kf := &KeyFileV2{Version: 2}
+	dec := json.NewDecoder(r)
+
 	for {
-		var k GNS3Key
-		if err := dec.Decode(&k); err != nil {
+		var old LegacyGNS3Key
+		if err := dec.Decode(&old); err != nil {
 			if err == io.EOF {
 				break
 			}
-			return nil, fmt.Errorf("failed to decode JSON in %q: %w", path, err)
+			return nil, fmt.Errorf("failed to decode legacy JSON: %w", err)
 		}
-		keys = append(keys, k)
+
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, GNS3ServerEntry{
+			URL:         old.ServerURL,
+			User:        old.User,
+			AccessToken: old.AccessToken,
+			TokenType:   old.TokenType,
+		})
 	}
-	return keys, nil
+
+	return kf, nil
+}
+
+func isV2Format(f *os.File) bool {
+	var peek struct {
+		Version int `json:"version"`
+	}
+	dec := json.NewDecoder(f)
+	if err := dec.Decode(&peek); err != nil {
+		return false
+	}
+	return peek.Version == 2
+}
+
+func SaveKeysFile(path string, kf *KeyFileV2) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) // #nosec G304
+	if err != nil {
+		return fmt.Errorf("failed to open key file %q: %w", path, err)
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	if encErr := enc.Encode(kf); encErr != nil {
+		return fmt.Errorf("failed to write key file: %w", encErr)
+	}
+
+	return nil
+}
+
+func ResolveKeyFilePath(cfgKeyFile string) (string, error) {
+	if cfgKeyFile != "" {
+		return ExpandPath(cfgKeyFile)
+	}
+	dir, err := GetGNS3Dir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "gns3key"), nil
 }

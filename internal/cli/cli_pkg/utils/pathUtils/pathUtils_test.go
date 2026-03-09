@@ -67,18 +67,21 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer func() {
-		if err := os.RemoveAll(tempDir); err != nil {
-			t.Logf("Failed to remove temp dir: %v", err)
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			t.Logf("Failed to remove temp dir: %v", removeErr)
 		}
 	}()
 
 	t.Run("non-existent file", func(t *testing.T) {
-		keys, err := LoadGNS3KeysFile(filepath.Join(tempDir, "nonexistent"))
+		kf, err := LoadGNS3KeysFile(filepath.Join(tempDir, "nonexistent"))
 		if err != nil {
 			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
-		if len(keys) != 0 {
-			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", keys)
+		if kf == nil {
+			t.Fatal("LoadGNS3KeysFile() should return non-nil KeyFileV2")
+		}
+		if len(kf.StandaloneGNS3) != 0 {
+			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", kf.StandaloneGNS3)
 		}
 	})
 
@@ -89,18 +92,21 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 			t.Fatalf("Failed to write empty file: %v", err)
 		}
 
-		keys, err := LoadGNS3KeysFile(emptyFile)
+		kf, err := LoadGNS3KeysFile(emptyFile)
 		if err != nil {
 			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
-		if len(keys) != 0 {
-			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", keys)
+		if kf == nil {
+			t.Fatal("LoadGNS3KeysFile() should return non-nil KeyFileV2")
+		}
+		if len(kf.StandaloneGNS3) != 0 {
+			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", kf.StandaloneGNS3)
 		}
 	})
 
-	t.Run("single key", func(t *testing.T) {
-		keyFile := filepath.Join(tempDir, "single_key")
-		key := GNS3Key{
+	t.Run("legacy single key", func(t *testing.T) {
+		keyFile := filepath.Join(tempDir, "single_key_legacy")
+		key := LegacyGNS3Key{
 			ServerURL:   "http://example.com",
 			User:        "testuser",
 			AccessToken: "testtoken",
@@ -117,17 +123,20 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 			t.Fatalf("Failed to write key file: %v", err)
 		}
 
-		keys, err := LoadGNS3KeysFile(keyFile)
+		kf, err := LoadGNS3KeysFile(keyFile)
 		if err != nil {
 			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
-		if len(keys) != 1 {
-			t.Errorf("LoadGNS3KeysFile() = %v, want 1 key", len(keys))
+		if kf == nil {
+			t.Fatal("LoadGNS3KeysFile() returned nil")
+		}
+		if len(kf.StandaloneGNS3) != 1 {
+			t.Fatalf("LoadGNS3KeysFile() = %v, want 1 key", len(kf.StandaloneGNS3))
 		}
 
-		loadedKey := keys[0]
-		if loadedKey.ServerURL != key.ServerURL {
-			t.Errorf("ServerURL = %v, want %v", loadedKey.ServerURL, key.ServerURL)
+		loadedKey := kf.StandaloneGNS3[0]
+		if loadedKey.URL != key.ServerURL {
+			t.Errorf("URL = %v, want %v", loadedKey.URL, key.ServerURL)
 		}
 		if loadedKey.User != key.User {
 			t.Errorf("User = %v, want %v", loadedKey.User, key.User)
@@ -140,10 +149,10 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 		}
 	})
 
-	t.Run("multiple keys", func(t *testing.T) {
-		keyFile := filepath.Join(tempDir, "multiple_keys")
+	t.Run("legacy multiple keys", func(t *testing.T) {
+		keyFile := filepath.Join(tempDir, "multiple_keys_legacy")
 
-		keys := []GNS3Key{
+		keys := []LegacyGNS3Key{
 			{
 				ServerURL:   "http://server1.com",
 				User:        "user1",
@@ -160,9 +169,9 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 
 		fileData := make([]byte, 0, len(keys)*100)
 		for _, key := range keys {
-			data, err := json.Marshal(key)
-			if err != nil {
-				t.Fatalf("Failed to marshal key: %v", err)
+			data, mErr := json.Marshal(key)
+			if mErr != nil {
+				t.Fatalf("Failed to marshal key: %v", mErr)
 			}
 			fileData = append(fileData, data...)
 			fileData = append(fileData, '\n')
@@ -173,24 +182,65 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 			t.Fatalf("Failed to write key file: %v", err)
 		}
 
-		loadedKeys, err := LoadGNS3KeysFile(keyFile)
+		kf, err := LoadGNS3KeysFile(keyFile)
 		if err != nil {
 			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
-		if len(loadedKeys) != 2 {
-			t.Errorf("LoadGNS3KeysFile() = %v, want 2 keys", len(loadedKeys))
+		if kf == nil {
+			t.Fatal("LoadGNS3KeysFile() returned nil")
+		}
+		if len(kf.StandaloneGNS3) != 2 {
+			t.Fatalf("LoadGNS3KeysFile() = %v, want 2 keys", len(kf.StandaloneGNS3))
 		}
 
 		for i, expectedKey := range keys {
-			if loadedKeys[i].ServerURL != expectedKey.ServerURL {
-				t.Errorf("Key %d ServerURL = %v, want %v", i, loadedKeys[i].ServerURL, expectedKey.ServerURL)
+			if kf.StandaloneGNS3[i].URL != expectedKey.ServerURL {
+				t.Errorf("Key %d URL = %v, want %v", i, kf.StandaloneGNS3[i].URL, expectedKey.ServerURL)
 			}
-			if loadedKeys[i].User != expectedKey.User {
-				t.Errorf("Key %d User = %v, want %v", i, loadedKeys[i].User, expectedKey.User)
+			if kf.StandaloneGNS3[i].User != expectedKey.User {
+				t.Errorf("Key %d User = %v, want %v", i, kf.StandaloneGNS3[i].User, expectedKey.User)
 			}
-			if loadedKeys[i].AccessToken != expectedKey.AccessToken {
-				t.Errorf("Key %d AccessToken = %v, want %v", i, loadedKeys[i].AccessToken, expectedKey.AccessToken)
+			if kf.StandaloneGNS3[i].AccessToken != expectedKey.AccessToken {
+				t.Errorf("Key %d AccessToken = %v, want %v", i, kf.StandaloneGNS3[i].AccessToken, expectedKey.AccessToken)
 			}
+		}
+	})
+
+	t.Run("V2 format", func(t *testing.T) {
+		keyFile := filepath.Join(tempDir, "v2_key")
+		kf := &KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, GNS3ServerEntry{
+			URL:         "http://example.com",
+			User:        "testuser",
+			AccessToken: "testtoken",
+			TokenType:   "Bearer",
+		})
+
+		data, err := json.Marshal(kf)
+		if err != nil {
+			t.Fatalf("Failed to marshal keys: %v", err)
+		}
+
+		err = os.WriteFile(keyFile, data, 0o600)
+		if err != nil {
+			t.Fatalf("Failed to write key file: %v", err)
+		}
+
+		loadedKf, err := LoadGNS3KeysFile(keyFile)
+		if err != nil {
+			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+		}
+		if loadedKf == nil {
+			t.Fatal("LoadGNS3KeysFile() returned nil")
+		}
+		if loadedKf.Version != 2 {
+			t.Errorf("Version = %v, want 2", loadedKf.Version)
+		}
+		if len(loadedKf.StandaloneGNS3) != 1 {
+			t.Fatalf("Expected 1 key, got %d", len(loadedKf.StandaloneGNS3))
+		}
+		if loadedKf.StandaloneGNS3[0].URL != "http://example.com" {
+			t.Errorf("URL = %v, want http://example.com", loadedKf.StandaloneGNS3[0].URL)
 		}
 	})
 
@@ -201,90 +251,100 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 			t.Fatalf("Failed to write invalid file: %v", err)
 		}
 
-		keys, err := LoadGNS3KeysFile(invalidFile)
+		kf, err := LoadGNS3KeysFile(invalidFile)
 		if err == nil {
 			t.Error("LoadGNS3KeysFile() should return error for invalid JSON")
 		}
-		if keys != nil {
-			t.Errorf("LoadGNS3KeysFile() = %v, want nil", keys)
-		}
-	})
-
-	t.Run("partial JSON", func(t *testing.T) {
-		partialFile := filepath.Join(tempDir, "partial")
-		content := `{"server_url": "http://example.com"}` + "\n" + `invalid json` + "\n"
-		err := os.WriteFile(partialFile, []byte(content), 0o600)
-		if err != nil {
-			t.Fatalf("Failed to write partial file: %v", err)
-		}
-
-		keys, err := LoadGNS3KeysFile(partialFile)
-		if err == nil {
-			t.Error("LoadGNS3KeysFile() should return error for partial JSON")
-		}
-		if keys != nil {
-			t.Errorf("LoadGNS3KeysFile() = %v, want nil", keys)
+		if kf != nil {
+			t.Errorf("LoadGNS3KeysFile() = %v, want nil", kf)
 		}
 	})
 }
 
-func TestGNS3KeySerialization(t *testing.T) {
-	key := GNS3Key{
-		ServerURL:   "http://example.com",
+func TestSaveKeysFile(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "gns3_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			t.Logf("Failed to remove temp dir: %v", removeErr)
+		}
+	}()
+
+	keyFile := filepath.Join(tempDir, "gns3key")
+
+	kf := &KeyFileV2{Version: 2}
+	kf.StandaloneGNS3 = append(kf.StandaloneGNS3, GNS3ServerEntry{
+		URL:         "http://example.com",
 		User:        "testuser",
 		AccessToken: "testtoken",
 		TokenType:   "Bearer",
-	}
+	})
 
-	data, err := json.Marshal(key)
+	err = SaveKeysFile(keyFile, kf)
 	if err != nil {
-		t.Fatalf("Failed to marshal GNS3Key: %v", err)
+		t.Fatalf("SaveKeysFile() error = %v", err)
 	}
 
-	var unmarshaled GNS3Key
-	err = json.Unmarshal(data, &unmarshaled)
+	loadedKf, err := LoadGNS3KeysFile(keyFile)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal GNS3Key: %v", err)
+		t.Fatalf("LoadGNS3KeysFile() error = %v", err)
 	}
 
-	if unmarshaled.ServerURL != key.ServerURL {
-		t.Errorf("ServerURL = %v, want %v", unmarshaled.ServerURL, key.ServerURL)
+	if loadedKf.Version != 2 {
+		t.Errorf("Version = %v, want 2", loadedKf.Version)
 	}
-	if unmarshaled.User != key.User {
-		t.Errorf("User = %v, want %v", unmarshaled.User, key.User)
+	if len(loadedKf.StandaloneGNS3) != 1 {
+		t.Errorf("Expected 1 key, got %d", len(loadedKf.StandaloneGNS3))
 	}
-	if unmarshaled.AccessToken != key.AccessToken {
-		t.Errorf("AccessToken = %v, want %v", unmarshaled.AccessToken, key.AccessToken)
-	}
-	if unmarshaled.TokenType != key.TokenType {
-		t.Errorf("TokenType = %v, want %v", unmarshaled.TokenType, key.TokenType)
+	if loadedKf.StandaloneGNS3[0].URL != "http://example.com" {
+		t.Errorf("URL = %v, want http://example.com", loadedKf.StandaloneGNS3[0].URL)
 	}
 }
 
-func TestGNS3KeyEmptyFields(t *testing.T) {
-	key := GNS3Key{}
+func TestKeyFileV2Serialization(t *testing.T) {
+	kf := &KeyFileV2{Version: 2}
+	kf.StandaloneGNS3 = append(kf.StandaloneGNS3, GNS3ServerEntry{
+		URL:         "http://example.com",
+		User:        "testuser",
+		AccessToken: "testtoken",
+		TokenType:   "Bearer",
+	})
+	kf.Clusters = append(kf.Clusters, ClusterEntry{
+		Name: "test-cluster",
+		Master: ServiceEntry{
+			URL:         "http://master.example.com",
+			User:        "admin",
+			AccessToken: "cluster-token",
+			TokenType:   "Bearer",
+		},
+	})
 
-	data, err := json.Marshal(key)
+	data, err := json.Marshal(kf)
 	if err != nil {
-		t.Fatalf("Failed to marshal empty GNS3Key: %v", err)
+		t.Fatalf("Failed to marshal KeyFileV2: %v", err)
 	}
 
-	var unmarshaled GNS3Key
+	var unmarshaled KeyFileV2
 	err = json.Unmarshal(data, &unmarshaled)
 	if err != nil {
-		t.Fatalf("Failed to unmarshal empty GNS3Key: %v", err)
+		t.Fatalf("Failed to unmarshal KeyFileV2: %v", err)
 	}
 
-	if unmarshaled.ServerURL != "" {
-		t.Errorf("ServerURL = %v, want empty string", unmarshaled.ServerURL)
+	if unmarshaled.Version != 2 {
+		t.Errorf("Version = %v, want 2", unmarshaled.Version)
 	}
-	if unmarshaled.User != "" {
-		t.Errorf("User = %v, want empty string", unmarshaled.User)
+	if len(unmarshaled.StandaloneGNS3) != 1 {
+		t.Errorf("StandaloneGNS3 length = %v, want 1", len(unmarshaled.StandaloneGNS3))
 	}
-	if unmarshaled.AccessToken != "" {
-		t.Errorf("AccessToken = %v, want empty string", unmarshaled.AccessToken)
+	if len(unmarshaled.Clusters) != 1 {
+		t.Errorf("Clusters length = %v, want 1", len(unmarshaled.Clusters))
 	}
-	if unmarshaled.TokenType != "" {
-		t.Errorf("TokenType = %v, want empty string", unmarshaled.TokenType)
+	if unmarshaled.StandaloneGNS3[0].URL != "http://example.com" {
+		t.Errorf("URL = %v, want http://example.com", unmarshaled.StandaloneGNS3[0].URL)
+	}
+	if unmarshaled.Clusters[0].Name != "test-cluster" {
+		t.Errorf("Cluster name = %v, want test-cluster", unmarshaled.Clusters[0].Name)
 	}
 }

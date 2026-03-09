@@ -104,3 +104,17 @@ func GetFirstNonLoopbackIP() string {
 	}
 	return "127.0.0.1"
 }
+
+func NormalizeURL(urlStr string) string {
+	if strings.HasPrefix(urlStr, "http://") {
+		urlStr = urlStr[7:]
+	} else if strings.HasPrefix(urlStr, "https://") {
+		urlStr = urlStr[8:]
+	}
+
+	if colonIndex := strings.Index(urlStr, ":"); colonIndex != -1 {
+		urlStr = urlStr[:colonIndex]
+	}
+
+	return urlStr
+}

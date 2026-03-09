@@ -7,6 +7,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
 	"github.com/spf13/cobra"
 )
@@ -24,12 +25,17 @@ func NewAuthStatusCmd() *cobra.Command {
 				return fmt.Errorf("failed to get global options: %w", err)
 			}
 
-			keys, err := authentication.LoadKeys(cfg.KeyFile)
+			keyFilePath, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve key file path: %w", err)
+			}
+
+			kf, err := pathUtils.LoadGNS3KeysFile(keyFilePath)
 			if err != nil {
 				return fmt.Errorf("failed to load keys: %w", err)
 			}
 
-			userData, err := authentication.TryKeys(keys, cfg)
+			userData, err := authentication.TryKeys(kf, cfg)
 			if err != nil {
 				return err
 			}
@@ -38,7 +44,7 @@ func NewAuthStatusCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("error unmarshaling JSON: %w", err)
 			}
-			fmt.Printf("%s logged in as user %s", messageUtils.SuccessMsg("Logged in as user"), messageUtils.Bold(*user.Username))
+			fmt.Printf("%s logged in as user %s \n", messageUtils.SuccessMsg("Logged in as user"), messageUtils.Bold(*user.Username))
 			return nil
 		},
 	}

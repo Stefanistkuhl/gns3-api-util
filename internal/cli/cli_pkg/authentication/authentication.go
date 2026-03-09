@@ -1,12 +1,8 @@
 package authentication
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
@@ -14,73 +10,48 @@ import (
 	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/0xveya/gns3util/pkg/api/endpoints"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
-func LoadKeys(keyFileLocation string) ([]pathUtils.GNS3Key, error) {
-	var filePath string
-
-	if keyFileLocation == "" {
-		dir, err := pathUtils.GetGNS3Dir()
-		if err != nil {
-			return nil, err
-		}
-		filePath = filepath.Join(dir, "gns3key")
-	} else {
-		expanded, err := pathUtils.ExpandPath(keyFileLocation)
-		if err != nil {
-			return nil, err
-		}
-		filePath = expanded
-
-		if info, err := os.Stat(filePath); err == nil && info.IsDir() {
-			filePath = filepath.Join(filePath, "gns3key")
-		} else if err != nil && !os.IsNotExist(err) {
-			return nil, err
-		}
-	}
-
-	keys, err := pathUtils.LoadGNS3KeysFile(filePath)
-	return keys, err
-}
-
-func TryKeys(keys []pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, error) {
-	for _, key := range keys {
-		if normalizeURL(cfg.Server) == normalizeURL(key.ServerURL) {
-			result, success := tryKey(key, cfg)
+func TryKeys(kf *pathUtils.KeyFileV2, cfg config.GlobalOptions) ([]byte, error) {
+	for i := range kf.StandaloneGNS3 {
+		entry := &kf.StandaloneGNS3[i]
+		if nwutils.NormalizeURL(cfg.Server) == nwutils.NormalizeURL(entry.URL) {
+			result, success := tryKey(entry.AccessToken, cfg)
 			if success {
 				return result, nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("no working API-Key found for the server %s. Please use the %s command to authenticate. ", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
-}
 
-func normalizeURL(url string) string {
-	if strings.HasPrefix(url, "http://") {
-		url = url[7:]
-	} else if strings.HasPrefix(url, "https://") {
-		url = url[8:]
+	for i := range kf.Clusters {
+		cluster := &kf.Clusters[i]
+
+		for j := range cluster.GNS3Servers {
+			entry := &cluster.GNS3Servers[j]
+
+			if nwutils.NormalizeURL(cfg.Server) == nwutils.NormalizeURL(entry.URL) {
+				result, success := tryKey(entry.AccessToken, cfg)
+				if success {
+					return result, nil
+				}
+			}
+		}
 	}
 
-	if colonIndex := strings.Index(url, ":"); colonIndex != -1 {
-		url = url[:colonIndex]
-	}
-
-	return url
+	return nil, fmt.Errorf("no working API-Key found for the server %s. Please use the %s command to authenticate", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
 }
 
-func tryKey(key pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, bool) {
+func tryKey(token string, cfg config.GlobalOptions) ([]byte, bool) {
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
 		api.WithVerify(!cfg.Insecure),
-		api.WithToken(key.AccessToken),
+		api.WithToken(token),
 	)
 
 	ep := endpoints.GetEndpoints{}
-
 	client := api.NewGNS3Client(settings)
-	reqOpts := api.
-		NewRequestOptions(settings).
+	reqOpts := api.NewRequestOptions(settings).
 		WithURL(ep.Me()).
 		WithMethod(api.GET)
 
@@ -93,109 +64,73 @@ func tryKey(key pathUtils.GNS3Key, cfg config.GlobalOptions) ([]byte, bool) {
 			_ = resp.Body.Close()
 		}
 	}()
+
 	if resp.StatusCode == 200 {
 		return body, true
-	} else {
-		return body, false
 	}
+	return body, false
 }
 
 func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string) error {
-	var keyFileLocation string
-	if cfg.KeyFile != "" {
-		k, err := pathUtils.ExpandPath(cfg.KeyFile)
-		if err != nil {
-			return err
-		}
-		keyFileLocation = k
-	} else {
-		k, err := pathUtils.GetGNS3Dir()
-		if err != nil {
-			return err
-		}
-		keyFileLocation = filepath.Join(k, "gns3key")
-	}
-
-	keys, err := LoadKeys(cfg.KeyFile)
+	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			panic(err)
-		}
+		return err
 	}
 
-	newKey := pathUtils.GNS3Key{
-		ServerURL:   cfg.Server,
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	if err != nil {
+		return err
+	}
+
+	newEntry := pathUtils.GNS3ServerEntry{
+		URL:         cfg.Server,
 		User:        username,
 		AccessToken: *token.AccessToken,
 		TokenType:   *token.TokenType,
 	}
 
 	found := false
-	for i, key := range keys {
-		if key.ServerURL == newKey.ServerURL {
-			keys[i] = newKey
+	for i, entry := range kf.StandaloneGNS3 {
+		if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
+			kf.StandaloneGNS3[i] = newEntry
 			found = true
 			break
 		}
 	}
 	if !found {
-		keys = append(keys, newKey)
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, newEntry)
 	}
 
-	f, err := os.OpenFile(keyFileLocation, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) // #nosec G304
-	if err != nil {
-		return fmt.Errorf("failed to open key file %q: %w", keyFileLocation, err)
-	}
-	defer func() {
-		if f != nil {
-			_ = f.Close()
-		}
-	}()
-
-	for _, key := range keys {
-		buff_key, err := json.Marshal(key)
-		if err != nil {
-			return err
-		}
-		_, err = f.Write(buff_key)
-		if err != nil {
-			return fmt.Errorf("failed to write key to file: %w", err)
-		}
-		_, err = f.WriteString("\n")
-		if err != nil {
-			return fmt.Errorf("failed to write newline to file: %w", err)
-		}
-	}
-
-	return nil
+	return pathUtils.SaveKeysFile(keyFileLocation, kf)
 }
 
 func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
-	var keyFileLocation string
-	if cfg.KeyFile != "" {
-		k, err := pathUtils.ExpandPath(cfg.KeyFile)
-		if err != nil {
-			return "", err
-		}
-		keyFileLocation = k
-	} else {
-		k, err := pathUtils.GetGNS3Dir()
-		if err != nil {
-			return "", err
-		}
-		keyFileLocation = filepath.Join(k, "gns3key")
+	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+	if err != nil {
+		return "", err
 	}
 
-	keys, err := LoadKeys(keyFileLocation)
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			panic(err)
+		return "", err
+	}
+
+	for _, entry := range kf.StandaloneGNS3 {
+		if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
+			return entry.AccessToken, nil
 		}
 	}
-	for _, key := range keys {
-		if normalizeURL(key.ServerURL) == normalizeURL(cfg.Server) {
-			return key.AccessToken, nil
+
+	for i := range kf.Clusters {
+		cluster := &kf.Clusters[i]
+
+		for j := range cluster.GNS3Servers {
+			entry := &cluster.GNS3Servers[j]
+
+			if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
+				return entry.AccessToken, nil
+			}
 		}
 	}
-	return "", fmt.Errorf("could not find find a matching access token for the server %s, please use the %s command to login to the server. ", cfg.Server, messageUtils.Bold("auth login"))
+	return "", fmt.Errorf("could not find a matching access token for the server %s, please use the %s command to login", cfg.Server, messageUtils.Bold("auth login"))
 }

@@ -8,12 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/fuzzy"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/colorUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -68,24 +68,33 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 
 		cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
 
-		keys, err := authentication.LoadKeys(cfg.KeyFile)
+		keyFilePath, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+		if err != nil {
+			return nil, err
+		}
+
+		kf, err := pathUtils.LoadGNS3KeysFile(keyFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load keyfile: %w", err)
 		}
 
-		if len(keys) == 0 {
+		if len(kf.StandaloneGNS3) == 0 {
 			return nil, fmt.Errorf("no servers found in keyfile. Please use 'auth login' to add servers")
 		}
 
-		serverOptions := make([]string, len(keys))
+		if len(kf.StandaloneGNS3) == 0 {
+			return nil, fmt.Errorf("no servers found in keyfile. Please use 'auth login' to add servers")
+		}
+
+		serverOptions := make([]string, len(kf.StandaloneGNS3))
 		serverMap := make(map[string]string)
 		serverUserMap := make(map[string]string)
 
-		for i, key := range keys {
-			plainName := fmt.Sprintf("%-30s (%s)", key.ServerURL, key.User)
+		for i, entry := range kf.StandaloneGNS3 {
+			plainName := fmt.Sprintf("%-30s (%s)", entry.URL, entry.User)
 			serverOptions[i] = plainName
-			serverMap[plainName] = key.ServerURL
-			serverUserMap[key.ServerURL] = key.User
+			serverMap[plainName] = entry.URL
+			serverUserMap[entry.URL] = entry.User
 		}
 
 		selectedServers := fuzzy.NewFuzzyFinderWithTitle(serverOptions, true, "Select servers to add to cluster:")

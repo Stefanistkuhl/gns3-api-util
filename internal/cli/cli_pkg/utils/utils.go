@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/0xveya/gns3util/pkg/api/endpoints"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tidwall/gjson"
@@ -710,26 +710,29 @@ func ConfirmPrompt(msg string, defaultYes bool) bool {
 }
 
 func GetUserInKeyFileForUrl(cfg config.GlobalOptions) (string, error) {
-	var keys []pathUtils.GNS3Key
-	var getKeyErr error
-	if cfg.KeyFile != "" {
-		keys, getKeyErr = pathUtils.LoadGNS3KeysFile(cfg.KeyFile)
-		if getKeyErr != nil {
-			return "", fmt.Errorf("%s: %w", "failed to load keys", getKeyErr)
-		}
-	} else {
-		path, getPathErr := pathUtils.GetGNS3Dir()
-		if getPathErr != nil {
-			return "", fmt.Errorf("%s: %w", "failed to get the gns3 dir", getPathErr)
-		}
-		keys, getKeyErr = pathUtils.LoadGNS3KeysFile(filepath.Join(path, "gns3key"))
-		if getKeyErr != nil {
-			return "", fmt.Errorf("%s: %w", "failed to load keys", getKeyErr)
+	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+	if err != nil {
+		return "", err
+	}
+
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	if err != nil {
+		return "", fmt.Errorf("failed to load keys: %w", err)
+	}
+
+	for _, entry := range kf.StandaloneGNS3 {
+		if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
+			return entry.User, nil
 		}
 	}
-	for _, key := range keys {
-		if key.ServerURL == cfg.Server {
-			return key.User, nil
+
+	for i := range kf.Clusters {
+		cluster := &kf.Clusters[i]
+		for j := range cluster.GNS3Servers {
+			entry := &cluster.GNS3Servers[j]
+			if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
+				return entry.User, nil
+			}
 		}
 	}
 

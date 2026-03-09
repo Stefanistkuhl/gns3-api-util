@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/pelletier/go-toml/v2"
 )
 
@@ -17,7 +17,7 @@ var ErrNoConfig = errors.New("no config for clusters")
 
 func LoadClusterConfig() (Config, error) {
 	var c Config
-	dir, getDirErr := utils.GetGNS3Dir()
+	dir, getDirErr := pathUtils.GetGNS3Dir()
 	if getDirErr != nil {
 		return c, getDirErr
 	}
@@ -98,7 +98,7 @@ func WriteClusterConfig(c Config) error {
 			c.Clusters[i].Nodes = nil
 		}
 	}
-	dir, getDirErr := utils.GetGNS3Dir()
+	dir, getDirErr := pathUtils.GetGNS3Dir()
 	if getDirErr != nil {
 		return getDirErr
 	}

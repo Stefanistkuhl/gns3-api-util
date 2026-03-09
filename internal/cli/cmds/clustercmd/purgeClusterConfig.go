@@ -8,6 +8,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +29,7 @@ func NewPurgeClusterConfigCMD() *cobra.Command {
 					return nil
 				}
 			}
-			dir, getDirErr := utils.GetGNS3Dir()
+			dir, getDirErr := pathUtils.GetGNS3Dir()
 			if getDirErr != nil {
 				return getDirErr
 			}

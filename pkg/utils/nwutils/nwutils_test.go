@@ -180,3 +180,27 @@ func TestGetFirstNonLoopbackIP(t *testing.T) {
 		t.Errorf("GetFirstNonLoopbackIP() returned invalid IP: %s", ip)
 	}
 }
+
+func TestNormalizeURL(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"http://example.com", "example.com"},
+		{"https://example.com", "example.com"},
+		{"http://example.com:8080", "example.com"},
+		{"https://example.com:8443", "example.com"},
+		{"example.com", "example.com"},
+		{"example.com:8080", "example.com"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := NormalizeURL(tt.input)
+			if got != tt.expected {
+				t.Errorf("normalizeURL(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}

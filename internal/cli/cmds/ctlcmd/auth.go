@@ -29,5 +29,5 @@ func NewAuthStoreCmd() *cobra.Command {
 	return cmd
 }
 
-//auth status ts goes to master to check
+// auth status ts goes to master to check
 // auth store to store key in keyfile or ig new keyfile bc i am too scared of migrating it

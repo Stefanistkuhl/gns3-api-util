@@ -11,30 +11,6 @@ import (
 	"github.com/0xveya/gns3util/pkg/api/schemas"
 )
 
-func TestNormalizeURL(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"http://example.com", "example.com"},
-		{"https://example.com", "example.com"},
-		{"http://example.com:8080", "example.com"},
-		{"https://example.com:8443", "example.com"},
-		{"example.com", "example.com"},
-		{"example.com:8080", "example.com"},
-		{"", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := normalizeURL(tt.input)
-			if got != tt.expected {
-				t.Errorf("normalizeURL(%q) = %v, want %v", tt.input, got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestSaveAuthData(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "gns3_test")
 	if err != nil {
@@ -67,7 +43,7 @@ func TestSaveAuthData(t *testing.T) {
 	}
 
 	if _, statErr := os.Stat(keyFile); os.IsNotExist(statErr) {
-		t.Error("Key file was not created")
+		t.Fatal("Key file was not created")
 	}
 
 	info, err := os.Stat(keyFile)
@@ -78,18 +54,18 @@ func TestSaveAuthData(t *testing.T) {
 		t.Errorf("Key file has wrong permissions: got %o, want %o", info.Mode().Perm(), 0o600)
 	}
 
-	keys, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
 
-	if len(keys) != 1 {
-		t.Errorf("Expected 1 key, got %d", len(keys))
+	if len(kf.StandaloneGNS3) != 1 {
+		t.Fatalf("Expected 1 key, got %d", len(kf.StandaloneGNS3))
 	}
 
-	key := keys[0]
-	if key.ServerURL != cfg.Server {
-		t.Errorf("ServerURL = %v, want %v", key.ServerURL, cfg.Server)
+	key := kf.StandaloneGNS3[0]
+	if key.URL != cfg.Server {
+		t.Errorf("URL = %v, want %v", key.URL, cfg.Server)
 	}
 	if key.User != username {
 		t.Errorf("User = %v, want %v", key.User, username)
@@ -141,16 +117,16 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
 
-	keys, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
 
-	if len(keys) != 1 {
-		t.Errorf("Expected 1 key, got %d", len(keys))
+	if len(kf.StandaloneGNS3) != 1 {
+		t.Fatalf("Expected 1 key, got %d", len(kf.StandaloneGNS3))
 	}
 
-	key := keys[0]
+	key := kf.StandaloneGNS3[0]
 	if key.AccessToken != "token2" {
 		t.Errorf("AccessToken = %v, want %v", key.AccessToken, "token2")
 	}
@@ -200,65 +176,14 @@ func TestSaveAuthDataMultipleServers(t *testing.T) {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
 
-	keys, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
 
-	if len(keys) != 2 {
-		t.Errorf("Expected 2 keys, got %d", len(keys))
+	if len(kf.StandaloneGNS3) != 2 {
+		t.Errorf("Expected 2 keys, got %d", len(kf.StandaloneGNS3))
 	}
-}
-
-func TestLoadKeys(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "gns3_test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer func() {
-		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-			t.Logf("Failed to remove temp dir: %v", removeErr)
-		}
-	}()
-
-	t.Run("non-existent file", func(t *testing.T) {
-		keys, err := LoadKeys(filepath.Join(tempDir, "nonexistent"))
-		if err != nil {
-			t.Errorf("LoadKeys() error = %v, want nil", err)
-		}
-		if keys != nil {
-			t.Errorf("LoadKeys() = %v, want nil", keys)
-		}
-	})
-
-	t.Run("existing file", func(t *testing.T) {
-		keyFile := filepath.Join(tempDir, "gns3key")
-
-		key := pathUtils.GNS3Key{
-			ServerURL:   "http://example.com",
-			User:        "testuser",
-			AccessToken: "testtoken",
-			TokenType:   "Bearer",
-		}
-
-		data, err := json.Marshal(key)
-		if err != nil {
-			t.Fatalf("Failed to marshal key: %v", err)
-		}
-
-		err = os.WriteFile(keyFile, append(data, '\n'), 0o600)
-		if err != nil {
-			t.Fatalf("Failed to write key file: %v", err)
-		}
-
-		keys, err := LoadKeys(keyFile)
-		if err != nil {
-			t.Errorf("LoadKeys() error = %v, want nil", err)
-		}
-		if len(keys) != 1 {
-			t.Errorf("LoadKeys() = %v, want 1 key", len(keys))
-		}
-	})
 }
 
 func TestGetKeyForServer(t *testing.T) {
@@ -291,19 +216,20 @@ func TestGetKeyForServer(t *testing.T) {
 	})
 
 	t.Run("matching key exists", func(t *testing.T) {
-		key := pathUtils.GNS3Key{
-			ServerURL:   "http://example.com",
+		kf := &pathUtils.KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathUtils.GNS3ServerEntry{
+			URL:         "http://example.com",
 			User:        "testuser",
 			AccessToken: "testtoken",
 			TokenType:   "Bearer",
-		}
+		})
 
-		data, err := json.Marshal(key)
+		data, err := json.Marshal(kf)
 		if err != nil {
-			t.Fatalf("Failed to marshal key: %v", err)
+			t.Fatalf("Failed to marshal keys: %v", err)
 		}
 
-		err = os.WriteFile(keyFile, append(data, '\n'), 0o600)
+		err = os.WriteFile(keyFile, data, 0o600)
 		if err != nil {
 			t.Fatalf("Failed to write key file: %v", err)
 		}
@@ -318,19 +244,20 @@ func TestGetKeyForServer(t *testing.T) {
 	})
 
 	t.Run("no matching key", func(t *testing.T) {
-		key := pathUtils.GNS3Key{
-			ServerURL:   "http://different.com",
+		kf := &pathUtils.KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathUtils.GNS3ServerEntry{
+			URL:         "http://different.com",
 			User:        "testuser",
 			AccessToken: "testtoken",
 			TokenType:   "Bearer",
-		}
+		})
 
-		data, err := json.Marshal(key)
+		data, err := json.Marshal(kf)
 		if err != nil {
-			t.Fatalf("Failed to marshal key: %v", err)
+			t.Fatalf("Failed to marshal keys: %v", err)
 		}
 
-		err = os.WriteFile(keyFile, append(data, '\n'), 0o600)
+		err = os.WriteFile(keyFile, data, 0o600)
 		if err != nil {
 			t.Fatalf("Failed to write key file: %v", err)
 		}
@@ -343,25 +270,6 @@ func TestGetKeyForServer(t *testing.T) {
 			t.Errorf("GetKeyForServer() = %v, want empty string", token)
 		}
 	})
-}
-
-func TestTryKeys(t *testing.T) {
-	cfg := config.GlobalOptions{
-		Server: "http://example.com",
-	}
-
-	keys := []pathUtils.GNS3Key{
-		{ServerURL: "http://different.com", AccessToken: "token1"},
-		{ServerURL: "https://example.com", AccessToken: "token2"},
-		{ServerURL: "http://example.com:8080", AccessToken: "token3"},
-	}
-
-	for _, key := range keys {
-		if normalizeURL(cfg.Server) == normalizeURL(key.ServerURL) {
-			t.Logf("Found matching key: %s -> %s", key.ServerURL, cfg.Server)
-			break
-		}
-	}
 }
 
 func stringPtr(s string) *string {
