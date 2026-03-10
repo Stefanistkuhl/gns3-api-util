@@ -8,7 +8,7 @@ package sqlc_file_store
 import (
 	"context"
 
-	"github.com/0xveya/gns3util/internal/file-store/models"
+	"github.com/0xveya/gns3util/pkg/models"
 )
 
 const finalizeFile = `-- name: FinalizeFile :one

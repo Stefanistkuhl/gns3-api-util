@@ -3,7 +3,7 @@ package keys
 import (
 	"path/filepath"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 const (
@@ -11,7 +11,7 @@ const (
 )
 
 func DefaultKeyPath() (string, error) {
-	base, err := pathUtils.GetGNS3Dir()
+	base, err := pathutils.GetGNS3Dir()
 	if err != nil {
 		return "", err
 	}

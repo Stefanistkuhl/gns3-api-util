@@ -7,7 +7,7 @@ package sqlc_file_store
 import (
 	"database/sql"
 
-	"github.com/0xveya/gns3util/internal/file-store/models"
+	"github.com/0xveya/gns3util/pkg/models"
 )
 
 type Backup struct {
@@ -17,26 +17,6 @@ type Backup struct {
 	IsCompressed     sql.NullBool   `json:"is_compressed"`
 	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
 	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
-}
-
-type ClusterKv struct {
-	Key       string       `json:"key"`
-	Value     string       `json:"value"`
-	Version   int64        `json:"version"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
-}
-
-type ClusterNode struct {
-	NodeID          string         `json:"node_id"`
-	NodeName        string         `json:"node_name"`
-	NodeKind        string         `json:"node_kind"`
-	ApiUrl          sql.NullString `json:"api_url"`
-	DrpcAddr        sql.NullString `json:"drpc_addr"`
-	AdvertiseAddr   sql.NullString `json:"advertise_addr"`
-	Status          string         `json:"status"`
-	LastHeartbeatAt sql.NullTime   `json:"last_heartbeat_at"`
-	CreatedAt       sql.NullTime   `json:"created_at"`
-	UpdatedAt       sql.NullTime   `json:"updated_at"`
 }
 
 type File struct {
@@ -60,29 +40,6 @@ type ProjectFile struct {
 	ProjectID  string         `json:"project_id"`
 	VersionTag sql.NullString `json:"version_tag"`
 	IsReadOnly sql.NullBool   `json:"is_read_only"`
-}
-
-type RevokedToken struct {
-	Jti       string       `json:"jti"`
-	UserID    string       `json:"user_id"`
-	RevokedAt sql.NullTime `json:"revoked_at"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
-}
-
-type SyncState struct {
-	ReplicaName           string         `json:"replica_name"`
-	LastFullSyncAt        sql.NullTime   `json:"last_full_sync_at"`
-	LastIncrementalSyncAt sql.NullTime   `json:"last_incremental_sync_at"`
-	LastSourceRevision    int64          `json:"last_source_revision"`
-	LastStatus            string         `json:"last_status"`
-	LastError             sql.NullString `json:"last_error"`
-}
-
-type UserPermission struct {
-	UserID    string       `json:"user_id"`
-	Scope     string       `json:"scope"`
-	GrantedAt sql.NullTime `json:"granted_at"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
 }
 
 type VmImage struct {

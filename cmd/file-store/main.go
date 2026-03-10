@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,22 +20,18 @@ import (
 	"github.com/0xveya/gns3util/internal/file-store/fs"
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
-	syncsvc "github.com/0xveya/gns3util/internal/file-store/sync"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/otel"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
 
-	"github.com/0xveya/gns3util/pkg/web/middleware"
 	"github.com/go-chi/chi/v5"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/quic-go/quic-go/http3"
-	"github.com/riandyrn/otelchi"
 	"go.opentelemetry.io/otel/log/global"
 	_ "modernc.org/sqlite"
-	"storj.io/drpc/drpcmux"
-	"storj.io/drpc/drpcserver"
+
+	"github.com/0xveya/gns3util/pkg/web/middleware"
 )
 
 type FilestoreConfig struct {
@@ -51,10 +46,9 @@ type FilestoreConfig struct {
 	TLSDir        string `env:"FILE_STORE_TLS_DIR" type:"string" default:"/data/filestore/tls/"`
 	OTELEndpoint  string `env:"OTEL_ENDPOINT" type:"string" default:""`
 	AppName       string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
-	SyncInterval  int    `env:"FILE_STORE_SYNC_INTERVAL_SEC" type:"int" default:"15"`
 	JoinToken     string `env:"JOIN_TOKEN" type:"string" default:""`
-	DB_PATH       string `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
-	DATA_DIR      string `env:"FILE_STORE_DATA_PATH" type:"string" default:"/data/storrage/"`
+	DBPath        string `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
+	DataDir       string `env:"FILE_STORE_DATA_PATH" type:"string" default:"/data/storrage/"`
 }
 
 var (
@@ -115,13 +109,18 @@ func main() {
 		logger.Info("Successfully bootstrapped certificates")
 	}
 
-	fsState, createDirsErr := fs.CreateDirStructure(cfg.DATA_DIR)
+	mkdirErr := os.MkdirAll(cfg.DataDir, 0o750)
+	if mkdirErr != nil {
+		logger.Error("Failed to create data directory", "err", mkdirErr)
+		return
+	}
+	fsState, createDirsErr := fs.CreateDirStructure(cfg.DataDir)
 	if createDirsErr != nil {
 		logger.Error("Failed to create need directorys to store files", "err", createDirsErr)
 		return
 	}
 
-	dbStore, err := dbpkg.NewStore(cfg.DB_PATH)
+	dbStore, err := dbpkg.NewStore(cfg.DBPath)
 	if err != nil {
 		logger.Error("Failed to open sqlite store", "err", err)
 		return
@@ -142,22 +141,21 @@ func main() {
 	}
 	cm.SetCertificate(&cert)
 
-	syncClient, err := filerpc.NewMasterSyncClient(ctx, cfg.MasterDRPC, cfg.TLSDir)
+	var masterClient *filerpc.MasterSyncClient
+	for i := range 5 {
+		masterClient, err = filerpc.NewMasterSyncClient(ctx, cfg.MasterDRPC, cfg.TLSDir)
+		if err == nil {
+			break
+		}
+		logger.Warn("Waiting for Master dRPC...", "attempt", i+1, "err", err)
+		time.Sleep(2 * time.Second)
+	}
+
 	if err != nil {
-		logger.Error("Failed to create master sync client", "err", err)
+		logger.Error("Failed to create master client after retries", "err", err)
 		return
 	}
-	defer syncClient.Close()
-
-	syncService := syncsvc.NewService(dbStore, syncClient, cfg.NodeName)
-	go func() {
-		if svcErr := syncService.Run(
-			ctx,
-			time.Duration(cfg.SyncInterval)*time.Second,
-		); svcErr != nil {
-			logger.Error("Sync service stopped", "err", svcErr)
-		}
-	}()
+	defer masterClient.Close()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -169,9 +167,8 @@ func main() {
 		os.Exit(0)
 	}()
 
-	m := drpcmux.New()
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, dbStore, otlpEnabled, fsState)
+	setupRouter(r, idMgr, masterClient, dbStore, otlpEnabled, fsState)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -192,23 +189,9 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	drpcServer := drpcserver.New(m)
-
-	var lis net.ListenConfig
-	drpcListener, err := lis.Listen(
-		ctx,
-		"tcp",
-		fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.DrpcPort),
-	)
-	if err != nil {
-		logger.Error("Failed to listen for drpc", "err", err)
-		return
-	}
-
 	logger.Info("Starting HTTP/3 server", "port", cfg.Port)
-	logger.Info("Starting drpc server", "port", cfg.DrpcPort)
 
-	errChan := make(chan error, 3)
+	errChan := make(chan error, 2)
 
 	go func() {
 		errChan <- tcpServer.ListenAndServeTLS("", "")
@@ -216,10 +199,6 @@ func main() {
 
 	go func() {
 		errChan <- h3Server.ListenAndServe()
-	}()
-
-	go func() {
-		errChan <- drpcServer.Serve(ctx, drpcListener)
 	}()
 
 	if err := <-errChan; err != nil {
@@ -230,51 +209,38 @@ func main() {
 func setupRouter(
 	r chi.Router,
 	idMgr *auth.IdentityManager,
+	masterClient *filerpc.MasterSyncClient,
 	store *dbpkg.Store,
 	otelEnabled bool,
 	dirs fs.Dirs,
 ) {
-	handlersStruct := &handlers.FilestoreHandlers{Store: store, Logger: logger, Dirs: &dirs}
-	if !otelEnabled {
-		r.Use(chimiddleware.Logger)
-	} else {
-		r.Use(otelchi.Middleware(fmt.Sprintf("%s-api", cfg.AppName)))
-		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				ww := chimiddleware.NewWrapResponseWriter(w, req.ProtoMajor)
-				next.ServeHTTP(ww, req)
-
-				logger.InfoContext(req.Context(), "HTTP Request",
-					"method", req.Method,
-					"path", req.URL.Path,
-					"status", ww.Status(),
-				)
-			})
-		})
-	}
-	r.Use(chimiddleware.Recoverer)
+	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
 	r.Get("/healthz", commonhandlers.HandleHealthz)
 
-	r.Route("/api", func(r chi.Router) {
-		r.Route("/v1", func(r chi.Router) {
-			r.Use(middleware.AuthMiddleware(idMgr))
+	fileStoreHandlers := &handlers.FilestoreHandlers{
+		Store:  store,
+		Logger: logger,
+		Dirs:   &dirs,
+	}
 
-			r.Route("/files", func(r chi.Router) {
-				r.With(middleware.RequireScope(store, "files:write")).
-					Post("/", handlersStruct.HandleInitUpload)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(idMgr))
 
-				r.Route("/{file_uuid}", func(r chi.Router) {
-					r.With(middleware.RequireScope(store, "files:read")).
-						Get("/", handlersStruct.DownloadFileHandler)
+		r.Route("/files", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+				Post("/", fileStoreHandlers.HandleInitUpload)
 
-					r.Route("/content", func(r chi.Router) {
-						r.With(middleware.RequireScope(store, "files:read")).
-							Get("/", handlersStruct.GetUploadStatus)
+			r.Route("/{file_uuid}", func(r chi.Router) {
+				r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
+					Get("/", fileStoreHandlers.DownloadFileHandler)
 
-						r.With(middleware.RequireScope(store, "files:write")).
-							Put("/", handlersStruct.HandleStreamUpload)
-					})
+				r.Route("/content", func(r chi.Router) {
+					r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
+						Get("/", fileStoreHandlers.GetUploadStatus)
+
+					r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+						Put("/", fileStoreHandlers.HandleStreamUpload)
 				})
 			})
 		})

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
 )
 
@@ -54,7 +54,7 @@ func TestSaveAuthData(t *testing.T) {
 		t.Errorf("Key file has wrong permissions: got %o, want %o", info.Mode().Perm(), 0o600)
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestSaveAuthDataMultipleServers(t *testing.T) {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFile)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFile)
 	if err != nil {
 		t.Fatalf("Failed to load keys: %v", err)
 	}
@@ -216,8 +216,8 @@ func TestGetKeyForServer(t *testing.T) {
 	})
 
 	t.Run("matching key exists", func(t *testing.T) {
-		kf := &pathUtils.KeyFileV2{Version: 2}
-		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathUtils.GNS3ServerEntry{
+		kf := &pathutils.KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathutils.GNS3ServerEntry{
 			URL:         "http://example.com",
 			User:        "testuser",
 			AccessToken: "testtoken",
@@ -244,8 +244,8 @@ func TestGetKeyForServer(t *testing.T) {
 	})
 
 	t.Run("no matching key", func(t *testing.T) {
-		kf := &pathUtils.KeyFileV2{Version: 2}
-		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathUtils.GNS3ServerEntry{
+		kf := &pathutils.KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathutils.GNS3ServerEntry{
 			URL:         "http://different.com",
 			User:        "testuser",
 			AccessToken: "testtoken",

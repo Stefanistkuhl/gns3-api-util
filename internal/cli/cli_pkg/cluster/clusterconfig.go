@@ -8,16 +8,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 var ErrNoConfig = errors.New("no config for clusters")
 
 func LoadClusterConfig() (Config, error) {
 	var c Config
-	dir, getDirErr := pathUtils.GetGNS3Dir()
+	dir, getDirErr := pathutils.GetGNS3Dir()
 	if getDirErr != nil {
 		return c, getDirErr
 	}
@@ -53,7 +54,7 @@ func EnsureConfigSyncedFromDB(ctx context.Context) (Config, bool, error) {
 			}
 
 			base := NewConfig()
-			bootstrapped, _, mergeErr := mergeConfigWithDb(base, dbClusters, dbNodes)
+			bootstrapped, _, mergeErr := mergeConfigWithDB(base, dbClusters, dbNodes)
 			if mergeErr != nil {
 				return Config{}, false, fmt.Errorf("merge config: %w", mergeErr)
 			}
@@ -72,7 +73,7 @@ func EnsureConfigSyncedFromDB(ctx context.Context) (Config, bool, error) {
 	}
 	defer store.DB.Close()
 
-	inSync, cerr := CheckConfigWithDb(ctx, store, cfg, false)
+	inSync, cerr := CheckConfigWithDB(ctx, store, cfg, false)
 	if cerr != nil {
 		return cfg, false, cerr
 	}
@@ -80,7 +81,7 @@ func EnsureConfigSyncedFromDB(ctx context.Context) (Config, bool, error) {
 		return cfg, false, nil
 	}
 
-	cfgNew, changed, serr := SyncConfigWithDb(ctx, cfg)
+	cfgNew, changed, serr := SyncConfigWithDB(ctx, cfg)
 	if serr != nil {
 		return cfg, false, serr
 	}
@@ -98,7 +99,7 @@ func WriteClusterConfig(c Config) error {
 			c.Clusters[i].Nodes = nil
 		}
 	}
-	dir, getDirErr := pathUtils.GetGNS3Dir()
+	dir, getDirErr := pathutils.GetGNS3Dir()
 	if getDirErr != nil {
 		return getDirErr
 	}

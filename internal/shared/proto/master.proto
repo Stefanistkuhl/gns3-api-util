@@ -3,48 +3,16 @@ package master;
 
 option go_package = "github.com/0xveya/gns3util/internal/shared/pb/master";
 
-message PermissionRecord {
+message PermissionCheckRequest {
   string user_id = 1;
-  string scope = 2;
+  string jti = 2;
+  string scope = 3;
 }
 
-message ClusterNodeRecord {
-  string node_id = 1;
-  string node_name = 2;
-  string node_kind = 3;
-  string api_url = 4;
-  string drpc_addr = 5;
-  string advertise_addr = 6;
-  string status = 7;
-  string last_heartbeat_at = 8;
-}
-
-message ClusterKVRecord {
-  string key = 1;
-  string value = 2;
-  int64 version = 3;
-  string updated_at = 4;
-}
-
-message RevokedTokenRecord {
-  string jti = 1;
-  string user_id = 2;
-  string revoked_at = 3;
-  string expires_at = 4;
-}
-
-message FullSyncRequest {
-  string node_name = 1;
-}
-
-message FullSyncResponse {
-  int64 source_revision = 1;
-  repeated PermissionRecord permissions = 2;
-  repeated ClusterNodeRecord nodes = 3;
-  repeated ClusterKVRecord kv = 4;
-  repeated RevokedTokenRecord revoked_tokens = 5;
+message PermissionCheckResponse {
+  bool allowed = 1;
 }
 
 service MasterSyncService {
-  rpc FullSync(FullSyncRequest) returns (FullSyncResponse);
+  rpc CheckPermission(PermissionCheckRequest) returns (PermissionCheckResponse);
 }

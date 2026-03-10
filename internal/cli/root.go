@@ -5,16 +5,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
-	"github.com/0xveya/gns3util/internal/cli/cmds/auth"
-	"github.com/0xveya/gns3util/internal/cli/cmds/class"
-	"github.com/0xveya/gns3util/internal/cli/cmds/exercise"
 	"github.com/carapace-sh/carapace"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
+	"github.com/0xveya/gns3util/internal/cli/cmds/auth"
+	"github.com/0xveya/gns3util/internal/cli/cmds/class"
+	"github.com/0xveya/gns3util/internal/cli/cmds/exercise"
 )
 
 var (
@@ -59,7 +60,7 @@ var rootCmd = &cobra.Command{
 		if keyFile == "" {
 			keyFile = viper.GetString("key-file")
 		}
-		keyFile, _ = pathUtils.ExpandPath(keyFile)
+		keyFile, _ = pathutils.ExpandPath(keyFile)
 
 		if err := validateGlobalFlags(); err != nil {
 			return err
@@ -116,7 +117,7 @@ var rootCmd = &cobra.Command{
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 		if os.Getenv("GNS3_STORE_LAST_SETTINGS") == "true" {
-			gns3Dir, err := pathUtils.GetGNS3Dir()
+			gns3Dir, err := pathutils.GetGNS3Dir()
 			if err != nil {
 				return nil
 			}
@@ -192,7 +193,7 @@ func init() {
 			"toml", "TOML format",
 		),
 	})
-	gns3Dir, err := pathUtils.GetGNS3Dir()
+	gns3Dir, err := pathutils.GetGNS3Dir()
 	if err == nil {
 		viper.AddConfigPath(gns3Dir)
 		viper.SetConfigName("config")

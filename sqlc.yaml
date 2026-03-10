@@ -35,4 +35,4 @@ sql:
           - column: "files.status"
             go_type:
               type: "FileStatus"
-              import: "github.com/0xveya/gns3util/internal/file-store/models"
+              import: "github.com/0xveya/gns3util/pkg/models"

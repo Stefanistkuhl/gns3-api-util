@@ -142,7 +142,7 @@ func NewAddNodeCmd() *cobra.Command {
 					return fmt.Errorf("failed to load config: %w", cfgErr)
 				}
 			}
-			cfg, changed, syncErr := cluster.SyncConfigWithDb(cmd.Context(), cfg)
+			cfg, changed, syncErr := cluster.SyncConfigWithDB(cmd.Context(), cfg)
 			if syncErr != nil {
 				return fmt.Errorf("failed to sync config with db: %w", syncErr)
 			}
@@ -282,7 +282,7 @@ func NewAddNodesCmd() *cobra.Command {
 					return fmt.Errorf("failed to load config: %w", cfgErr)
 				}
 			}
-			cfg, changed, syncErr := cluster.SyncConfigWithDb(cmd.Context(), cfg)
+			cfg, changed, syncErr := cluster.SyncConfigWithDB(cmd.Context(), cfg)
 			if syncErr != nil {
 				return fmt.Errorf("failed to sync config with db: %w", syncErr)
 			}

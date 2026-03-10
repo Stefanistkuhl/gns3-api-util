@@ -391,7 +391,7 @@ func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
 		return 0, fmt.Errorf("no server configured")
 	}
 
-	urlObj := utils.ValidateUrlWithReturn(cfg.Server)
+	urlObj := utils.ValidateURLWithReturn(cfg.Server)
 	clusterName := fmt.Sprintf("%s%s", urlObj.Hostname(), "_single_node_cluster")
 
 	store, err := db.Init()

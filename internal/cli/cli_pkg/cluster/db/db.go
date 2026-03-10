@@ -9,9 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db/sqlc"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
 	_ "modernc.org/sqlite"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db/sqlc"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 //go:embed schema.sql
@@ -49,7 +50,7 @@ func openDB(ctx context.Context, dbPath string) (*sql.DB, error) {
 }
 
 func Init() (*Store, error) {
-	dir, err := pathUtils.GetGNS3Dir()
+	dir, err := pathutils.GetGNS3Dir()
 	if err != nil {
 		return nil, fmt.Errorf("get dir: %w", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,7 +23,7 @@ const (
 	PUT            HTTPMethod = "PUT"
 	DELETE         HTTPMethod = "DELETE"
 	DefaultTimeout            = 30 * time.Second
-	API_VERSION               = "/v3"
+	APIVersion                = "/v3"
 )
 
 type Settings struct {
@@ -30,6 +31,7 @@ type Settings struct {
 	Token   string
 	Verify  bool
 	Timeout time.Duration
+	CACert  []byte
 }
 
 type requestOptions struct {
@@ -43,6 +45,11 @@ type requestOptions struct {
 }
 
 type GNS3ApiClient struct {
+	settings Settings
+	client   *http.Client
+}
+
+type BaseClient struct {
 	settings Settings
 	client   *http.Client
 }
@@ -77,6 +84,7 @@ func NewGNS3Client(settings Settings) *GNS3ApiClient {
 func NewRequestOptions(settings Settings) *requestOptions {
 	hdr := make(http.Header)
 	hdr.Set("Content-Type", "application/json")
+	// consider unhardcodeing this from time to time
 	hdr.Set("Authorization", fmt.Sprintf("Bearer %s", settings.Token))
 	return &requestOptions{
 		settings: settings,
@@ -89,7 +97,15 @@ func NewRequestOptions(settings Settings) *requestOptions {
 func WithBaseURL(baseURL string) SettingOption {
 	return func(s *Settings) {
 		if baseURL != "" {
-			s.BaseURL = baseURL + API_VERSION
+			s.BaseURL = baseURL + APIVersion
+		}
+	}
+}
+
+func WithBaseURLV2(baseURL string) SettingOption {
+	return func(s *Settings) {
+		if baseURL != "" {
+			s.BaseURL = baseURL
 		}
 	}
 }
@@ -139,10 +155,47 @@ func (r *requestOptions) WithStream() *requestOptions {
 	return r
 }
 
+func WithCA(cert []byte) SettingOption {
+	return func(s *Settings) {
+		s.CACert = cert
+	}
+}
+
+func createTLSConfig(settings Settings) *tls.Config {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: !settings.Verify, // #nosec G402
+	}
+
+	if len(settings.CACert) > 0 {
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil || caCertPool == nil {
+			caCertPool = x509.NewCertPool()
+		}
+
+		caCertPool.AppendCertsFromPEM(settings.CACert)
+		tlsConfig.RootCAs = caCertPool
+	}
+
+	return tlsConfig
+}
+
+func NewBaseClient(settings Settings) *BaseClient {
+	tr := &http.Transport{
+		TLSClientConfig: createTLSConfig(settings),
+	}
+
+	return &BaseClient{
+		settings: settings,
+		client: &http.Client{
+			Transport: tr,
+			Timeout:   settings.Timeout,
+		},
+	}
+}
+
 func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error) {
 	fullURL := c.settings.BaseURL + opts.URL
 	ctx, cancel := context.WithTimeout(context.Background(), c.settings.Timeout)
-	defer cancel()
 	defer cancel()
 
 	if len(opts.params) > 0 {
@@ -230,6 +283,76 @@ func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error)
 			return body, resp, fmt.Errorf("unknown forbidden 403 error. ")
 		}
 		return body, resp, fmt.Errorf("bad status %d: %s", resp.StatusCode, body)
+	}
+
+	return body, resp, nil
+}
+
+func (c *BaseClient) DOv2(opts *requestOptions) ([]byte, *http.Response, error) {
+	fullURL := c.settings.BaseURL + opts.URL
+	ctx, cancel := context.WithTimeout(context.Background(), c.settings.Timeout)
+	defer cancel()
+
+	if len(opts.params) > 0 {
+		q := url.Values{}
+		for k, v := range opts.params {
+			q.Set(k, v)
+		}
+		fullURL += "?" + q.Encode()
+	}
+
+	if opts.stream {
+		streamClient := *c.client
+		streamClient.Timeout = 0
+
+		req, err := http.NewRequestWithContext(ctx, string(opts.method), fullURL, bytes.NewBufferString(opts.data))
+		if err != nil {
+			return nil, nil, err
+		}
+		req.Header = opts.header
+
+		resp, err := streamClient.Do(req)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if c.settings.Timeout > 0 {
+			go func() {
+				<-time.After(c.settings.Timeout)
+				_ = resp.Body.Close()
+			}()
+		}
+
+		return nil, resp, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx,
+		string(opts.method),
+		fullURL,
+		bytes.NewBufferString(opts.data),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header = opts.header
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() {
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return body, resp, fmt.Errorf("request failed with status: %d", resp.StatusCode)
 	}
 
 	return body, resp, nil

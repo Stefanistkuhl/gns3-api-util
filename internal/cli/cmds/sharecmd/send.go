@@ -18,7 +18,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/sharing/transport"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/sharing/trust"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/colorUtils"
-	pathUtils "github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 func promptTrustCLI(peerLabel, fp string, words []string) (bool, error) {
@@ -124,7 +124,7 @@ func NewSendCmd() *cobra.Command {
 			fmt.Printf("%s %s\n", colorUtils.Info("My device:"), colorUtils.Bold(keys.DeviceLabel()))
 			fmt.Printf("%s %s\n", colorUtils.Info("My FP:     "), colorUtils.Highlight(keys.ShortFingerprint(dk.FP)))
 
-			appDir, err := pathUtils.GetGNS3Dir()
+			appDir, err := pathutils.GetGNS3Dir()
 			if err != nil {
 				return err
 			}

@@ -32,7 +32,7 @@ func ResolveClusterID(cfg config.GlobalOptions, clusterName string, ctx context.
 	if cfg.Server == "" {
 		return 0, fmt.Errorf("no server configured; use -s or provide -c cluster name")
 	}
-	urlObj := utils.ValidateUrlWithReturn(cfg.Server)
+	urlObj := utils.ValidateURLWithReturn(cfg.Server)
 	if urlObj == nil {
 		return 0, fmt.Errorf("invalid server url: %s", cfg.Server)
 	}

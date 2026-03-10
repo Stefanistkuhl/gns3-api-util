@@ -115,41 +115,6 @@ func (s *Store) WithTx(ctx context.Context, fn func(*sqlc_file_store.Queries) er
 	return tx.Commit()
 }
 
-func (s *Store) HasEffectivePermission(
-	ctx context.Context,
-	userID string,
-	requiredScope string,
-) (bool, error) {
-	hasPermission, err := s.UserHasPermission(
-		ctx,
-		sqlc_file_store.UserHasPermissionParams{
-			UserID: userID,
-			Scope:  requiredScope,
-		},
-	)
-	if err != nil {
-		return false, err
-	}
-	if hasPermission != 0 {
-		return true, nil
-	}
-
-	isSuper, err := s.UserIsSuperuser(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-
-	return isSuper != 0, nil
-}
-
-func (s *Store) IsTokenRevoked(ctx context.Context, jti string) (bool, error) {
-	revoked, err := s.Queries.IsTokenRevoked(ctx, jti)
-	if err != nil {
-		return false, err
-	}
-	return revoked != 0, err
-}
-
 func (t *TracedDB) ExecContext(
 	ctx context.Context,
 	query string,

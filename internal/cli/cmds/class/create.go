@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db/sqlc"
@@ -16,7 +18,6 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/server"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
-	"github.com/spf13/cobra"
 )
 
 var interactive bool
@@ -41,14 +42,14 @@ The class structure includes:
   gns3util -s https://controller:3080 class create --interactive
 		`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			serverUrl, _ := cmd.InheritedFlags().GetString("server")
+			serverURL, _ := cmd.InheritedFlags().GetString("server")
 			cluster, _ := cmd.Flags().GetString("cluster")
 			filePath, _ := cmd.Flags().GetString("file")
 
-			if serverUrl != "" && cluster != "" {
+			if serverURL != "" && cluster != "" {
 				return fmt.Errorf("cannot specify both --cluster and --server")
 			}
-			if serverUrl == "" && cluster == "" {
+			if serverURL == "" && cluster == "" {
 				return fmt.Errorf("either --cluster or --server must be specified")
 			}
 			if filePath == "" && !interactive {
@@ -71,7 +72,7 @@ The class structure includes:
 func runCreateClass(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	serverUrl, _ := cmd.InheritedFlags().GetString("server")
+	serverURL, _ := cmd.InheritedFlags().GetString("server")
 
 	cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
 
@@ -109,9 +110,9 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 		noCluster = true
 	}
 	if noCluster {
-		cfg.Server = serverUrl
-		urlObj := utils.ValidateUrlWithReturn(cfg.Server)
-		user, getUserErr := utils.GetUserInKeyFileForUrl(cfg)
+		cfg.Server = serverURL
+		urlObj := utils.ValidateURLWithReturn(cfg.Server)
+		user, getUserErr := utils.GetUserInKeyFileForURL(cfg)
 		if getUserErr != nil {
 			return getUserErr
 		}
@@ -210,7 +211,7 @@ func runCreateClass(cmd *cobra.Command, args []string) error {
 				return cfgErr
 			}
 		}
-		updatedCfg, changed, syncErr := cluster.SyncConfigWithDb(cmd.Context(), currentCfg)
+		updatedCfg, changed, syncErr := cluster.SyncConfigWithDB(cmd.Context(), currentCfg)
 		if syncErr != nil {
 			return syncErr
 		}

@@ -1,15 +1,4 @@
-package handlers
-
-import (
-	"github.com/0xveya/gns3util/pkg/state"
-	"github.com/0xveya/gns3util/pkg/web/auth"
-)
-
-type Master struct {
-	IDMgr  *auth.IdentityManager
-	Store  *state.StateManager
-	TLSDir string
-}
+package models
 
 type CertUploadRequest struct {
 	CertPEM string `json:"cert_pem"`
@@ -42,4 +31,10 @@ type JoinFilestoreRequest struct {
 type JoinFilestoreResponse struct {
 	NodeCert string `json:"node_cert"`
 	CACert   string `json:"ca_cert"`
+}
+
+type AuthStatusResponse struct {
+	Authenticated bool   `json:"authenticated"`
+	User          string `json:"user"`
+	Scopes        string `json:"scopes"`
 }

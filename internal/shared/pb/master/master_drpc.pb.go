@@ -39,7 +39,7 @@ func (drpcEncoding_File_master_proto) JSONUnmarshal(buf []byte, msg drpc.Message
 type DRPCMasterSyncServiceClient interface {
 	DRPCConn() drpc.Conn
 
-	FullSync(ctx context.Context, in *FullSyncRequest) (*FullSyncResponse, error)
+	CheckPermission(ctx context.Context, in *PermissionCheckRequest) (*PermissionCheckResponse, error)
 }
 
 type drpcMasterSyncServiceClient struct {
@@ -52,9 +52,9 @@ func NewDRPCMasterSyncServiceClient(cc drpc.Conn) DRPCMasterSyncServiceClient {
 
 func (c *drpcMasterSyncServiceClient) DRPCConn() drpc.Conn { return c.cc }
 
-func (c *drpcMasterSyncServiceClient) FullSync(ctx context.Context, in *FullSyncRequest) (*FullSyncResponse, error) {
-	out := new(FullSyncResponse)
-	err := c.cc.Invoke(ctx, "/master.MasterSyncService/FullSync", drpcEncoding_File_master_proto{}, in, out)
+func (c *drpcMasterSyncServiceClient) CheckPermission(ctx context.Context, in *PermissionCheckRequest) (*PermissionCheckResponse, error) {
+	out := new(PermissionCheckResponse)
+	err := c.cc.Invoke(ctx, "/master.MasterSyncService/CheckPermission", drpcEncoding_File_master_proto{}, in, out)
 	if err != nil {
 		return nil, err
 	}
@@ -62,12 +62,12 @@ func (c *drpcMasterSyncServiceClient) FullSync(ctx context.Context, in *FullSync
 }
 
 type DRPCMasterSyncServiceServer interface {
-	FullSync(context.Context, *FullSyncRequest) (*FullSyncResponse, error)
+	CheckPermission(context.Context, *PermissionCheckRequest) (*PermissionCheckResponse, error)
 }
 
 type DRPCMasterSyncServiceUnimplementedServer struct{}
 
-func (s *DRPCMasterSyncServiceUnimplementedServer) FullSync(context.Context, *FullSyncRequest) (*FullSyncResponse, error) {
+func (s *DRPCMasterSyncServiceUnimplementedServer) CheckPermission(context.Context, *PermissionCheckRequest) (*PermissionCheckResponse, error) {
 	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
 }
 
@@ -78,14 +78,14 @@ func (DRPCMasterSyncServiceDescription) NumMethods() int { return 1 }
 func (DRPCMasterSyncServiceDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, interface{}, bool) {
 	switch n {
 	case 0:
-		return "/master.MasterSyncService/FullSync", drpcEncoding_File_master_proto{},
+		return "/master.MasterSyncService/CheckPermission", drpcEncoding_File_master_proto{},
 			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
 				return srv.(DRPCMasterSyncServiceServer).
-					FullSync(
+					CheckPermission(
 						ctx,
-						in1.(*FullSyncRequest),
+						in1.(*PermissionCheckRequest),
 					)
-			}, DRPCMasterSyncServiceServer.FullSync, true
+			}, DRPCMasterSyncServiceServer.CheckPermission, true
 	default:
 		return "", nil, nil, nil, false
 	}
@@ -95,16 +95,16 @@ func DRPCRegisterMasterSyncService(mux drpc.Mux, impl DRPCMasterSyncServiceServe
 	return mux.Register(impl, DRPCMasterSyncServiceDescription{})
 }
 
-type DRPCMasterSyncService_FullSyncStream interface {
+type DRPCMasterSyncService_CheckPermissionStream interface {
 	drpc.Stream
-	SendAndClose(*FullSyncResponse) error
+	SendAndClose(*PermissionCheckResponse) error
 }
 
-type drpcMasterSyncService_FullSyncStream struct {
+type drpcMasterSyncService_CheckPermissionStream struct {
 	drpc.Stream
 }
 
-func (x *drpcMasterSyncService_FullSyncStream) SendAndClose(m *FullSyncResponse) error {
+func (x *drpcMasterSyncService_CheckPermissionStream) SendAndClose(m *PermissionCheckResponse) error {
 	if err := x.MsgSend(m, drpcEncoding_File_master_proto{}); err != nil {
 		return err
 	}

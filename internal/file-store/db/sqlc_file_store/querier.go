@@ -6,54 +6,28 @@ package sqlc_file_store
 
 import (
 	"context"
-	"database/sql"
 )
 
 type Querier interface {
-	DeleteAllClusterKV(ctx context.Context) error
-	DeleteAllClusterNodes(ctx context.Context) error
-	DeleteAllUserPermissions(ctx context.Context) error
-	DeleteAllUserPermissionsForUser(ctx context.Context, userID string) error
-	DeleteClusterKV(ctx context.Context, key string) error
-	DeleteClusterNode(ctx context.Context, nodeID string) error
-	DeleteExpiredRevokedTokens(ctx context.Context) error
 	DeleteFile(ctx context.Context, fileUuid string) error
-	DeleteUserPermission(ctx context.Context, arg DeleteUserPermissionParams) error
 	FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error)
 	GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error)
-	GetClusterKV(ctx context.Context, key string) (ClusterKv, error)
-	GetClusterNode(ctx context.Context, nodeID string) (ClusterNode, error)
 	GetFileByUUID(ctx context.Context, fileUuid string) (File, error)
 	GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error)
 	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error)
-	GetSyncState(ctx context.Context, replicaName string) (SyncState, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
 	InitFile(ctx context.Context, arg InitFileParams) (File, error)
 	InsertBackup(ctx context.Context, arg InsertBackupParams) error
 	InsertFile(ctx context.Context, arg InsertFileParams) error
 	InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error
-	InsertUserPermission(ctx context.Context, arg InsertUserPermissionParams) error
 	InsertVMImage(ctx context.Context, arg InsertVMImageParams) error
-	IsTokenRevoked(ctx context.Context, jti string) (int64, error)
-	ListAllUserPermissions(ctx context.Context) ([]UserPermission, error)
-	ListClusterKV(ctx context.Context) ([]ClusterKv, error)
-	ListClusterKVByPrefix(ctx context.Context, dollar_1 sql.NullString) ([]ClusterKv, error)
-	ListClusterNodes(ctx context.Context) ([]ClusterNode, error)
-	ListClusterNodesByKind(ctx context.Context, nodeKind string) ([]ClusterNode, error)
 	ListFiles(ctx context.Context) ([]File, error)
 	ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error)
 	ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error)
-	ListUserPermissions(ctx context.Context, userID string) ([]UserPermission, error)
 	MarkFileTombstoned(ctx context.Context, fileUuid string) error
-	RevokeToken(ctx context.Context, arg RevokeTokenParams) error
 	UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error
 	UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error
 	UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error
-	UpsertClusterKV(ctx context.Context, arg UpsertClusterKVParams) error
-	UpsertClusterNode(ctx context.Context, arg UpsertClusterNodeParams) error
-	UpsertSyncState(ctx context.Context, arg UpsertSyncStateParams) error
-	UserHasPermission(ctx context.Context, arg UserHasPermissionParams) (int64, error)
-	UserIsSuperuser(ctx context.Context, userID string) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

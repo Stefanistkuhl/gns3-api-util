@@ -217,21 +217,21 @@ func getClassDistributionFromDB(clusterID int) ([]ClassDistribution, error) {
 				Nodes:       make(map[string]NodeInfo),
 			}
 		}
-		nodeUrl := reflect.ValueOf(row.NodeUrl).String()
+		nodeURL := reflect.ValueOf(row.NodeUrl).String()
 
 		c := classMap[row.ClassName]
-		node := c.Nodes[nodeUrl]
+		node := c.Nodes[nodeURL]
 
 		node.UserCount++
 
-		groupKey := nodeUrl + row.GroupName
+		groupKey := nodeURL + row.GroupName
 		if !seenGroups[groupKey] {
 			node.GroupCount++
 			node.GroupNames = append(node.GroupNames, row.GroupName)
 			seenGroups[groupKey] = true
 		}
 
-		c.Nodes[nodeUrl] = node
+		c.Nodes[nodeURL] = node
 	}
 
 	var result []ClassDistribution

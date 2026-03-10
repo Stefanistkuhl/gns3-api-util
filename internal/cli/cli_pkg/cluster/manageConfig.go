@@ -26,7 +26,7 @@ func ApplyConfig(cfg Config) error {
 	for _, cluster := range cfg.Clusters {
 		for _, node := range cluster.Nodes {
 			url := fmt.Sprintf("%s://%s:%d", node.Protocol, node.Host, node.Port)
-			if !utils.ValidateAndTestUrl(ctx, url) {
+			if !utils.ValidateAndTestURL(ctx, url) {
 				return fmt.Errorf("cannot connect to: %s", url)
 			}
 		}
@@ -183,7 +183,7 @@ func syncNodes(ctx context.Context, qtx *sqlc.Queries, cfg Config, cfgCluster Cl
 	return nil
 }
 
-func SyncConfigWithDb(ctx context.Context, cfg Config) (Config, bool, error) {
+func SyncConfigWithDB(ctx context.Context, cfg Config) (Config, bool, error) {
 	store, err := db.Init()
 	if err != nil {
 		return cfg, false, fmt.Errorf("db init: %w", err)
@@ -209,10 +209,10 @@ func SyncConfigWithDb(ctx context.Context, cfg Config) (Config, bool, error) {
 		return cfg, false, fmt.Errorf("read db: %w", err)
 	}
 
-	return mergeConfigWithDb(cfg, dbClusters, dbNodes)
+	return mergeConfigWithDB(cfg, dbClusters, dbNodes)
 }
 
-func CheckConfigWithDb(ctx context.Context, store *db.Store, cfg Config, verbose bool) (bool, error) {
+func CheckConfigWithDB(ctx context.Context, store *db.Store, cfg Config, verbose bool) (bool, error) {
 	var dbClusters []sqlc.Cluster
 	var dbNodes []sqlc.Node
 
@@ -249,7 +249,7 @@ func PurgeConfig(cfg Config, ctx context.Context) error {
 }
 
 func compareConfig(cfg Config, dbClusters []sqlc.Cluster, dbNodes []sqlc.Node, verbose bool) bool {
-	dbView := buildDbView(dbClusters, dbNodes)
+	dbView := buildDBView(dbClusters, dbNodes)
 	cfgView := buildCfgView(cfg)
 	inSync := true
 
@@ -316,7 +316,7 @@ func compareConfig(cfg Config, dbClusters []sqlc.Cluster, dbNodes []sqlc.Node, v
 	return inSync
 }
 
-func mergeConfigWithDb(cfg Config, dbClusters []sqlc.Cluster, dbNodes []sqlc.Node) (Config, bool, error) {
+func mergeConfigWithDB(cfg Config, dbClusters []sqlc.Cluster, dbNodes []sqlc.Node) (Config, bool, error) {
 	nodesByCluster := make(map[int64][]sqlc.Node)
 	for _, n := range dbNodes {
 		nodesByCluster[n.ClusterID] = append(nodesByCluster[n.ClusterID], n)
@@ -403,7 +403,7 @@ type nodeView struct {
 	User      string
 }
 
-func buildDbView(clusters []sqlc.Cluster, nodes []sqlc.Node) map[string]clusterView {
+func buildDBView(clusters []sqlc.Cluster, nodes []sqlc.Node) map[string]clusterView {
 	res := make(map[string]clusterView, len(clusters))
 
 	idToName := make(map[int64]string)

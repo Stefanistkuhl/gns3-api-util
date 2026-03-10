@@ -5,11 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
-	"github.com/spf13/cobra"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 func NewPurgeClusterConfigCMD() *cobra.Command {
@@ -29,7 +30,7 @@ func NewPurgeClusterConfigCMD() *cobra.Command {
 					return nil
 				}
 			}
-			dir, getDirErr := pathUtils.GetGNS3Dir()
+			dir, getDirErr := pathutils.GetGNS3Dir()
 			if getDirErr != nil {
 				return getDirErr
 			}

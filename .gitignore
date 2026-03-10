@@ -12,6 +12,7 @@ file-store
 
 # Test binary, built with `go test -c`
 *.test
+cover.cov
 
 # Output of the go coverage tool
 *.out

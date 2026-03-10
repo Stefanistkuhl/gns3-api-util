@@ -13,14 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
-	"github.com/0xveya/gns3util/pkg/api"
-	"github.com/0xveya/gns3util/pkg/api/endpoints"
-	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tidwall/gjson"
@@ -28,6 +20,15 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"gopkg.in/yaml.v3"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
+	"github.com/0xveya/gns3util/pkg/api"
+	"github.com/0xveya/gns3util/pkg/api/endpoints"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
 var idElementName = map[string][2]string{
@@ -158,11 +159,11 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 func PrintOutput(body []byte, cfg config.GlobalOptions) {
 	switch cfg.OutputFormat {
 	case globals.OutputJSON:
-		PrintJson(body)
+		PrintJSON(body)
 	case globals.OutputJSONColorless:
-		PrintJsonUgly(body)
+		PrintJSONUgly(body)
 	case globals.OutputCollapsed:
-		PrintJsonReallyUgly(body)
+		PrintJSONReallyUgly(body)
 	case globals.OutputYAML:
 		PrintYaml(body)
 	case globals.OutputTOML:
@@ -209,18 +210,18 @@ func PrintToml(cmdPath string, body []byte) {
 	fmt.Print(string(tomlData))
 }
 
-func PrintJson(body []byte) {
+func PrintJSON(body []byte) {
 	result := pretty.Pretty(body)
 	result = pretty.Color(result, nil)
 	fmt.Print(string(result))
 }
 
-func PrintJsonUgly(body []byte) {
+func PrintJSONUgly(body []byte) {
 	result := pretty.Pretty(body)
 	fmt.Print(string(result))
 }
 
-func PrintJsonReallyUgly(body []byte) {
+func PrintJSONReallyUgly(body []byte) {
 	fmt.Println(string(body))
 }
 
@@ -572,12 +573,12 @@ func GetEmbeddedFavicon() []byte {
 	return data
 }
 
-func ValidateUrl(input string) bool {
+func ValidateURL(input string) bool {
 	_, err := url.ParseRequestURI(input)
 	return err == nil
 }
 
-func ValidateUrlWithReturn(input string) *url.URL {
+func ValidateURLWithReturn(input string) *url.URL {
 	u, err := url.ParseRequestURI(input)
 	if err != nil {
 		return nil
@@ -585,8 +586,8 @@ func ValidateUrlWithReturn(input string) *url.URL {
 	return u
 }
 
-func ValidateAndTestUrl(ctx context.Context, input string) bool {
-	if !ValidateUrl(input) {
+func ValidateAndTestURL(ctx context.Context, input string) bool {
+	if !ValidateURL(input) {
 		return false
 	}
 	client := &http.Client{
@@ -709,13 +710,13 @@ func ConfirmPrompt(msg string, defaultYes bool) bool {
 	}
 }
 
-func GetUserInKeyFileForUrl(cfg config.GlobalOptions) (string, error) {
-	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+func GetUserInKeyFileForURL(cfg config.GlobalOptions) (string, error) {
+	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return "", err
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFileLocation)
 	if err != nil {
 		return "", fmt.Errorf("failed to load keys: %w", err)
 	}

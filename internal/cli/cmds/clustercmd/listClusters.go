@@ -38,10 +38,10 @@ func NewLsClusterCmd() *cobra.Command {
 					return fmt.Errorf("failed to marshal results: %w", err)
 				}
 				if noColor {
-					utils.PrintJsonUgly(mar)
+					utils.PrintJSONUgly(mar)
 					return nil
 				} else {
-					utils.PrintJson(mar)
+					utils.PrintJSON(mar)
 					return nil
 				}
 			}

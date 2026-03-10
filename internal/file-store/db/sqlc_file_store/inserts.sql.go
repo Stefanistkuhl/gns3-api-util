@@ -9,7 +9,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/0xveya/gns3util/internal/file-store/models"
+	"github.com/0xveya/gns3util/pkg/models"
 )
 
 const initFile = `-- name: InitFile :one
@@ -186,28 +186,6 @@ func (q *Queries) InsertProjectFile(ctx context.Context, arg InsertProjectFilePa
 	return err
 }
 
-const insertUserPermission = `-- name: InsertUserPermission :exec
-INSERT INTO
-    user_permissions (
-        user_id,
-        scope,
-        granted_at,
-        updated_at
-    )
-VALUES
-    (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-`
-
-type InsertUserPermissionParams struct {
-	UserID string `json:"user_id"`
-	Scope  string `json:"scope"`
-}
-
-func (q *Queries) InsertUserPermission(ctx context.Context, arg InsertUserPermissionParams) error {
-	_, err := q.db.ExecContext(ctx, insertUserPermission, arg.UserID, arg.Scope)
-	return err
-}
-
 const insertVMImage = `-- name: InsertVMImage :exec
 INSERT INTO
     vm_images (
@@ -239,167 +217,6 @@ func (q *Queries) InsertVMImage(ctx context.Context, arg InsertVMImageParams) er
 		arg.Vcpus,
 		arg.RamMb,
 		arg.ExtraAttributesJson,
-	)
-	return err
-}
-
-const revokeToken = `-- name: RevokeToken :exec
-INSERT INTO
-    revoked_tokens (
-        jti,
-        user_id,
-        revoked_at,
-        expires_at
-    )
-VALUES
-    (?, ?, CURRENT_TIMESTAMP, ?) ON CONFLICT(jti) DO
-UPDATE
-SET
-    user_id = excluded.user_id,
-    expires_at = excluded.expires_at
-`
-
-type RevokeTokenParams struct {
-	Jti       string       `json:"jti"`
-	UserID    string       `json:"user_id"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
-}
-
-func (q *Queries) RevokeToken(ctx context.Context, arg RevokeTokenParams) error {
-	_, err := q.db.ExecContext(ctx, revokeToken, arg.Jti, arg.UserID, arg.ExpiresAt)
-	return err
-}
-
-const upsertClusterKV = `-- name: UpsertClusterKV :exec
-INSERT INTO
-    cluster_kv (
-        KEY,
-        value,
-        version,
-        updated_at
-    )
-VALUES
-    (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(KEY) DO
-UPDATE
-SET
-    value = excluded.value,
-    version = excluded.version,
-    updated_at = CURRENT_TIMESTAMP
-`
-
-type UpsertClusterKVParams struct {
-	Key     string `json:"key"`
-	Value   string `json:"value"`
-	Version int64  `json:"version"`
-}
-
-func (q *Queries) UpsertClusterKV(ctx context.Context, arg UpsertClusterKVParams) error {
-	_, err := q.db.ExecContext(ctx, upsertClusterKV, arg.Key, arg.Value, arg.Version)
-	return err
-}
-
-const upsertClusterNode = `-- name: UpsertClusterNode :exec
-INSERT INTO
-    cluster_nodes (
-        node_id,
-        node_name,
-        node_kind,
-        api_url,
-        drpc_addr,
-        advertise_addr,
-        STATUS,
-        last_heartbeat_at,
-        created_at,
-        updated_at
-    )
-VALUES
-    (
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        ?,
-        CURRENT_TIMESTAMP,
-        CURRENT_TIMESTAMP
-    ) ON CONFLICT(node_id) DO
-UPDATE
-SET
-    node_name = excluded.node_name,
-    node_kind = excluded.node_kind,
-    api_url = excluded.api_url,
-    drpc_addr = excluded.drpc_addr,
-    advertise_addr = excluded.advertise_addr,
-    STATUS = excluded.status,
-    last_heartbeat_at = excluded.last_heartbeat_at,
-    updated_at = CURRENT_TIMESTAMP
-`
-
-type UpsertClusterNodeParams struct {
-	NodeID          string         `json:"node_id"`
-	NodeName        string         `json:"node_name"`
-	NodeKind        string         `json:"node_kind"`
-	ApiUrl          sql.NullString `json:"api_url"`
-	DrpcAddr        sql.NullString `json:"drpc_addr"`
-	AdvertiseAddr   sql.NullString `json:"advertise_addr"`
-	Status          string         `json:"status"`
-	LastHeartbeatAt sql.NullTime   `json:"last_heartbeat_at"`
-}
-
-func (q *Queries) UpsertClusterNode(ctx context.Context, arg UpsertClusterNodeParams) error {
-	_, err := q.db.ExecContext(ctx, upsertClusterNode,
-		arg.NodeID,
-		arg.NodeName,
-		arg.NodeKind,
-		arg.ApiUrl,
-		arg.DrpcAddr,
-		arg.AdvertiseAddr,
-		arg.Status,
-		arg.LastHeartbeatAt,
-	)
-	return err
-}
-
-const upsertSyncState = `-- name: UpsertSyncState :exec
-INSERT INTO
-    sync_state (
-        replica_name,
-        last_full_sync_at,
-        last_incremental_sync_at,
-        last_source_revision,
-        last_status,
-        last_error
-    )
-VALUES
-    (?, ?, ?, ?, ?, ?) ON CONFLICT(replica_name) DO
-UPDATE
-SET
-    last_full_sync_at = excluded.last_full_sync_at,
-    last_incremental_sync_at = excluded.last_incremental_sync_at,
-    last_source_revision = excluded.last_source_revision,
-    last_status = excluded.last_status,
-    last_error = excluded.last_error
-`
-
-type UpsertSyncStateParams struct {
-	ReplicaName           string         `json:"replica_name"`
-	LastFullSyncAt        sql.NullTime   `json:"last_full_sync_at"`
-	LastIncrementalSyncAt sql.NullTime   `json:"last_incremental_sync_at"`
-	LastSourceRevision    int64          `json:"last_source_revision"`
-	LastStatus            string         `json:"last_status"`
-	LastError             sql.NullString `json:"last_error"`
-}
-
-func (q *Queries) UpsertSyncState(ctx context.Context, arg UpsertSyncStateParams) error {
-	_, err := q.db.ExecContext(ctx, upsertSyncState,
-		arg.ReplicaName,
-		arg.LastFullSyncAt,
-		arg.LastIncrementalSyncAt,
-		arg.LastSourceRevision,
-		arg.LastStatus,
-		arg.LastError,
 	)
 	return err
 }

@@ -8,14 +8,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/cluster/db"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/fuzzy"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/colorUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 )
 
 type AddNodeOptions struct {
@@ -30,7 +31,7 @@ type AddNodeOptions struct {
 
 func RunAddNode(server string, opts *AddNodeOptions, cmd *cobra.Command) (db.NodeData, error) {
 	cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
-	u := utils.ValidateUrlWithReturn(server)
+	u := utils.ValidateURLWithReturn(server)
 	if u == nil {
 		return db.NodeData{}, fmt.Errorf("invalid server URL: %s", server)
 	}
@@ -68,12 +69,12 @@ func RunAddNodes(opts *AddNodeOptions, cmd *cobra.Command) ([]db.NodeData, error
 
 		cfg, _ := config.GetGlobalOptionsFromContext(cmd.Context())
 
-		keyFilePath, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+		keyFilePath, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 		if err != nil {
 			return nil, err
 		}
 
-		kf, err := pathUtils.LoadGNS3KeysFile(keyFilePath)
+		kf, err := pathutils.LoadGNS3KeysFile(keyFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load keyfile: %w", err)
 		}

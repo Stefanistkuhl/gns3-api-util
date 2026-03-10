@@ -3,7 +3,7 @@ package db
 import "database/sql"
 
 type ClusterName struct {
-	Id   int
+	ID   int
 	Name string
 	Desc sql.NullString
 }

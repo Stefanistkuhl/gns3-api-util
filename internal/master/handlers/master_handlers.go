@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,9 +15,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/0xveya/gns3util/pkg/models"
+	"github.com/0xveya/gns3util/pkg/state"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
+	"github.com/0xveya/gns3util/pkg/web/helpers"
+	"github.com/0xveya/gns3util/pkg/web/middleware"
 )
+
+type Master struct {
+	IDMgr  *auth.IdentityManager
+	Store  *state.StateManager
+	TLSDir string
+	Logger *slog.Logger
+}
 
 func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 	expectedToken := os.Getenv("JOIN_TOKEN")
@@ -26,7 +38,7 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req JoinClusterRequest
+	var req models.JoinClusterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -93,7 +105,7 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 		cluster += fmt.Sprintf("%s=%s", name, mem.PeerURLs[0])
 	}
 
-	resp := JoinClusterResponse{
+	resp := models.JoinClusterResponse{
 		MemberID: memberResp.Member.ID,
 		Cluster:  cluster,
 		CertPEM:  signedCertPEM,
@@ -108,7 +120,7 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
-	var req CreateTokenRequest
+	var req models.CreateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -229,7 +241,7 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req JoinFilestoreRequest
+	var req models.JoinFilestoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
@@ -275,7 +287,7 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := JoinFilestoreResponse{
+	resp := models.JoinFilestoreResponse{
 		NodeCert: string(signedCertPEM),
 		CACert:   string(caCertPEM),
 	}
@@ -283,6 +295,31 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
 		http.Error(w, fmt.Sprintf("Failed to encode response: %v", encodeErr), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (m *Master) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.GetClaims(r)
+	if !ok {
+		m.Logger.Error("Failed to get claims from JWT", "err", "claims not found in context")
+		helpers.WriteAPIError(w, "failed to get claims from jwt", helpers.ErrCodeGetClaims, "failed to get claims from jwt even though this is past middleware and shouldn't happen", http.StatusInternalServerError)
+		return
+	}
+	userID := claims.UserID
+	scopes, err := m.Store.GetUserScopes(r.Context(), userID)
+	if err != nil {
+		m.Logger.Error("Failed to get user scopes", "err", err, "user_id", userID)
+		helpers.WriteAPIError(w, "failed to get user scopes", helpers.ErrCodeGetClaims, fmt.Sprintf("failed to get user scopes: %v", err), http.StatusInternalServerError)
+	}
+	res := models.AuthStatusResponse{
+		Authenticated: true,
+		User:          userID,
+		Scopes:        scopes,
+	}
+	if writeResErr := helpers.WriteJSON(w, res); writeResErr != nil {
+		m.Logger.Error("Failed to write auth status response", "err", writeResErr)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 		return
 	}
 }

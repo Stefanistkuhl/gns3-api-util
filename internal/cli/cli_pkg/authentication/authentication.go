@@ -6,14 +6,14 @@ import (
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/0xveya/gns3util/pkg/api/endpoints"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
-func TryKeys(kf *pathUtils.KeyFileV2, cfg config.GlobalOptions) ([]byte, error) {
+func TryKeys(kf *pathutils.KeyFileV2, cfg config.GlobalOptions) ([]byte, error) {
 	for i := range kf.StandaloneGNS3 {
 		entry := &kf.StandaloneGNS3[i]
 		if nwutils.NormalizeURL(cfg.Server) == nwutils.NormalizeURL(entry.URL) {
@@ -72,17 +72,17 @@ func tryKey(token string, cfg config.GlobalOptions) ([]byte, bool) {
 }
 
 func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string) error {
-	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return err
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFileLocation)
 	if err != nil {
 		return err
 	}
 
-	newEntry := pathUtils.GNS3ServerEntry{
+	newEntry := pathutils.GNS3ServerEntry{
 		URL:         cfg.Server,
 		User:        username,
 		AccessToken: *token.AccessToken,
@@ -101,16 +101,16 @@ func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string
 		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, newEntry)
 	}
 
-	return pathUtils.SaveKeysFile(keyFileLocation, kf)
+	return pathutils.SaveKeysFile(keyFileLocation, kf)
 }
 
 func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
-	keyFileLocation, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return "", err
 	}
 
-	kf, err := pathUtils.LoadGNS3KeysFile(keyFileLocation)
+	kf, err := pathutils.LoadGNS3KeysFile(keyFileLocation)
 	if err != nil {
 		return "", err
 	}

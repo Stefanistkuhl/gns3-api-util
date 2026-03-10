@@ -81,9 +81,17 @@ func (c *MasterSyncClient) Close() error {
 	return nil
 }
 
-func (c *MasterSyncClient) FullSync(
+func (c *MasterSyncClient) CheckPermission(
 	ctx context.Context,
-	req *pb.FullSyncRequest,
-) (*pb.FullSyncResponse, error) {
-	return c.client.FullSync(ctx, req)
+	userID, jti, scope string,
+) (bool, error) {
+	resp, err := c.client.CheckPermission(ctx, &pb.PermissionCheckRequest{
+		UserId: userID,
+		Jti:    jti,
+		Scope:  scope,
+	})
+	if err != nil {
+		return false, err
+	}
+	return resp.Allowed, nil
 }

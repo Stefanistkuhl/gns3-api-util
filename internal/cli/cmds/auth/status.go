@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/api/schemas"
-	"github.com/spf13/cobra"
 )
 
 func NewAuthStatusCmd() *cobra.Command {
@@ -25,12 +26,12 @@ func NewAuthStatusCmd() *cobra.Command {
 				return fmt.Errorf("failed to get global options: %w", err)
 			}
 
-			keyFilePath, err := pathUtils.ResolveKeyFilePath(cfg.KeyFile)
+			keyFilePath, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 			if err != nil {
 				return fmt.Errorf("failed to resolve key file path: %w", err)
 			}
 
-			kf, err := pathUtils.LoadGNS3KeysFile(keyFilePath)
+			kf, err := pathutils.LoadGNS3KeysFile(keyFilePath)
 			if err != nil {
 				return fmt.Errorf("failed to load keys: %w", err)
 			}

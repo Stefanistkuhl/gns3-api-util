@@ -67,7 +67,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 				cfgLoaded = cfgEnsured
 			}
 
-			inSync, checkErr := cluster.CheckConfigWithDb(cmd.Context(), store, cfgLoaded, verbose)
+			inSync, checkErr := cluster.CheckConfigWithDB(cmd.Context(), store, cfgLoaded, verbose)
 			if checkErr != nil {
 				return fmt.Errorf("error checking config: %w", checkErr)
 			}
@@ -87,7 +87,7 @@ func NewSyncClusterConfigCmdGroup() *cobra.Command {
 				}
 			}
 
-			cfgNew, changed, syncErr := cluster.SyncConfigWithDb(cmd.Context(), cfgLoaded)
+			cfgNew, changed, syncErr := cluster.SyncConfigWithDB(cmd.Context(), cfgLoaded)
 			if syncErr != nil {
 				return fmt.Errorf("error syncing config: %w", syncErr)
 			}

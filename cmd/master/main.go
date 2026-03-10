@@ -31,12 +31,11 @@ import (
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
+	"github.com/0xveya/gns3util/pkg/web/middleware"
 	"github.com/go-chi/chi/v5"
 
 	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/grandcat/zeroconf"
-	"github.com/riandyrn/otelchi"
 	"go.opentelemetry.io/otel/log/global"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
@@ -231,6 +230,7 @@ func main() {
 		IDMgr:  idMgr,
 		Store:  store,
 		TLSDir: cfg.TLSDir,
+		Logger: logger,
 	}
 
 	sigChan := make(chan os.Signal, 1)
@@ -250,8 +250,8 @@ func main() {
 
 	m := drpcmux.New()
 	syncSvc := rpc.NewSyncService(store)
-	if registerErr := pb.DRPCRegisterMasterSyncService(m, syncSvc); registerErr != nil {
-		logger.Error("Failed to register sync service", "err", registerErr)
+	if rpcErr := pb.DRPCRegisterMasterSyncService(m, syncSvc); rpcErr != nil {
+		logger.Error("Failed to register sync service", "err", rpcErr)
 		return
 	}
 	r := chi.NewRouter()
@@ -349,33 +349,28 @@ func main() {
 }
 
 func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
-	if !otelEnabled {
-		r.Use(chimiddleware.Logger)
-	} else {
-		r.Use(otelchi.Middleware(fmt.Sprintf("%s-api", cfg.AppName)))
-
-		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-				ww := chimiddleware.NewWrapResponseWriter(w, req.ProtoMajor)
-				next.ServeHTTP(ww, req)
-
-				logger.InfoContext(req.Context(), "HTTP Request",
-					"method", req.Method,
-					"path", req.URL.Path,
-					"status", ww.Status(),
-				)
-			})
-		})
-	}
-	r.Use(chimiddleware.Recoverer)
+	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
 	r.Get("/healthz", commonhandlers.HandleHealthz)
 
-	r.Post("/auth/token", master.HandleCreateToken)
-	r.Post("/auth/grant", master.HandleGrantAccess)
-	r.Post("/auth/revoke", master.HandleRevokeAccess)
-	r.Post("/cluster/join", master.HandleJoinCluster)
-	r.Post("/cluster/join/filestore", master.HandleJoinFilestore)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Route("/auth", func(r chi.Router) {
+			r.Post("/token", master.HandleCreateToken)
+
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.AuthMiddleware(master.IDMgr))
+
+				r.Post("/grant", master.HandleGrantAccess)
+				r.Post("/revoke", master.HandleRevokeAccess)
+				r.Get("/status", master.HandleAuthStatus)
+			})
+		})
+
+		r.Route("/cluster", func(r chi.Router) {
+			r.Post("/join", master.HandleJoinCluster)
+			r.Post("/join/filestore", master.HandleJoinFilestore)
+		})
+	})
 }
 
 func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) {
