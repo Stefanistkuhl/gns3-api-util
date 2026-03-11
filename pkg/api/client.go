@@ -35,21 +35,20 @@ type Settings struct {
 }
 
 type requestOptions struct {
-	settings Settings
-	URL      string
-	header   http.Header
-	method   HTTPMethod
-	data     string
-	stream   bool
-	params   map[string]string
+	URL    string
+	header http.Header
+	method HTTPMethod
+	data   string
+	stream bool
+	params map[string]string
 }
 
-type GNS3ApiClient struct {
+type BaseClient struct {
 	settings Settings
 	client   *http.Client
 }
 
-type BaseClient struct {
+type GNS3ApiClient struct {
 	settings Settings
 	client   *http.Client
 }
@@ -67,30 +66,14 @@ func NewSettings(opts ...SettingOption) Settings {
 	return s
 }
 
-func NewGNS3Client(settings Settings) *GNS3ApiClient {
-	tr := &http.Transport{}
-	if !settings.Verify {
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // #nosec G402
-	}
-	return &GNS3ApiClient{
-		settings: settings,
-		client: &http.Client{
-			Transport: tr,
-			Timeout:   settings.Timeout,
-		},
-	}
-}
-
 func NewRequestOptions(settings Settings) *requestOptions {
 	hdr := make(http.Header)
 	hdr.Set("Content-Type", "application/json")
-	// consider unhardcodeing this from time to time
 	hdr.Set("Authorization", fmt.Sprintf("Bearer %s", settings.Token))
 	return &requestOptions{
-		settings: settings,
-		header:   hdr,
-		method:   GET,
-		params:   make(map[string]string),
+		header: hdr,
+		method: GET,
+		params: make(map[string]string),
 	}
 }
 
@@ -130,6 +113,12 @@ func WithTimeout(d time.Duration) SettingOption {
 	}
 }
 
+func WithCA(cert []byte) SettingOption {
+	return func(s *Settings) {
+		s.CACert = cert
+	}
+}
+
 func (r *requestOptions) WithURL(path string) *requestOptions {
 	r.URL = path
 	return r
@@ -155,12 +144,6 @@ func (r *requestOptions) WithStream() *requestOptions {
 	return r
 }
 
-func WithCA(cert []byte) SettingOption {
-	return func(s *Settings) {
-		s.CACert = cert
-	}
-}
-
 func createTLSConfig(settings Settings) *tls.Config {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: !settings.Verify, // #nosec G402
@@ -171,7 +154,6 @@ func createTLSConfig(settings Settings) *tls.Config {
 		if err != nil || caCertPool == nil {
 			caCertPool = x509.NewCertPool()
 		}
-
 		caCertPool.AppendCertsFromPEM(settings.CACert)
 		tlsConfig.RootCAs = caCertPool
 	}
@@ -193,11 +175,22 @@ func NewBaseClient(settings Settings) *BaseClient {
 	}
 }
 
-func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error) {
-	fullURL := c.settings.BaseURL + opts.URL
-	ctx, cancel := context.WithTimeout(context.Background(), c.settings.Timeout)
-	defer cancel()
+func NewGNS3Client(settings Settings) *GNS3ApiClient {
+	tr := &http.Transport{
+		TLSClientConfig: createTLSConfig(settings),
+	}
 
+	return &GNS3ApiClient{
+		settings: settings,
+		client: &http.Client{
+			Transport: tr,
+			Timeout:   settings.Timeout,
+		},
+	}
+}
+
+func buildURL(baseURL string, opts *requestOptions) string {
+	fullURL := baseURL + opts.URL
 	if len(opts.params) > 0 {
 		q := url.Values{}
 		for k, v := range opts.params {
@@ -205,155 +198,94 @@ func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error)
 		}
 		fullURL += "?" + q.Encode()
 	}
+	return fullURL
+}
 
-	if opts.stream {
-		streamClient := *c.client
-		streamClient.Timeout = 0
+func doRequest(ctx context.Context, client *http.Client, baseURL string, opts *requestOptions) ([]byte, *http.Response, error) {
+	fullURL := buildURL(baseURL, opts)
 
-		req, err := http.NewRequestWithContext(ctx, string(opts.method), fullURL, bytes.NewBufferString(opts.data))
-		if err != nil {
-			return nil, nil, err
-		}
-		req.Header = opts.header
-
-		resp, err := streamClient.Do(req)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if c.settings.Timeout > 0 {
-			go func() {
-				<-time.After(c.settings.Timeout)
-				_ = resp.Body.Close()
-			}()
-		}
-
-		return nil, resp, nil
-	}
-
-	req, err := http.NewRequestWithContext(ctx,
-		string(opts.method),
-		fullURL,
-		bytes.NewBufferString(opts.data),
-	)
+	req, err := http.NewRequestWithContext(ctx, string(opts.method), fullURL, bytes.NewBufferString(opts.data))
 	if err != nil {
 		return nil, nil, err
 	}
 	req.Header = opts.header
 
-	resp, err := c.client.Do(req)
+	if opts.stream {
+		streamClient := &http.Client{
+			Transport: client.Transport,
+		}
+		resp, err := streamClient.Do(req)
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, resp, nil
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() {
-		if resp != nil {
-			_ = resp.Body.Close()
-		}
-	}()
+	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, resp, err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		if resp.StatusCode == 422 {
-			var anyPayload any
-			if err := json.Unmarshal(body, &anyPayload); err == nil {
-				switch v := anyPayload.(type) {
-				case map[string]any:
-					if msg, ok := v["message"]; ok {
-						if b, err := json.MarshalIndent(msg, "", "  "); err == nil {
-							return body, resp, fmt.Errorf("validation error (422):\n%s", string(b))
-						}
-					}
-				case []any:
-					if b, err := json.MarshalIndent(v, "", "  "); err == nil {
-						return body, resp, fmt.Errorf("validation error (422):\n%s", string(b))
-					}
-				}
-			}
-			return body, resp, fmt.Errorf("validation error (422): %s", string(body))
-		}
-		if resp.StatusCode == 403 {
-			var errorMsg map[string]string
-			if err := json.Unmarshal(body, &errorMsg); err == nil {
-				return body, resp, fmt.Errorf("%s", errorMsg["message"])
-			}
-			return body, resp, fmt.Errorf("unknown forbidden 403 error. ")
-		}
-		return body, resp, fmt.Errorf("bad status %d: %s", resp.StatusCode, body)
 	}
 
 	return body, resp, nil
 }
 
-func (c *BaseClient) DOv2(opts *requestOptions) ([]byte, *http.Response, error) {
-	fullURL := c.settings.BaseURL + opts.URL
-	ctx, cancel := context.WithTimeout(context.Background(), c.settings.Timeout)
-	defer cancel()
+func (c *BaseClient) Do(ctx context.Context, opts *requestOptions) ([]byte, *http.Response, error) {
+	return doRequest(ctx, c.client, c.settings.BaseURL, opts)
+}
 
-	if len(opts.params) > 0 {
-		q := url.Values{}
-		for k, v := range opts.params {
-			q.Set(k, v)
-		}
-		fullURL += "?" + q.Encode()
+func (c *GNS3ApiClient) Do(opts *requestOptions) ([]byte, *http.Response, error) {
+	ctx := context.Background()
+	if c.settings.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.settings.Timeout)
+		defer cancel()
 	}
 
-	if opts.stream {
-		streamClient := *c.client
-		streamClient.Timeout = 0
-
-		req, err := http.NewRequestWithContext(ctx, string(opts.method), fullURL, bytes.NewBufferString(opts.data))
-		if err != nil {
-			return nil, nil, err
-		}
-		req.Header = opts.header
-
-		resp, err := streamClient.Do(req)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if c.settings.Timeout > 0 {
-			go func() {
-				<-time.After(c.settings.Timeout)
-				_ = resp.Body.Close()
-			}()
-		}
-
-		return nil, resp, nil
-	}
-
-	req, err := http.NewRequestWithContext(ctx,
-		string(opts.method),
-		fullURL,
-		bytes.NewBufferString(opts.data),
-	)
+	body, resp, err := doRequest(ctx, c.client, c.settings.BaseURL, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	req.Header = opts.header
 
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() {
-		if resp != nil {
-			_ = resp.Body.Close()
-		}
-	}()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp, err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return body, resp, fmt.Errorf("request failed with status: %d", resp.StatusCode)
+	if resp != nil && (resp.StatusCode < 200 || resp.StatusCode >= 300) {
+		return body, resp, c.parseGNS3Error(body, resp.StatusCode)
 	}
 
 	return body, resp, nil
+}
+
+func (c *GNS3ApiClient) parseGNS3Error(body []byte, statusCode int) error {
+	if statusCode == 422 {
+		var payload any
+		if err := json.Unmarshal(body, &payload); err == nil {
+			switch v := payload.(type) {
+			case map[string]any:
+				if msg, ok := v["message"]; ok {
+					if b, err := json.MarshalIndent(msg, "", "  "); err == nil {
+						return fmt.Errorf("validation error (422):\n%s", string(b))
+					}
+				}
+			case []any:
+				if b, err := json.MarshalIndent(v, "", "  "); err == nil {
+					return fmt.Errorf("validation error (422):\n%s", string(b))
+				}
+			}
+		}
+		return fmt.Errorf("validation error (422): %s", string(body))
+	}
+
+	if statusCode == 403 {
+		var errorMsg map[string]string
+		if err := json.Unmarshal(body, &errorMsg); err == nil {
+			return fmt.Errorf("%s", errorMsg["message"])
+		}
+		return fmt.Errorf("unknown forbidden 403 error")
+	}
+
+	return fmt.Errorf("bad status %d: %s", statusCode, string(body))
 }

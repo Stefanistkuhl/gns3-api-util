@@ -31,41 +31,36 @@ func NewClientV2(settings Settings) *ClientV2 {
 	}
 }
 
-func (c *ClientV2) Do(opts *requestOptions) ([]byte, *http.Response, error) {
-	body, resp, err := c.base.DOv2(opts)
+func (c *ClientV2) Do(ctx context.Context, opts *requestOptions) ([]byte, *http.Response, error) {
+	body, resp, err := c.base.Do(ctx, opts)
 	if err != nil {
-		if resp == nil {
-			return nil, nil, err
-		}
+		return nil, nil, err
+	}
 
-		if resp.StatusCode >= 300 {
-			var apiErr APIError
-			if parseErr := json.Unmarshal(body, &apiErr); parseErr == nil {
-				apiErr.StatusCode = resp.StatusCode
+	if opts.stream {
+		return nil, resp, nil
+	}
 
-				if apiErr.ErrorMsg == "" && apiErr.Code == "" && apiErr.Details == "" {
-					hint := messageUtils.WarningMsgf(
-						"received unexpected response format from server. "+
-							"This usually indicates the wrong server URL. "+
-							"Raw response: %s",
-						string(body),
-					)
-					return body, resp, fmt.Errorf("%s", hint)
-				}
-
-				return body, resp, &apiErr
-			}
-
-			hint := messageUtils.WarningMsgf(
-				"failed to parse API error response. "+
-					"Possible wrong server URL. (status %d): %s",
-				resp.StatusCode, string(body),
-			)
-			return body, resp, fmt.Errorf("%s", hint)
-		}
+	if resp.StatusCode >= 300 {
+		return body, resp, c.parseAPIError(body, resp.StatusCode)
 	}
 
 	return body, resp, nil
+}
+
+func (c *ClientV2) parseAPIError(body []byte, statusCode int) error {
+	var apiErr APIError
+	if err := json.Unmarshal(body, &apiErr); err == nil {
+		apiErr.StatusCode = statusCode
+		if apiErr.ErrorMsg != "" || apiErr.Code != "" || apiErr.Details != "" {
+			return &apiErr
+		}
+	}
+
+	return fmt.Errorf("%s", messageUtils.WarningMsgf(
+		"unexpected response (status %d): %s",
+		statusCode, string(body),
+	))
 }
 
 func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusResponse, error) {
@@ -73,7 +68,7 @@ func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusRespons
 		WithURL("/auth/status").
 		WithMethod(GET)
 
-	body, _, err := c.Do(opts)
+	body, _, err := c.Do(ctx, opts)
 	if err != nil {
 		return nil, err
 	}

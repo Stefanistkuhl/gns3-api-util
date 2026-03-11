@@ -123,13 +123,13 @@ func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body an
 
 	respBody, resp, err := client.Do(reqOpts)
 	if err != nil {
-		status := 0
 		if resp != nil {
-			status = resp.StatusCode
+			return respBody, resp.StatusCode, err
 		}
-		return respBody, status, err
+		return respBody, 0, err
 	}
 	defer resp.Body.Close()
+
 	return respBody, resp.StatusCode, nil
 }
 
