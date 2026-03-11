@@ -180,7 +180,7 @@ func generateProjectName(format, className, exerciseName, groupNumber string) st
 	return projectName
 }
 
-func getUserRoleID(cfg config.GlobalOptions) (string, error) {
+func getUserRoleID(cfg *config.GlobalOptions) (string, error) {
 	rolesBody, status, err := utils.CallClient(cfg, "getRoles", []string{}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get roles: %w", err)
@@ -204,7 +204,7 @@ func getUserRoleID(cfg config.GlobalOptions) (string, error) {
 	return "", fmt.Errorf("user role not found")
 }
 
-func createProjectForGroup(cfg config.GlobalOptions, projectName, groupID, roleID string) error {
+func createProjectForGroup(cfg *config.GlobalOptions, projectName, groupID, roleID string) error {
 	projectData := schemas.ProjectCreate{
 		Name: &projectName,
 	}
@@ -290,7 +290,7 @@ func createProjectForGroup(cfg config.GlobalOptions, projectName, groupID, roleI
 	return nil
 }
 
-func checkExistingExercises(cfg config.GlobalOptions, className string, classGroups []schemas.UserGroupResponse) ([]string, error) {
+func checkExistingExercises(cfg *config.GlobalOptions, className string, classGroups []schemas.UserGroupResponse) ([]string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get projects: %w", err)

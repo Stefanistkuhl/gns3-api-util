@@ -24,7 +24,7 @@ func TestSaveAuthData(t *testing.T) {
 
 	keyFile := filepath.Join(tempDir, "gns3key")
 
-	cfg := config.GlobalOptions{
+	cfg := &config.GlobalOptions{
 		Server:   "http://example.com",
 		KeyFile:  keyFile,
 		Insecure: false,
@@ -91,7 +91,7 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 
 	keyFile := filepath.Join(tempDir, "gns3key")
 
-	cfg := config.GlobalOptions{
+	cfg := &config.GlobalOptions{
 		Server:   "http://example.com",
 		KeyFile:  keyFile,
 		Insecure: false,
@@ -148,7 +148,7 @@ func TestSaveAuthDataMultipleServers(t *testing.T) {
 
 	keyFile := filepath.Join(tempDir, "gns3key")
 
-	cfg1 := config.GlobalOptions{
+	cfg1 := &config.GlobalOptions{
 		Server:   "http://server1.com",
 		KeyFile:  keyFile,
 		Insecure: false,
@@ -162,7 +162,7 @@ func TestSaveAuthDataMultipleServers(t *testing.T) {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
 
-	cfg2 := config.GlobalOptions{
+	cfg2 := &config.GlobalOptions{
 		Server:   "http://server2.com",
 		KeyFile:  keyFile,
 		Insecure: false,
@@ -199,7 +199,7 @@ func TestGetKeyForServer(t *testing.T) {
 
 	keyFile := filepath.Join(tempDir, "gns3key")
 
-	cfg := config.GlobalOptions{
+	cfg := &config.GlobalOptions{
 		Server:   "http://example.com",
 		KeyFile:  keyFile,
 		Insecure: false,

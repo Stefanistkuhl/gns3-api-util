@@ -210,3 +210,39 @@ func ResolveKeyFilePath(cfgKeyFile string) (string, error) {
 	}
 	return filepath.Join(dir, "gns3key"), nil
 }
+
+func (k *KeyFileV2) IsMasterPresent(masterURL string) (*ServiceEntry, bool) {
+	for i := range k.Clusters {
+		c := &k.Clusters[i]
+		if c.Master.URL == masterURL {
+			return &c.Master, true
+		}
+	}
+	return nil, false
+}
+
+func (k *KeyFileV2) UpdateMaster(token, serverURL, user string) {
+	entry := ServiceEntry{
+		Type:        TypeClusterMaster,
+		AccessToken: token,
+		URL:         serverURL,
+		User:        user,
+	}
+	for i := range k.Clusters {
+		c := &k.Clusters[i]
+		if c.Master.URL == serverURL {
+			c.Master = entry
+			return
+		}
+	}
+}
+
+func (k *KeyFileV2) CheckIfClusterExists(name string) bool {
+	for i := range k.Clusters {
+		c := &k.Clusters[i]
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}

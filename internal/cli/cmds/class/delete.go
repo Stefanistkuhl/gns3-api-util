@@ -195,7 +195,7 @@ func runDeleteClass(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deleteClassInCluster(cfg config.GlobalOptions, clusterName, className string, confirm, deleteExercises bool) error {
+func deleteClassInCluster(cfg *config.GlobalOptions, clusterName, className string, confirm, deleteExercises bool) error {
 	if confirm {
 		message := fmt.Sprintf("Delete class '%s' from cluster '%s'?", className, clusterName)
 		if deleteExercises {
@@ -296,7 +296,7 @@ func deleteClassInCluster(cfg config.GlobalOptions, clusterName, className strin
 	return nil
 }
 
-func getAllClassNames(cfg config.GlobalOptions, dbFirst bool) ([]string, error) {
+func getAllClassNames(cfg *config.GlobalOptions, dbFirst bool) ([]string, error) {
 	if dbFirst {
 		classNames, err := getAllClassNamesFromDB(cfg)
 		if err == nil && len(classNames) > 0 {
@@ -306,7 +306,7 @@ func getAllClassNames(cfg config.GlobalOptions, dbFirst bool) ([]string, error) 
 	return getAllClassNamesFromAPI(cfg)
 }
 
-func getAllClassNamesFromDB(cfg config.GlobalOptions) ([]string, error) {
+func getAllClassNamesFromDB(cfg *config.GlobalOptions) ([]string, error) {
 	clusterID, err := getClusterIDForServer(cfg)
 	if err != nil {
 		return nil, err
@@ -330,7 +330,7 @@ func getAllClassNamesFromDB(cfg config.GlobalOptions) ([]string, error) {
 	return classNames, nil
 }
 
-func getAllClassNamesFromAPI(cfg config.GlobalOptions) ([]string, error) {
+func getAllClassNamesFromAPI(cfg *config.GlobalOptions) ([]string, error) {
 	groupsBody, status, err := utils.CallClient(cfg, "getGroups", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get groups: %w", err)
@@ -347,7 +347,7 @@ func getAllClassNamesFromAPI(cfg config.GlobalOptions) ([]string, error) {
 	return getClassNamesFromGroups(groups)
 }
 
-func selectClassesWithFuzzy(cfg config.GlobalOptions, multi, dbFirst bool) ([]string, error) {
+func selectClassesWithFuzzy(cfg *config.GlobalOptions, multi, dbFirst bool) ([]string, error) {
 	if dbFirst {
 		classNames, err := getAllClassNamesFromDB(cfg)
 		if err == nil && len(classNames) > 0 {
@@ -359,7 +359,7 @@ func selectClassesWithFuzzy(cfg config.GlobalOptions, multi, dbFirst bool) ([]st
 	return selectClassesWithFuzzyFromAPI(cfg, multi)
 }
 
-func selectClassesWithFuzzyFromAPI(cfg config.GlobalOptions, multi bool) ([]string, error) {
+func selectClassesWithFuzzyFromAPI(cfg *config.GlobalOptions, multi bool) ([]string, error) {
 	groupsBody, status, err := utils.CallClient(cfg, "getGroups", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get groups: %w", err)
@@ -386,7 +386,7 @@ func selectClassesWithFuzzyFromAPI(cfg config.GlobalOptions, multi bool) ([]stri
 	return finder, nil
 }
 
-func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
+func getClusterIDForServer(cfg *config.GlobalOptions) (int, error) {
 	if cfg.Server == "" {
 		return 0, fmt.Errorf("no server configured")
 	}
@@ -436,7 +436,7 @@ func getClassNamesFromGroups(groups []schemas.UserGroupResponse) ([]string, erro
 	return classNames, nil
 }
 
-func deleteClassWithConfirmation(cfg config.GlobalOptions, className string, confirm, deleteExercises bool) error {
+func deleteClassWithConfirmation(cfg *config.GlobalOptions, className string, confirm, deleteExercises bool) error {
 	if confirm {
 		message := fmt.Sprintf("Delete class '%s'?", className)
 		if deleteExercises {

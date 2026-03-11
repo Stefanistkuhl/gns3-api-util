@@ -209,7 +209,7 @@ func NewGetProjectExportCmd() *cobra.Command {
 	return cmd
 }
 
-func getProjectNameFromID(cfg config.GlobalOptions, projectID string) (string, error) {
+func getProjectNameFromID(cfg *config.GlobalOptions, projectID string) (string, error) {
 	token, err := authentication.GetKeyForServer(cfg)
 	if err != nil {
 		return "", fmt.Errorf("failed to get token: %w", err)

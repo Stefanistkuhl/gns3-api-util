@@ -24,6 +24,7 @@ var (
 	insecure     bool
 	version      bool
 	outputFormat string
+	cluster      string
 )
 
 var Version = "1.3.1"
@@ -35,30 +36,30 @@ var rootCmd = &cobra.Command{
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if cmd.Name() == "completion" ||
-			cmd.Name() == "_carapace" ||
-			cmd.Name() == "help" ||
-			(cmd.Parent() != nil && cmd.Parent().Name() == "completion") {
+		if cmd.Name() == "completion" || cmd.Name() == "_carapace" ||
+			cmd.Name() == "help" || version {
 			return nil
 		}
 		if len(args) > 0 && args[0] == "_carapace" {
 			return nil
 		}
 
-		if version {
-			return nil
-		}
+		serverFlagSet := cmd.Flags().Changed("server")
+		clusterFlagSet := cmd.Flags().Changed("cluster")
 
-		if server == "" {
+		if !serverFlagSet {
 			server = viper.GetString("server")
+		}
+		if !clusterFlagSet {
+			cluster = viper.GetString("cluster")
+		}
+		if keyFile == "" {
+			keyFile = viper.GetString("key-file")
 		}
 		if outputFormat == "" || outputFormat == "kv" {
 			if v := viper.GetString("output"); v != "" {
 				outputFormat = v
 			}
-		}
-		if keyFile == "" {
-			keyFile = viper.GetString("key-file")
 		}
 		keyFile, _ = pathutils.ExpandPath(keyFile)
 
@@ -66,42 +67,45 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
-		skipServer := false
-		if f := cmd.Flags().Lookup("cluster"); f != nil {
-			if v, _ := cmd.Flags().GetString("cluster"); v != "" {
-				skipServer = true
-			}
+		if serverFlagSet && clusterFlagSet {
+			return fmt.Errorf("--server and --cluster are mutually exclusive")
 		}
-		if !skipServer {
-			for c := cmd; c != nil; c = c.Parent() {
-				if c.Name() == "ctl" {
-					skipServer = true
-					break
-				}
-			}
+
+		requiresServer := !isCtlCommand(cmd) && !hasAuthModeFlexible(cmd)
+		if requiresServer && server == "" && cluster == "" {
+			return fmt.Errorf("required flag(s) \"--server\" not set")
 		}
-		if !skipServer {
-			if f := cmd.InheritedFlags().Lookup("cluster"); f != nil {
-				if v, _ := cmd.InheritedFlags().GetString("cluster"); v != "" {
-					skipServer = true
-				}
+
+		var clusterEntry *pathutils.ClusterEntry
+		if cluster != "" {
+			keyFilePath, err := pathutils.ResolveKeyFilePath(keyFile)
+			if err != nil {
+				return fmt.Errorf("failed to resolve key file: %w", err)
 			}
-		}
-		if !skipServer {
-			if err := validateRequiresServer(); err != nil {
-				return err
+
+			kf, err := pathutils.LoadGNS3KeysFile(keyFilePath)
+			if err != nil {
+				return fmt.Errorf("failed to load key file: %w", err)
 			}
+
+			entry, ok := findClusterByName(kf, cluster)
+			if !ok {
+				return fmt.Errorf("cluster %q not found in key file", cluster)
+			}
+			clusterEntry = entry
 		}
 
 		cmdPath := cmd.CommandPath()
-
 		fmtType := globals.ParseOutputFormat(outputFormat)
-		opts := config.GlobalOptions{
+
+		opts := &config.GlobalOptions{
 			Server:       server,
 			Insecure:     insecure,
 			KeyFile:      keyFile,
 			OutputFormat: fmtType,
 			CommandPath:  cmdPath,
+			Cluster:      cluster,
+			ClusterEntry: clusterEntry,
 		}
 		ctx := config.WithGlobalOptions(cmd.Context(), opts)
 		cmd.SetContext(ctx)
@@ -148,6 +152,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "kv",
 		"Output format: [kv, json, json-colorless, collapsed, yaml, toml]. Can be set via GNS3_OUTPUT")
+	rootCmd.PersistentFlags().StringVarP(&cluster, "cluster", "c", "",
+		"Cluster name from keyfile. Mutually exclusive with --server")
 
 	rootCmd.AddCommand(auth.NewAuthCmdGroup())
 
@@ -167,7 +173,7 @@ func init() {
 	rootCmd.AddCommand(NewUserCmdGroup())
 	rootCmd.AddCommand(NewGroupCmdGroup())
 	rootCmd.AddCommand(NewRoleCmdGroup())
-	rootCmd.AddCommand(NewAclCmdGroup())
+	rootCmd.AddCommand(NewACLCmdGroup())
 
 	rootCmd.AddCommand(NewPoolCmdGroup())
 	rootCmd.AddCommand(NewSnapshotCmdGroup())
@@ -207,6 +213,7 @@ func init() {
 	_ = viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 	_ = viper.BindPFlag("key-file", rootCmd.PersistentFlags().Lookup("key-file"))
 	_ = viper.BindPFlag("insecure", rootCmd.PersistentFlags().Lookup("insecure"))
+	_ = viper.BindPFlag("cluster", rootCmd.PersistentFlags().Lookup("cluster"))
 
 	_ = viper.ReadInConfig()
 }
@@ -229,9 +236,24 @@ func validateGlobalFlags() error {
 	return nil
 }
 
-func validateRequiresServer() error {
-	if server == "" {
-		return fmt.Errorf("required flag(s) \"server\" not set")
+func isCtlCommand(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "ctl" {
+			return true
+		}
 	}
-	return nil
+	return false
+}
+
+func hasAuthModeFlexible(cmd *cobra.Command) bool {
+	return cmd.Annotations != nil && cmd.Annotations["auth-mode"] == "flexible"
+}
+
+func findClusterByName(kf *pathutils.KeyFileV2, name string) (*pathutils.ClusterEntry, bool) {
+	for i := range kf.Clusters {
+		if kf.Clusters[i].Name == name {
+			return &kf.Clusters[i], true
+		}
+	}
+	return nil, false
 }

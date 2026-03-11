@@ -10,7 +10,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 )
 
-func ResolveClusterID(cfg config.GlobalOptions, clusterName string, ctx context.Context) (int, error) {
+func ResolveClusterID(cfg *config.GlobalOptions, clusterName string, ctx context.Context) (int, error) {
 	store, err := db.Init()
 	if err != nil {
 		return 0, fmt.Errorf("failed to init db: %w", err)

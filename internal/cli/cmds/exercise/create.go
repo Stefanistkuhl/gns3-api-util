@@ -73,7 +73,7 @@ This command will:
 	return createExerciseCmd
 }
 
-func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID int) (map[string]string, error) {
+func selectAndReplicateTemplateAcrossCluster(cfg *config.GlobalOptions, clusterID int) (map[string]string, error) {
 	store, err := db.Init()
 	if err != nil {
 		return nil, fmt.Errorf("init db: %w", err)
@@ -176,7 +176,7 @@ func selectAndReplicateTemplateAcrossCluster(cfg config.GlobalOptions, clusterID
 	return result, nil
 }
 
-func exportProjectArchive(cfg config.GlobalOptions, projectID string) ([]byte, error) {
+func exportProjectArchive(cfg *config.GlobalOptions, projectID string) ([]byte, error) {
 	body, status, err := utils.CallClient(cfg, "exportProject", []string{projectID}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("export project: %w", err)
@@ -187,7 +187,7 @@ func exportProjectArchive(cfg config.GlobalOptions, projectID string) ([]byte, e
 	return body, nil
 }
 
-func importProjectArchive(cfg config.GlobalOptions, archive []byte, projectName string) (string, error) {
+func importProjectArchive(cfg *config.GlobalOptions, archive []byte, projectName string) (string, error) {
 	token, err := authentication.GetKeyForServer(cfg)
 	if err != nil {
 		return "", fmt.Errorf("get token: %w", err)
@@ -411,7 +411,7 @@ func runCreateExercise(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createForGroupsOnServer(cfg config.GlobalOptions, className, exerciseName, format, templatePath string, selectTemplate, deleteTemplate bool, classGroups []schemas.UserGroupResponse, preselectedTemplateID string) (templateID string, createdCount int, err error) {
+func createForGroupsOnServer(cfg *config.GlobalOptions, className, exerciseName, format, templatePath string, selectTemplate, deleteTemplate bool, classGroups []schemas.UserGroupResponse, preselectedTemplateID string) (templateID string, createdCount int, err error) {
 	fmt.Printf("%v Found %d groups for class %v on %s\n",
 		messageUtils.InfoMsg("Found groups for class"),
 		len(classGroups),
@@ -671,7 +671,7 @@ func generateProjectName(format, className, exerciseName, groupNumber string) st
 	return projectName
 }
 
-func getUserRoleID(cfg config.GlobalOptions) (string, error) {
+func getUserRoleID(cfg *config.GlobalOptions) (string, error) {
 	rolesBody, status, err := utils.CallClient(cfg, "getRoles", []string{}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get roles: %w", err)
@@ -695,7 +695,7 @@ func getUserRoleID(cfg config.GlobalOptions) (string, error) {
 	return "", fmt.Errorf("user role not found")
 }
 
-func checkExistingExercises(cfg config.GlobalOptions, className string, classGroups []schemas.UserGroupResponse) ([]string, error) {
+func checkExistingExercises(cfg *config.GlobalOptions, className string, classGroups []schemas.UserGroupResponse) ([]string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get projects: %w", err)
@@ -730,7 +730,7 @@ func checkExistingExercises(cfg config.GlobalOptions, className string, classGro
 	return existingExercises, nil
 }
 
-func selectTemplateWithFuzzy(cfg config.GlobalOptions) (string, error) {
+func selectTemplateWithFuzzy(cfg *config.GlobalOptions) (string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get projects: %w", err)
@@ -778,7 +778,7 @@ func selectTemplateWithFuzzy(cfg config.GlobalOptions) (string, error) {
 	return projectMap[selected], nil
 }
 
-func importTemplateProject(cfg config.GlobalOptions, filePath, className, exerciseName string) (string, error) {
+func importTemplateProject(cfg *config.GlobalOptions, filePath, className, exerciseName string) (string, error) {
 	file, err := os.Open(filePath) // #nosec G304
 	if err != nil {
 		return "", fmt.Errorf("failed to open template file: %w", err)
@@ -824,7 +824,7 @@ func importTemplateProject(cfg config.GlobalOptions, filePath, className, exerci
 	return project.ProjectID, nil
 }
 
-func resolveTemplateProject(cfg config.GlobalOptions, projectRef string) (string, error) {
+func resolveTemplateProject(cfg *config.GlobalOptions, projectRef string) (string, error) {
 	_, status, err := utils.CallClient(cfg, "getProject", []string{projectRef}, nil)
 	if err == nil && status == 200 {
 		return projectRef, nil
@@ -854,7 +854,7 @@ func resolveTemplateProject(cfg config.GlobalOptions, projectRef string) (string
 	return "", fmt.Errorf("template project not found: %s", projectRef)
 }
 
-func cleanupTemplateProject(cfg config.GlobalOptions, projectID string, deleteTemplate bool) error {
+func cleanupTemplateProject(cfg *config.GlobalOptions, projectID string, deleteTemplate bool) error {
 	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to close project: %w", err)

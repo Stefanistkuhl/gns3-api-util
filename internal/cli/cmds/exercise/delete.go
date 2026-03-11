@@ -78,7 +78,7 @@ func NewExerciseDeleteCmd() *cobra.Command {
 	return deleteExerciseCmd
 }
 
-func deleteExerciseInCluster(cfg config.GlobalOptions, clusterName, exerciseName, className, groupName string, confirm bool) error {
+func deleteExerciseInCluster(cfg *config.GlobalOptions, clusterName, exerciseName, className, groupName string, confirm bool) error {
 	if confirm {
 		msg := fmt.Sprintf("Delete exercise '%s' across cluster '%s'?", exerciseName, clusterName)
 		if className != "" {
@@ -144,7 +144,7 @@ func deleteExerciseInCluster(cfg config.GlobalOptions, clusterName, exerciseName
 	return nil
 }
 
-func getAllExerciseNamesFromCluster(_ config.GlobalOptions, clusterName string, ctx context.Context) ([]string, error) {
+func getAllExerciseNamesFromCluster(_ *config.GlobalOptions, clusterName string, ctx context.Context) ([]string, error) {
 	store, err := db.Init()
 	if err != nil {
 		return nil, fmt.Errorf("failed to init db: %w", err)
@@ -161,7 +161,7 @@ func getAllExerciseNamesFromCluster(_ config.GlobalOptions, clusterName string, 
 	return out, nil
 }
 
-func selectExercisesWithFuzzyFromCluster(cfg config.GlobalOptions, clusterName string, multi bool, ctx context.Context) ([]string, error) {
+func selectExercisesWithFuzzyFromCluster(cfg *config.GlobalOptions, clusterName string, multi bool, ctx context.Context) ([]string, error) {
 	names, err := getAllExerciseNamesFromCluster(cfg, clusterName, ctx)
 	if err != nil {
 		return nil, err
@@ -367,7 +367,7 @@ func runDeleteExercise(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func selectExercisesWithFuzzy(cfg config.GlobalOptions, multi bool) ([]string, error) {
+func selectExercisesWithFuzzy(cfg *config.GlobalOptions, multi bool) ([]string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get projects: %w", err)
@@ -408,7 +408,7 @@ func selectExercisesWithFuzzy(cfg config.GlobalOptions, multi bool) ([]string, e
 	return finder, nil
 }
 
-func getAllExerciseNames(cfg config.GlobalOptions) ([]string, error) {
+func getAllExerciseNames(cfg *config.GlobalOptions) ([]string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get projects: %w", err)
@@ -440,7 +440,7 @@ func getAllExerciseNames(cfg config.GlobalOptions) ([]string, error) {
 	return exerciseNames, nil
 }
 
-func deleteExerciseWithConfirmation(cfg config.GlobalOptions, exerciseName, className, groupName string, confirm bool) error {
+func deleteExerciseWithConfirmation(cfg *config.GlobalOptions, exerciseName, className, groupName string, confirm bool) error {
 	if confirm {
 		message := fmt.Sprintf("Delete exercise '%s'?", exerciseName)
 		if className != "" {
@@ -471,7 +471,7 @@ func deleteExerciseWithConfirmation(cfg config.GlobalOptions, exerciseName, clas
 	return nil
 }
 
-func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, className string, confirm bool, ctx context.Context) error {
+func deleteAllExercisesForClassWithConfirmation(cfg *config.GlobalOptions, className string, confirm bool, ctx context.Context) error {
 	if confirm {
 		if !utils.ConfirmPrompt(fmt.Sprintf("Delete all exercises for class '%s'?", className), false) {
 			fmt.Println("Deletion cancelled.")
@@ -491,7 +491,7 @@ func deleteAllExercisesForClassWithConfirmation(cfg config.GlobalOptions, classN
 	return class.DeleteAllExercisesForClass(cfg, className)
 }
 
-func selectClassWithFuzzy(cfg config.GlobalOptions) (string, error) {
+func selectClassWithFuzzy(cfg *config.GlobalOptions) (string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get projects: %w", err)
@@ -533,7 +533,7 @@ func selectClassWithFuzzy(cfg config.GlobalOptions) (string, error) {
 	return selected[0], nil
 }
 
-func selectGroupWithFuzzy(cfg config.GlobalOptions, className string) (string, error) {
+func selectGroupWithFuzzy(cfg *config.GlobalOptions, className string) (string, error) {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to get projects: %w", err)

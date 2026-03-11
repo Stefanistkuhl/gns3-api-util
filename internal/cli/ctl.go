@@ -17,5 +17,6 @@ func NewCtlCmdGroup() *cobra.Command {
 	}
 	cmd.AddCommand(ctlcmd.NewCreateCmd())
 	cmd.AddCommand(ctlcmd.NewAuthCmd())
+	cmd.AddCommand(ctlcmd.NewAddClusterCMD())
 	return cmd
 }

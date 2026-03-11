@@ -11,7 +11,7 @@ import (
 )
 
 type FuzzyInfoParams struct {
-	Cfg          config.GlobalOptions
+	Cfg          *config.GlobalOptions
 	Multi        bool
 	Method       string
 	Key          string
@@ -209,7 +209,7 @@ func getValuesForFuzzy(params *FuzzyInfoParams) ([]gjson.Result, []string, error
 	return apiData, results, nil
 }
 
-func NewFuzzyInfoParams(cfg config.GlobalOptions, method, key string, multi bool) *FuzzyInfoParams {
+func NewFuzzyInfoParams(cfg *config.GlobalOptions, method, key string, multi bool) *FuzzyInfoParams {
 	return &FuzzyInfoParams{
 		Cfg:    cfg,
 		Multi:  multi,
@@ -218,7 +218,7 @@ func NewFuzzyInfoParams(cfg config.GlobalOptions, method, key string, multi bool
 	}
 }
 
-func NewFuzzyInfoParamsWithContext(cfg config.GlobalOptions, method, key string, multi bool, contextType, contextLabel string) *FuzzyInfoParams {
+func NewFuzzyInfoParamsWithContext(cfg *config.GlobalOptions, method, key string, multi bool, contextType, contextLabel string) *FuzzyInfoParams {
 	return &FuzzyInfoParams{
 		Cfg:          cfg,
 		Multi:        multi,

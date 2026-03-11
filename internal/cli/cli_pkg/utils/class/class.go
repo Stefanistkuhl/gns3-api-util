@@ -72,7 +72,7 @@ func LoadClassFromFile(filePath string) (schemas.Class, error) {
 	return classData, nil
 }
 
-func CreateClass(cfg config.GlobalOptions, clusterID int, classData schemas.Class, insertedNodes []db.NodeDataAll) (bool, error) {
+func CreateClass(cfg *config.GlobalOptions, clusterID int, classData schemas.Class, insertedNodes []db.NodeDataAll) (bool, error) {
 	store, err := db.Init()
 	if err != nil {
 		return false, fmt.Errorf("failed to init db: %w", err)
@@ -312,7 +312,7 @@ func transformNodeGroupRows(rows []sqlc.GetNodeGroupNamesForClassRow) []db.NodeG
 	return results
 }
 
-func DeleteClass(cfg config.GlobalOptions, className string) error {
+func DeleteClass(cfg *config.GlobalOptions, className string) error {
 	ctx := context.Background()
 	clusterID, err := getClusterIDForServer(cfg)
 
@@ -435,7 +435,7 @@ func DeleteClass(cfg config.GlobalOptions, className string) error {
 	return nil
 }
 
-func deleteClassFromAPI(cfg config.GlobalOptions, className string) error {
+func deleteClassFromAPI(cfg *config.GlobalOptions, className string) error {
 	groupsBody, status, err := utils.CallClient(cfg, "getGroups", []string{}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get groups: %w", err)
@@ -544,7 +544,7 @@ func findClassAndStudentGroups(groups []schemas.UserGroupResponse, className str
 	return classGroups, studentGroups
 }
 
-func getGroupMembers(cfg config.GlobalOptions, groupID string) ([]schemas.UserResponse, error) {
+func getGroupMembers(cfg *config.GlobalOptions, groupID string) ([]schemas.UserResponse, error) {
 	membersBody, status, err := utils.CallClient(cfg, "getGroupMembers", []string{groupID}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get group members: %w", err)
@@ -561,7 +561,7 @@ func getGroupMembers(cfg config.GlobalOptions, groupID string) ([]schemas.UserRe
 	return members, nil
 }
 
-func deleteUser(cfg config.GlobalOptions, userID string) error {
+func deleteUser(cfg *config.GlobalOptions, userID string) error {
 	_, status, err := utils.CallClient(cfg, "deleteUser", []string{userID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete user: %w", err)
@@ -572,7 +572,7 @@ func deleteUser(cfg config.GlobalOptions, userID string) error {
 	return nil
 }
 
-func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) error {
+func DeleteExercise(cfg *config.GlobalOptions, exerciseName, className, groupName string) error {
 	ctx := context.Background()
 	store, storeErr := db.Init()
 	if storeErr != nil {
@@ -732,7 +732,7 @@ func DeleteExercise(cfg config.GlobalOptions, exerciseName, className, groupName
 	return nil
 }
 
-func getProjectsForExercise(cfg config.GlobalOptions, exerciseName, className, groupName string) ([]schemas.ProjectResponse, error) {
+func getProjectsForExercise(cfg *config.GlobalOptions, exerciseName, className, groupName string) ([]schemas.ProjectResponse, error) {
 	if exerciseName == "" {
 		return nil, fmt.Errorf("exercise name cannot be empty")
 	}
@@ -839,7 +839,7 @@ func getProjectsForExercise(cfg config.GlobalOptions, exerciseName, className, g
 	return matchingProjects, nil
 }
 
-func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) error {
+func DeleteAllExercisesForClass(cfg *config.GlobalOptions, className string) error {
 	ctx := context.Background()
 	store, err := db.Init()
 	if err != nil {
@@ -898,7 +898,7 @@ func DeleteAllExercisesForClass(cfg config.GlobalOptions, className string) erro
 	return nil
 }
 
-func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string, ctx context.Context, nodeID int64) error {
+func deleteAllExercisesForClassOnNode(cfg *config.GlobalOptions, className string, ctx context.Context, nodeID int64) error {
 	projectsBody, status, err := utils.CallClient(cfg, "getProjects", []string{}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to get projects: %w", err)
@@ -999,7 +999,7 @@ func deleteAllExercisesForClassOnNode(cfg config.GlobalOptions, className string
 	return nil
 }
 
-func closeProject(cfg config.GlobalOptions, projectID string) error {
+func closeProject(cfg *config.GlobalOptions, projectID string) error {
 	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "UUID") || strings.Contains(err.Error(), "uuid_parsing") {
@@ -1034,7 +1034,7 @@ func closeProject(cfg config.GlobalOptions, projectID string) error {
 	return nil
 }
 
-func getPoolsForProject(cfg config.GlobalOptions, projectID, projectName, className, exerciseName string) ([]schemas.ResourcePoolResponse, error) {
+func getPoolsForProject(cfg *config.GlobalOptions, projectID, projectName, className, exerciseName string) ([]schemas.ResourcePoolResponse, error) {
 	poolsBody, status, err := utils.CallClient(cfg, "getPools", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pools: %w", err)
@@ -1083,7 +1083,7 @@ func getPoolsForProject(cfg config.GlobalOptions, projectID, projectName, classN
 	return matchingPools, nil
 }
 
-func poolContainsProject(cfg config.GlobalOptions, poolID, projectID string) (bool, error) {
+func poolContainsProject(cfg *config.GlobalOptions, poolID, projectID string) (bool, error) {
 	body, status, err := utils.CallClient(cfg, "getPoolResources", []string{poolID}, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to get pool resources: %w", err)
@@ -1108,7 +1108,7 @@ func poolContainsProject(cfg config.GlobalOptions, poolID, projectID string) (bo
 	return false, nil
 }
 
-func listACLsForPool(cfg config.GlobalOptions, poolID, poolName string) ([]string, error) {
+func listACLsForPool(cfg *config.GlobalOptions, poolID, poolName string) ([]string, error) {
 	aclsBody, status, err := utils.CallClient(cfg, "getAcl", []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ACLs: %w", err)
@@ -1192,7 +1192,7 @@ func listACLsForPool(cfg config.GlobalOptions, poolID, poolName string) ([]strin
 	return matched, nil
 }
 
-func deletePool(cfg config.GlobalOptions, poolID string) error {
+func deletePool(cfg *config.GlobalOptions, poolID string) error {
 	_, status, err := utils.CallClient(cfg, "deletePool", []string{poolID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete pool: %w", err)
@@ -1203,7 +1203,7 @@ func deletePool(cfg config.GlobalOptions, poolID string) error {
 	return nil
 }
 
-func deleteGroup(cfg config.GlobalOptions, groupID string) error {
+func deleteGroup(cfg *config.GlobalOptions, groupID string) error {
 	_, status, err := utils.CallClient(cfg, "deleteGroup", []string{groupID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to delete group: %w", err)
@@ -1214,7 +1214,7 @@ func deleteGroup(cfg config.GlobalOptions, groupID string) error {
 	return nil
 }
 
-func deleteProject(cfg config.GlobalOptions, projectID string) error {
+func deleteProject(cfg *config.GlobalOptions, projectID string) error {
 	_, status, err := utils.CallClient(cfg, "closeProject", []string{projectID}, nil)
 	if err != nil && status != 404 {
 		return fmt.Errorf("failed to close project: %w", err)
@@ -1264,7 +1264,7 @@ func deleteProject(cfg config.GlobalOptions, projectID string) error {
 	return nil
 }
 
-func deleteACL(cfg config.GlobalOptions, aclID string) error {
+func deleteACL(cfg *config.GlobalOptions, aclID string) error {
 	cleanID := strings.TrimSpace(aclID)
 	if cleanID == "" {
 		return fmt.Errorf("empty ACL id")
@@ -1301,7 +1301,7 @@ func deleteACL(cfg config.GlobalOptions, aclID string) error {
 	return fmt.Errorf("failed to delete ACL %s", cleanID)
 }
 
-func getClusterIDForServer(cfg config.GlobalOptions) (int, error) {
+func getClusterIDForServer(cfg *config.GlobalOptions) (int, error) {
 	if cfg.Server == "" {
 		return 0, fmt.Errorf("no server configured")
 	}
@@ -1461,7 +1461,7 @@ func distributeGroupsWithMode(nodes []db.NodeDataAll, classData schemas.Class, r
 	return result, nil
 }
 
-func addUserToGroup(cfg config.GlobalOptions, userID, groupID string) error {
+func addUserToGroup(cfg *config.GlobalOptions, userID, groupID string) error {
 	_, status, err := utils.CallClient(cfg, "addUserToGroup", []string{groupID, userID}, nil)
 	if err != nil {
 		return fmt.Errorf("failed to add user to group: %w", err)
@@ -1472,7 +1472,7 @@ func addUserToGroup(cfg config.GlobalOptions, userID, groupID string) error {
 	return nil
 }
 
-func runPlans(cfg config.GlobalOptions, classData schemas.Class, plans []db.NodeGroupsForClass) error {
+func runPlans(cfg *config.GlobalOptions, classData schemas.Class, plans []db.NodeGroupsForClass) error {
 	if len(plans) == 0 {
 		return nil
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewAclCmdGroup() *cobra.Command {
+func NewACLCmdGroup() *cobra.Command {
 	aclCmd := &cobra.Command{
 		Use:   "acl",
 		Short: "ACL operations",

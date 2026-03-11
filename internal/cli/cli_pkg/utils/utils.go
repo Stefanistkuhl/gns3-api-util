@@ -72,7 +72,7 @@ func GetIDFieldMapping(resourceType string) (idField, nameField string, ok bool)
 	return "", "", false
 }
 
-func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body any) (respBody []byte, statusCode int, err error) {
+func CallClient(cfg *config.GlobalOptions, cmdName string, args []string, body any) (respBody []byte, statusCode int, err error) {
 	cmd, ok := commandMap[cmdName]
 	if !ok {
 		return nil, 0, fmt.Errorf("unknown command: %s", cmdName)
@@ -133,7 +133,7 @@ func CallClient(cfg config.GlobalOptions, cmdName string, args []string, body an
 	return respBody, resp.StatusCode, nil
 }
 
-func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
+func ExecuteAndPrint(cfg *config.GlobalOptions, cmdName string, args []string) {
 	body, status, err := CallClient(cfg, cmdName, args, nil)
 	if err != nil {
 		if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
@@ -156,7 +156,7 @@ func ExecuteAndPrint(cfg config.GlobalOptions, cmdName string, args []string) {
 	PrintOutput(body, cfg)
 }
 
-func PrintOutput(body []byte, cfg config.GlobalOptions) {
+func PrintOutput(body []byte, cfg *config.GlobalOptions) {
 	switch cfg.OutputFormat {
 	case globals.OutputJSON:
 		PrintJSON(body)
@@ -340,7 +340,7 @@ func PrintSeperator() {
 	fmt.Println(messageUtils.Separator(strings.Repeat("-", 69)))
 }
 
-func ExecuteAndPrintWithBody(cfg config.GlobalOptions, cmdName string, args []string, body any) {
+func ExecuteAndPrintWithBody(cfg *config.GlobalOptions, cmdName string, args []string, body any) {
 	respBody, status, err := CallClient(cfg, cmdName, args, body)
 	if err != nil {
 		if strings.Contains(err.Error(), "401") || strings.Contains(err.Error(), "Authentication was unsuccessful") {
@@ -370,7 +370,7 @@ func IsValidUUIDv4(s string) bool {
 	return err == nil && u.Version() == 4
 }
 
-func ResolveID(cfg config.GlobalOptions, subcommand, name string, args []string) (string, error) {
+func ResolveID(cfg *config.GlobalOptions, subcommand, name string, args []string) (string, error) {
 	titleCaser := cases.Title(language.Und)
 	key, ok := subcommandKeyMap[subcommand]
 	if !ok {
@@ -438,7 +438,7 @@ func ResolveID(cfg config.GlobalOptions, subcommand, name string, args []string)
 	return "", fmt.Errorf("failed to resolve the name %s to a valid id", messageUtils.Bold(name))
 }
 
-func GetResourceWithContext(cfg config.GlobalOptions, commandName string, resourceIDs []string, contextType, contextLabel string) (map[string][]byte, error) {
+func GetResourceWithContext(cfg *config.GlobalOptions, commandName string, resourceIDs []string, contextType, contextLabel string) (map[string][]byte, error) {
 	resourceData := make(map[string][]byte)
 
 	needsContext := contextType != "" && contextLabel != ""
@@ -710,7 +710,7 @@ func ConfirmPrompt(msg string, defaultYes bool) bool {
 	}
 }
 
-func GetUserInKeyFileForURL(cfg config.GlobalOptions) (string, error) {
+func GetUserInKeyFileForURL(cfg *config.GlobalOptions) (string, error) {
 	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return "", err

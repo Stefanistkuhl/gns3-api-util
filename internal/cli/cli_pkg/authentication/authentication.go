@@ -13,7 +13,7 @@ import (
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
-func TryKeys(kf *pathutils.KeyFileV2, cfg config.GlobalOptions) ([]byte, error) {
+func TryKeys(kf *pathutils.KeyFileV2, cfg *config.GlobalOptions) ([]byte, error) {
 	for i := range kf.StandaloneGNS3 {
 		entry := &kf.StandaloneGNS3[i]
 		if nwutils.NormalizeURL(cfg.Server) == nwutils.NormalizeURL(entry.URL) {
@@ -42,7 +42,7 @@ func TryKeys(kf *pathutils.KeyFileV2, cfg config.GlobalOptions) ([]byte, error) 
 	return nil, fmt.Errorf("no working API-Key found for the server %s. Please use the %s command to authenticate", messageUtils.Bold(cfg.Server), messageUtils.Bold("auth login"))
 }
 
-func tryKey(token string, cfg config.GlobalOptions) ([]byte, bool) {
+func tryKey(token string, cfg *config.GlobalOptions) ([]byte, bool) {
 	settings := api.NewSettings(
 		api.WithBaseURL(cfg.Server),
 		api.WithVerify(!cfg.Insecure),
@@ -71,7 +71,7 @@ func tryKey(token string, cfg config.GlobalOptions) ([]byte, bool) {
 	return body, false
 }
 
-func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string) error {
+func SaveAuthData(cfg *config.GlobalOptions, token schemas.Token, username string) error {
 	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return err
@@ -104,7 +104,7 @@ func SaveAuthData(cfg config.GlobalOptions, token schemas.Token, username string
 	return pathutils.SaveKeysFile(keyFileLocation, kf)
 }
 
-func GetKeyForServer(cfg config.GlobalOptions) (string, error) {
+func GetKeyForServer(cfg *config.GlobalOptions) (string, error) {
 	keyFileLocation, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
 	if err != nil {
 		return "", err

@@ -214,9 +214,9 @@ func doRequest(ctx context.Context, client *http.Client, baseURL string, opts *r
 		streamClient := &http.Client{
 			Transport: client.Transport,
 		}
-		resp, err := streamClient.Do(req)
-		if err != nil {
-			return nil, nil, err
+		resp, streamErr := streamClient.Do(req)
+		if streamErr != nil {
+			return nil, nil, streamErr
 		}
 		return nil, resp, nil
 	}

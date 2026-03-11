@@ -17,7 +17,7 @@ func TestWithGlobalOptions(t *testing.T) {
 		CommandPath:  "/test/path",
 	}
 
-	newCtx := WithGlobalOptions(ctx, opts)
+	newCtx := WithGlobalOptions(ctx, &opts)
 	if newCtx == nil {
 		t.Fatal("WithGlobalOptions() returned nil context")
 	}
@@ -50,7 +50,7 @@ func TestGetGlobalOptionsFromContext(t *testing.T) {
 			Server:   "http://test.com",
 			Insecure: false,
 		}
-		ctx := WithGlobalOptions(context.Background(), opts)
+		ctx := WithGlobalOptions(context.Background(), &opts)
 
 		retrievedOpts, err := GetGlobalOptionsFromContext(ctx)
 		if err != nil {
@@ -109,8 +109,8 @@ func TestGlobalOptionsDefaults(t *testing.T) {
 }
 
 func TestGlobalOptionsContextIsolation(t *testing.T) {
-	opts1 := GlobalOptions{Server: "server1.com"}
-	opts2 := GlobalOptions{Server: "server2.com"}
+	opts1 := &GlobalOptions{Server: "server1.com"}
+	opts2 := &GlobalOptions{Server: "server2.com"}
 
 	ctx1 := WithGlobalOptions(context.Background(), opts1)
 	ctx2 := WithGlobalOptions(context.Background(), opts2)
@@ -131,13 +131,13 @@ func TestGlobalOptionsContextChain(t *testing.T) {
 		Server:   "http://base.com",
 		Insecure: false,
 	}
-	baseCtx := WithGlobalOptions(context.Background(), baseOpts)
+	baseCtx := WithGlobalOptions(context.Background(), &baseOpts)
 
 	newOpts := GlobalOptions{
 		Server:   "http://new.com",
 		Insecure: true,
 	}
-	newCtx := WithGlobalOptions(baseCtx, newOpts)
+	newCtx := WithGlobalOptions(baseCtx, &newOpts)
 
 	retrieved, err := GetGlobalOptionsFromContext(newCtx)
 	if err != nil {
