@@ -85,6 +85,7 @@ If GNS3_TOKEN environment variable isn't set, the token from the keyfile will be
 				api.WithBaseURLV2(serverURL+"/api/v1"),
 				api.WithToken(token),
 				api.WithVerify(!cfg.Insecure),
+				api.WithCA(kf.GetCACertForMaster(serverURL)),
 			)
 			client := api.NewClientV2(settings)
 

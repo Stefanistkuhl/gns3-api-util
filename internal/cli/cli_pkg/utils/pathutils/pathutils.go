@@ -41,11 +41,12 @@ type GNS3ServerEntry struct {
 }
 
 type ClusterEntry struct {
-	Name   string         `json:"name"`
-	Master ServiceEntry   `json:"master"`
-	Nodes  []ServiceEntry `json:"nodes,omitempty"`
-
-	GNS3Servers []GNS3ServerEntry `json:"gns3_servers,omitempty"`
+	Name            string            `json:"name"`
+	Master          ServiceEntry      `json:"master"`
+	Nodes           []ServiceEntry    `json:"nodes,omitempty"`
+	RootFingerprint string            `json:"root_fingerprint,omitempty"`
+	CaCert          string            `json:"ca_cert,omitempty"`
+	GNS3Servers     []GNS3ServerEntry `json:"gns3_servers,omitempty"`
 }
 
 type ServiceEntry struct {
@@ -245,4 +246,21 @@ func (k *KeyFileV2) CheckIfClusterExists(name string) bool {
 		}
 	}
 	return false
+}
+
+func (k *KeyFileV2) GetCACertForMaster(serverURL string) []byte {
+	if k == nil {
+		return nil
+	}
+
+	for i := range k.Clusters {
+		c := &k.Clusters[i]
+		if c.Master.URL == serverURL {
+			if c.CaCert == "" {
+				return nil
+			}
+			return []byte(c.CaCert)
+		}
+	}
+	return nil
 }

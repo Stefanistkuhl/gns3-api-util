@@ -149,6 +149,13 @@ func createTLSConfig(settings Settings) *tls.Config {
 		InsecureSkipVerify: !settings.Verify, // #nosec G402
 	}
 
+	tlsConfig.VerifyConnection = func(cs tls.ConnectionState) error {
+		if settings.Verify {
+			return nil
+		}
+		return nil
+	}
+
 	if len(settings.CACert) > 0 {
 		caCertPool, err := x509.SystemCertPool()
 		if err != nil || caCertPool == nil {

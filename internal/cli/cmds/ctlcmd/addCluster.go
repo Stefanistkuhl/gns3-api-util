@@ -3,11 +3,13 @@ package ctlcmd
 import (
 	"fmt"
 
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
-	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
+	"github.com/0xveya/gns3util/pkg/api"
 )
 
 var clusterName string
@@ -30,9 +32,21 @@ func NewAddClusterCMD() *cobra.Command {
 			settings := api.NewSettings(
 				api.WithBaseURLV2(cfg.Server+"/api/v1"),
 				api.WithToken(token),
-				api.WithVerify(!cfg.Insecure),
+				api.WithVerify(false),
 			)
 			client := api.NewClientV2(settings)
+
+			fingerprint, caCertPEM, err := client.BootstrapConnect(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to bootstrap trust with master: %w", err)
+			}
+			fmt.Printf("Trusting new cluster: %s\n", clusterName)
+			fmt.Printf("Master Root CA Fingerprint: %s\n", fingerprint)
+			if !cfg.Insecure {
+				if !utils.ConfirmPrompt("Do you trust this fingerprint?", false) {
+					return fmt.Errorf("connection aborted by user: untrusted fingerprint")
+				}
+			}
 
 			resp, err := client.GetAuthStatus(cmd.Context())
 			if err != nil {
@@ -51,8 +65,10 @@ func NewAddClusterCMD() *cobra.Command {
 				TokenType:   "Bearer",
 			}
 			cluster := pathutils.ClusterEntry{
-				Name:   clusterName,
-				Master: masterEntry,
+				Name:            clusterName,
+				Master:          masterEntry,
+				RootFingerprint: fingerprint,
+				CaCert:          string(caCertPEM),
 			}
 			if kf.CheckIfClusterExists(clusterName) {
 				return fmt.Errorf("cluster with name %q already exists in key file", clusterName)

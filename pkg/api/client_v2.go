@@ -2,7 +2,10 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 
@@ -61,6 +64,37 @@ func (c *ClientV2) parseAPIError(body []byte, statusCode int) error {
 		"unexpected response (status %d): %s",
 		statusCode, string(body),
 	))
+}
+
+func (c *ClientV2) BootstrapConnect(ctx context.Context) (fingerprint string, certPEM []byte, err error) {
+	tr, ok := c.base.client.Transport.(*http.Transport)
+	if !ok {
+		return "", nil, fmt.Errorf("failed to assert client transport as *http.Transport")
+	}
+
+	tr.TLSClientConfig.InsecureSkipVerify = true
+
+	opts := NewRequestOptions(c.base.settings).WithURL("/auth/status").WithMethod(GET)
+	_, resp, err := c.base.Do(ctx, opts)
+	if err != nil && resp == nil {
+		return "", nil, fmt.Errorf("initial connection failed: %w", err)
+	}
+
+	if resp.TLS == nil || len(resp.TLS.PeerCertificates) == 0 {
+		return "", nil, fmt.Errorf("no TLS certificates presented by server")
+	}
+
+	rootCert := resp.TLS.PeerCertificates[len(resp.TLS.PeerCertificates)-1]
+
+	sum := sha256.Sum256(rootCert.Raw)
+	fingerprint = hex.EncodeToString(sum[:])
+
+	certPEM = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: rootCert.Raw,
+	})
+
+	return fingerprint, certPEM, nil
 }
 
 func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusResponse, error) {
