@@ -24,8 +24,10 @@ type CreateTokenRequest struct {
 }
 
 type JoinFilestoreRequest struct {
-	CSRPEM string `json:"csr"`
-	Name   string `json:"name"`
+	CSRPEM  string `json:"csr"`
+	ID      string `json:"id"`
+	IP      string `json:"ip_address"`
+	APIPort uint32 `json:"api_port"`
 }
 
 type JoinFilestoreResponse struct {
@@ -37,4 +39,15 @@ type AuthStatusResponse struct {
 	Authenticated bool   `json:"authenticated"`
 	User          string `json:"user"`
 	Scopes        string `json:"scopes"`
+}
+
+type GetNodesResponse struct {
+	Nodes []NodeInfo `json:"nodes"`
+}
+
+type NodeInfo struct {
+	ID      string   `json:"id"`
+	IP      string   `json:"ip"`
+	APIPort uint32   `json:"api_port"`
+	Type    NodeType `json:"type"`
 }

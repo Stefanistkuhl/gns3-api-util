@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	homedir "github.com/mitchellh/go-homedir"
+
+	"github.com/0xveya/gns3util/pkg/models"
 )
 
 type ServiceType string
@@ -18,6 +20,12 @@ const (
 	TypeClusterNode      ServiceType = "cluster_node"
 	TypeClusterFileStore ServiceType = "cluster_filestore"
 )
+
+var typeMap = map[models.NodeType]ServiceType{
+	models.NodeTypeMaster:    TypeClusterMaster,
+	models.NodeTypeWorker:    TypeClusterNode,
+	models.NodeTypeFilestore: TypeClusterFileStore,
+}
 
 type LegacyGNS3Key struct {
 	ServerURL   string `json:"server_url"`
@@ -51,10 +59,11 @@ type ClusterEntry struct {
 
 type ServiceEntry struct {
 	Type        ServiceType `json:"type"`
+	ID          string      `json:"node_id"`
 	URL         string      `json:"url"`
-	User        string      `json:"user"`
-	AccessToken string      `json:"access_token"`
-	TokenType   string      `json:"token_type"`
+	User        string      `json:"user,omitempty"`
+	AccessToken string      `json:"access_token,omitempty"`
+	TokenType   string      `json:"token_type,omitempty"`
 }
 
 func ExpandPath(p string) (string, error) {
@@ -263,4 +272,34 @@ func (k *KeyFileV2) GetCACertForMaster(serverURL string) []byte {
 		}
 	}
 	return nil
+}
+
+func (k *KeyFileV2) IsNodePresentInCluster(node *models.NodeInfo, cluster *ClusterEntry) bool {
+	for i := range cluster.Nodes {
+		n := cluster.Nodes[i]
+		expectedService, exists := typeMap[node.Type]
+		if exists && expectedService == TypeClusterMaster && n.URL == fmt.Sprintf("https://%s:%d", node.IP, node.APIPort) && node.ID == n.ID {
+			return true
+		}
+	}
+	return false
+}
+
+func (k *KeyFileV2) NodeTypeToSvcType(inp models.NodeType) ServiceType {
+	if svc, ok := typeMap[inp]; ok {
+		return svc
+	}
+	return "unknown_service"
+}
+
+func (k *KeyFileV2) AddNodes(nodes []ServiceEntry, cluster *ClusterEntry) {
+	totalExpected := len(nodes) + len(cluster.Nodes)
+	nodeArr := make([]ServiceEntry, 0, totalExpected)
+	nodeArr = append(nodeArr, nodes...)
+	nodeArr = append(nodeArr, cluster.Nodes...)
+	for i := range k.Clusters {
+		if k.Clusters[i].Name == cluster.Name {
+			k.Clusters[i].Nodes = nodeArr
+		}
+	}
 }

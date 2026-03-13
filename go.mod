@@ -16,6 +16,7 @@ require (
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/jedib0t/go-pretty/v6 v6.7.8
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/mvrilo/go-redoc v0.1.5
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/quic-go/quic-go v0.59.0
 	github.com/riandyrn/otelchi v0.12.2
@@ -38,6 +39,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.42.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/crypto v0.49.0
+	golang.org/x/sync v0.20.0
 	golang.org/x/text v0.35.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
@@ -136,7 +138,6 @@ require (
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
 	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.43.0 // indirect

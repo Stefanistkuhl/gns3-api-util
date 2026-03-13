@@ -114,3 +114,21 @@ func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusRespons
 
 	return &resp, nil
 }
+
+func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, error) {
+	opts := NewRequestOptions(c.base.settings).
+		WithURL("/cluster/nodes").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.GetNodesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &resp, nil
+}

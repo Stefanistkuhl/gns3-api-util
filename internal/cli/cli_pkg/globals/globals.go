@@ -9,6 +9,7 @@ const (
 	OutputCollapsed
 	OutputYAML
 	OutputTOML
+	OutputTable
 )
 
 func (o OutputFormat) String() string {
@@ -19,6 +20,7 @@ func (o OutputFormat) String() string {
 		"collapsed",
 		"yaml",
 		"toml",
+		"table",
 	}[o]
 }
 
@@ -34,6 +36,8 @@ func ParseOutputFormat(s string) OutputFormat {
 		return OutputYAML
 	case "toml":
 		return OutputTOML
+	case "table":
+		return OutputTable
 	default:
 		return OutputKV
 	}

@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"log"
 	"log/slog"
@@ -22,8 +23,15 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/0xveya/gns3util/docs"
+	"golang.org/x/sync/errgroup"
 
+	_ "github.com/0xveya/gns3util/docs"
+	"github.com/mvrilo/go-redoc"
+
+	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
+
+	backroundjobs "github.com/0xveya/gns3util/internal/master/backround_jobs"
 	"github.com/0xveya/gns3util/internal/master/handlers"
 	"github.com/0xveya/gns3util/internal/master/rpc"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
@@ -35,14 +43,13 @@ import (
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
 	"github.com/0xveya/gns3util/pkg/web/middleware"
-	"github.com/go-chi/chi/v5"
-	httpSwagger "github.com/swaggo/http-swagger"
 
-	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 	"github.com/grandcat/zeroconf"
 	"go.opentelemetry.io/otel/log/global"
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
+
+	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 )
 
 type MasterConfig struct {
@@ -203,6 +210,12 @@ func main() {
 		return
 	}
 
+	caFile, readCaErr := os.ReadFile(caPath) //#nosec G304
+	if readCaErr != nil {
+		logger.Error("Failed to read CA cert", "err", readCaErr)
+		return
+	}
+
 	var idMgr *auth.IdentityManager
 
 	if cfg.PrivKeyStr == "" {
@@ -324,7 +337,7 @@ func main() {
 			nwutils.GetActiveMulticastInterfaces(),
 		)
 		if err != nil {
-			logger.Error("Failed to start mdns server", "err", err)
+			logger.Error("Failed to start mdns server", "	err", err)
 			return
 		}
 		defer mdnsServer.Shutdown()
@@ -338,22 +351,51 @@ func main() {
 	}
 
 	logger.Info("Starting Master Node", "port", cfg.APIPort)
-	logger.Info("Starting drpc server", "port", cfg.DrpcPort)
 
-	errChan := make(chan error, 2)
+	healthJob := &backroundjobs.NodesCheckJob{
+		Store:    store,
+		Interval: 30 * time.Second,
+		Logger:   logger,
+	}
 
-	go func() {
-		errChan <- server.ListenAndServeTLS("", "")
-	}()
+	g, groupCtx := errgroup.WithContext(ctx)
 
-	go func() {
-		errChan <- drpcServer.Serve(ctx, tlsDRPCListener)
-	}()
-
-	for range 2 {
-		if err := <-errChan; err != nil {
-			logger.Error("Server error", "err", err)
+	g.Go(func() error {
+		logger.Info("Starting HTTP server", "port", cfg.APIPort)
+		if err := server.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("http server: %w", err)
 		}
+		return nil
+	})
+
+	g.Go(func() error {
+		logger.Info("Starting DRPC server", "port", cfg.DrpcPort)
+		if err := drpcServer.Serve(groupCtx, tlsDRPCListener); err != nil {
+			return fmt.Errorf("drpc server: %w", err)
+		}
+		return nil
+	})
+
+	g.Go(func() error {
+		logger.Info("Starting health check job")
+		healthJob.Run(groupCtx, caFile)
+		return nil
+	})
+
+	g.Go(func() error {
+		<-groupCtx.Done()
+		logger.Info("Shutdown signal received, performing graceful server shutdown")
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		return server.Shutdown(shutdownCtx)
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Error("Server stopped with error", "err", err)
+	} else {
+		logger.Info("Server exited cleanly")
 	}
 }
 
@@ -364,6 +406,15 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
 	))
+	doc := redoc.Redoc{
+		Title:       "gns3util Cluster Master API Documentation",
+		Description: "gns3util cluster master API documentation generated from OpenAPI spec",
+		SpecFile:    "./docs/swagger.json",
+		SpecPath:    "/swagger/doc.json",
+		DocsPath:    "/redoc",
+	}
+
+	r.Handle("/redoc", doc.Handler())
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
@@ -381,6 +432,7 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 		r.Route("/cluster", func(r chi.Router) {
 			r.Post("/join", master.HandleJoinCluster)
 			r.Post("/join/filestore", master.HandleJoinFilestore)
+			r.Get("/nodes", master.GetNodes)
 		})
 	})
 }

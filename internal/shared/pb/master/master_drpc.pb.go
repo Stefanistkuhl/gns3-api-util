@@ -7,6 +7,7 @@ package master
 import (
 	context "context"
 	errors "errors"
+
 	protojson "google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
 	drpc "storj.io/drpc"

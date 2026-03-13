@@ -16,10 +16,12 @@ import (
 
 	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/state"
+	"github.com/0xveya/gns3util/pkg/state/pb"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 	"github.com/0xveya/gns3util/pkg/web/middleware"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Master struct {
@@ -346,6 +348,32 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 		NodeCert: string(signedCertPEM),
 		CACert:   string(caCertPEM),
 	}
+	nodeIP := req.IP
+	if nodeIP == "" {
+		nodeIP = strings.Split(r.RemoteAddr, ":")[0]
+	}
+	newNode := &pb.Node{
+		Id:        req.ID,
+		IpAddress: nodeIP,
+		Status:    pb.NodeStatus_NODE_STATUS_ONLINE,
+		Type:      pb.NodeType_NODE_TYPE_STORAGE,
+		LastSeen:  timestamppb.Now(),
+		ApiPort:   req.APIPort,
+		Network:   &pb.NodeNetwork{}, // TODO: add this when networking is improved
+	}
+
+	nodeScopes := []string{"node:status:update", "filestore:access"}
+
+	success, err := m.Store.RegisterNodeTxn(r.Context(), newNode, nodeScopes)
+	if err != nil {
+		helpers.WriteAPIError(w, "Internal Error", helpers.ErrCodeInternal, "etcd txn failed", http.StatusInternalServerError)
+		return
+	}
+
+	if !success {
+		helpers.WriteAPIError(w, "Conflict", helpers.ErrCodeInvalidRequest, "Node ID already in use", http.StatusConflict)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
@@ -385,6 +413,44 @@ func (m *Master) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	if writeResErr := helpers.WriteJSON(w, res); writeResErr != nil {
 		m.Logger.Error("Failed to write auth status response", "err", writeResErr)
 		helpers.WriteAPIError(w, "Failed to write auth status response", helpers.ErrCodeInternal, fmt.Sprintf("failed to write auth status response: %v", writeResErr), http.StatusInternalServerError)
+		return
+	}
+}
+
+// GetNodes returns current authentication status
+//
+//	@Summary		Return nodes in cluster
+//	@Description	Returns all nodes in the cluster with their status and basic info
+//	@Tags			discovery
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	models.GetNodesResponse
+//	@Failure		500	{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/auth/status [get]
+func (m *Master) GetNodes(w http.ResponseWriter, r *http.Request) {
+	nodes, getNodeErr := m.Store.GetNodes(r.Context())
+	if getNodeErr != nil {
+		m.Logger.Error("Failed to get nodes from state manager", "error", getNodeErr)
+		helpers.WriteAPIError(w, "Failed to get nodes", helpers.ErrCodeInternal, fmt.Sprintf("failed to get nodes: %v", getNodeErr), http.StatusInternalServerError)
+		return
+	}
+
+	var nodeInfos []models.NodeInfo
+	for _, node := range nodes {
+		nodeInfos = append(nodeInfos, models.NodeInfo{
+			ID:      node.Id,
+			IP:      node.IpAddress,
+			APIPort: uint32(node.ApiPort),
+			Type:    models.NodeType(node.Type),
+		})
+	}
+
+	res := models.GetNodesResponse{
+		Nodes: nodeInfos,
+	}
+	if writeResErr := helpers.WriteJSON(w, res); writeResErr != nil {
+		m.Logger.Error("Failed to write get nodes response", "err", writeResErr)
+		helpers.WriteAPIError(w, "Failed to write get nodes response", helpers.ErrCodeInternal, fmt.Sprintf("failed to write get nodes response: %v", writeResErr), http.StatusInternalServerError)
 		return
 	}
 }

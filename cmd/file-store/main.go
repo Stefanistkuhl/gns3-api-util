@@ -6,7 +6,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/http"
@@ -21,10 +23,13 @@ import (
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
 	"github.com/0xveya/gns3util/pkg/env"
+	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/otel"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/quic-go/quic-go/http3"
@@ -189,20 +194,44 @@ func main() {
 		TLSConfig: tlsConfig,
 	}
 
-	logger.Info("Starting HTTP/3 server", "port", cfg.Port)
+	g, groupCtx := errgroup.WithContext(ctx)
 
-	errChan := make(chan error, 2)
+	g.Go(func() error {
+		logger.Info("Starting HTTP/TLS server", "addr", tcpServer.Addr)
+		if err := tcpServer.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("tcp server: %w", err)
+		}
+		return nil
+	})
 
-	go func() {
-		errChan <- tcpServer.ListenAndServeTLS("", "")
-	}()
+	g.Go(func() error {
+		logger.Info("Starting HTTP/3 server", "addr", h3Server.Addr)
+		if err := h3Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("h3 server: %w", err)
+		}
+		return nil
+	})
 
-	go func() {
-		errChan <- h3Server.ListenAndServe()
-	}()
+	g.Go(func() error {
+		<-groupCtx.Done()
+		logger.Info("Shutdown signal received, closing servers...")
 
-	if err := <-errChan; err != nil {
-		logger.Error("Server error", "err", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		stopErr := tcpServer.Shutdown(shutdownCtx)
+		if stopErr != nil {
+			logger.Error("Error shutting down TCP server", "err", stopErr)
+		}
+		closeErr := h3Server.Close()
+		if closeErr != nil {
+			logger.Error("Error shutting down HTTP/3 server", "err", closeErr)
+		}
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.Error("Execution stopped with error", "err", err)
 	}
 }
 
@@ -247,16 +276,40 @@ func setupRouter(
 	})
 }
 
-func bootstrapCertificates(masterURL string, csrPEM []byte, certPath, caPath, token, masterCACert string, ctx context.Context) error {
-	payload, _ := json.Marshal(map[string]string{"csr": string(csrPEM)})
+func bootstrapCertificates(
+	masterURL string,
+	csrPEM []byte,
+	certPath, caPath, token, masterCACert string,
+	ctx context.Context,
+) error {
+	advertiseIP := nwutils.GetFirstNonLoopbackIP()
 
-	reqURL := masterURL + "/api/v1/cluster/join/filestore"
-	req, _ := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(payload))
+	if cfg.Port < 0 || cfg.Port > 65535 {
+		return fmt.Errorf("invalid port number: %d", cfg.Port)
+	}
+	port := uint32(cfg.Port)
+	joinReq := models.JoinFilestoreRequest{
+		CSRPEM:  string(csrPEM),
+		ID:      cfg.NodeName,
+		IP:      advertiseIP,
+		APIPort: port,
+	}
+
+	payload, err := json.Marshal(joinReq)
+	if err != nil {
+		return fmt.Errorf("failed to marshal join request: %w", err)
+	}
+
+	reqURL := fmt.Sprintf("%s/api/v1/cluster/join/filestore", masterURL)
+	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(payload))
+	if err != nil {
+		return err
+	}
+
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 
 	tlsConfig := &tls.Config{}
-
 	if masterCACert != "" {
 		caPool := x509.NewCertPool()
 		if !caPool.AppendCertsFromPEM([]byte(masterCACert)) {
@@ -268,10 +321,12 @@ func bootstrapCertificates(masterURL string, csrPEM []byte, certPath, caPath, to
 	}
 
 	client := &http.Client{
+		Timeout: 15 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: tlsConfig,
 		},
 	}
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("http request failed: %w", err)
@@ -279,22 +334,20 @@ func bootstrapCertificates(masterURL string, csrPEM []byte, certPath, caPath, to
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("master rejected join request: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("master rejected join (status %d): %s", resp.StatusCode, string(body))
 	}
 
-	var result struct {
-		NodeCert string `json:"node_cert"`
-		CACert   string `json:"ca_cert"`
-	}
+	var result models.JoinFilestoreResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return err
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if err := os.WriteFile(certPath, []byte(result.NodeCert), 0o600); err != nil {
-		return err
+		return fmt.Errorf("failed to save cert: %w", err)
 	}
 	if err := os.WriteFile(caPath, []byte(result.CACert), 0o600); err != nil {
-		return err
+		return fmt.Errorf("failed to save CA: %w", err)
 	}
 
 	return nil

@@ -1,0 +1,65 @@
+syntax = "proto3";
+package state;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/0xveya/gns3util/pkg/state/pb";
+
+message UserPermissions {
+  string user_id = 1;
+  repeated string scopes = 2;
+  repeated string roles = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message UserProfile {
+  string id = 1;
+  string email = 2;
+  google.protobuf.Timestamp created_at = 3;
+  UserPermissions permissions = 4;
+}
+
+message Node {
+  string id = 1;
+  string ip_address = 2;
+  NodeStatus status = 3;
+  NodeType type = 4;
+  map<string, string> metadata = 5;
+  NodeNetwork network = 6;
+  google.protobuf.Timestamp last_seen = 7;
+  uint32 api_port = 8;
+}
+
+message NodeNetwork {
+  string cluster_ip = 1;
+  string node_cidr = 2;
+  uint32 mtu = 3;
+
+  oneof backend {
+    WireguardConfig wireguard = 4;
+    HostGWConfig host_gw = 5;
+  }
+}
+
+message WireguardConfig {
+  string public_key = 1;
+  int32 listen_port = 2;
+  string endpoint_address = 3;
+}
+
+message HostGWConfig {
+  string interface_name = 1;
+}
+
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+  NODE_STATUS_ONLINE = 1;
+  NODE_STATUS_OFFLINE = 2;
+  NODE_STATUS_MAINTENANCE = 3;
+}
+
+enum NodeType {
+  NODE_TYPE_UNSPECIFIED = 0;
+  NODE_TYPE_MASTER = 1;
+  NODE_TYPE_STORAGE = 2;
+}

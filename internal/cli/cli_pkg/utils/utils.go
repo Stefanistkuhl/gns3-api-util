@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss/table"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
@@ -176,6 +178,8 @@ func PrintOutput(body []byte, cfg *config.GlobalOptions) {
 		PrintYaml(cfg.CommandPath, body)
 	case globals.OutputTOML:
 		PrintToml(cfg.CommandPath, body)
+	case globals.OutputTable:
+		PrintTableFromBody(body)
 	default:
 		PrintKV(body)
 	}
@@ -184,17 +188,18 @@ func PrintOutput(body []byte, cfg *config.GlobalOptions) {
 func PrintYaml(cmdPath string, body []byte) {
 	var data any
 	if err := json.Unmarshal(body, &data); err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Error parsing JSON for YAML output: %v\n", err)
 		return
 	}
 
-	wrappedData := map[string]any{
-		cmdPath: data,
+	finalData := data
+	if _, isSlice := data.([]any); isSlice && cmdPath != "" {
+		finalData = map[string]any{cmdPath: data}
 	}
 
-	yamlData, err := yaml.Marshal(wrappedData)
+	yamlData, err := yaml.Marshal(finalData)
 	if err != nil {
-		fmt.Printf("Error encoding yaml: %v\n", err)
+		fmt.Printf("Error encoding YAML: %v\n", err)
 		return
 	}
 	fmt.Print(string(yamlData))
@@ -203,15 +208,16 @@ func PrintYaml(cmdPath string, body []byte) {
 func PrintToml(cmdPath string, body []byte) {
 	var data any
 	if err := json.Unmarshal(body, &data); err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("Error parsing JSON for TOML output: %v\n", err)
 		return
 	}
 
-	wrappedData := map[string]any{
-		cmdPath: data,
+	finalData := data
+	if _, isSlice := data.([]any); isSlice && cmdPath != "" {
+		finalData = map[string]any{cmdPath: data}
 	}
 
-	tomlData, err := toml.Marshal(wrappedData)
+	tomlData, err := toml.Marshal(finalData)
 	if err != nil {
 		fmt.Printf("Error encoding TOML: %v\n", err)
 		return
@@ -236,6 +242,19 @@ func PrintJSONReallyUgly(body []byte) {
 
 func PrintKV(body []byte) {
 	result := gjson.ParseBytes(body)
+
+	if result.IsObject() {
+		var keys []string
+		var lastVal gjson.Result
+		result.ForEach(func(k, v gjson.Result) bool {
+			keys = append(keys, k.String())
+			lastVal = v
+			return true
+		})
+		if len(keys) == 1 && lastVal.IsArray() {
+			result = lastVal
+		}
+	}
 
 	if result.IsArray() {
 		if len(result.Array()) == 0 {
@@ -672,6 +691,76 @@ type Column[T any] struct {
 	Value  func(item T) string
 }
 
+func PrintTableFromBody(body []byte) {
+	result := gjson.ParseBytes(body)
+
+	if result.IsObject() {
+		var keys []string
+		var lastVal gjson.Result
+		result.ForEach(func(k, v gjson.Result) bool {
+			keys = append(keys, k.String())
+			lastVal = v
+			return true
+		})
+		if len(keys) == 1 && lastVal.IsArray() {
+			result = lastVal
+		}
+	}
+
+	if !result.IsArray() || len(result.Array()) == 0 {
+		fmt.Println(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  No data found"))
+		return
+	}
+
+	items := result.Array()
+	firstItem := items[0]
+
+	if !firstItem.IsObject() {
+		for _, item := range items {
+			fmt.Println("  " + item.String())
+		}
+		return
+	}
+
+	var rawKeys []string
+	var headers []string
+	firstItem.ForEach(func(key, _ gjson.Result) bool {
+		rawKeys = append(rawKeys, key.String())
+		headers = append(headers, strings.ToUpper(key.String()))
+		return true
+	})
+
+	var rows [][]string
+	for _, item := range items {
+		var row []string
+		for _, key := range rawKeys {
+			row = append(row, item.Get(key).String())
+		}
+		rows = append(rows, row)
+	}
+
+	t := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("240"))).
+		Headers(headers...).
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == 0 {
+				return lipgloss.NewStyle().
+					Foreground(lipgloss.Color("12")).
+					Bold(true).
+					Padding(0, 1)
+			}
+			return lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15")).
+				Padding(0, 1)
+		})
+
+	fmt.Println(t.Render())
+}
+
 func PrintTable[T any](items []T, columns []Column[T]) {
 	if len(items) == 0 {
 		fmt.Println(lipgloss.NewStyle().
@@ -680,50 +769,38 @@ func PrintTable[T any](items []T, columns []Column[T]) {
 		return
 	}
 
-	widths := make([]int, len(columns))
-	for i, col := range columns {
-		widths[i] = len(col.Header)
+	var headers []string
+	for _, col := range columns {
+		headers = append(headers, col.Header)
 	}
+
+	var rows [][]string
 	for _, it := range items {
-		for i, col := range columns {
-			if len(col.Value(it)) > widths[i] {
-				widths[i] = len(col.Value(it))
+		var row []string
+		for _, col := range columns {
+			row = append(row, col.Value(it))
+		}
+		rows = append(rows, row)
+	}
+
+	t := table.New().
+		Border(lipgloss.RoundedBorder()).
+		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("240"))).
+		Headers(headers...).
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == 0 {
+				return lipgloss.NewStyle().
+					Foreground(lipgloss.Color("12")).
+					Bold(true).
+					Padding(0, 1)
 			}
-		}
-	}
+			return lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15")).
+				Padding(0, 1)
+		})
 
-	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
-	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	rowStyle := lipgloss.NewStyle()
-
-	for i, col := range columns {
-		fmt.Printf("  %s", headerStyle.Render(padRight(col.Header, widths[i])))
-	}
-	fmt.Println()
-
-	fmt.Println("  " + separatorStyle.Render(strings.Repeat("─", sum(widths)+len(widths)*2-1)))
-
-	for _, it := range items {
-		for i, col := range columns {
-			fmt.Printf("  %s", rowStyle.Render(padRightTable(col.Value(it), widths[i])))
-		}
-		fmt.Println()
-	}
-}
-
-func padRightTable(s string, width int) string {
-	if len(s) >= width {
-		return s
-	}
-	return s + strings.Repeat(" ", width-len(s))
-}
-
-func sum(ints []int) int {
-	total := 0
-	for _, n := range ints {
-		total += n
-	}
-	return total
+	fmt.Println(t.Render())
 }
 
 func ConfirmPrompt(msg string, defaultYes bool) bool {

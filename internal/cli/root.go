@@ -47,6 +47,14 @@ var rootCmd = &cobra.Command{
 		serverFlagSet := cmd.Flags().Changed("server")
 		clusterFlagSet := cmd.Flags().Changed("cluster")
 
+		if hasAuthModeClusterOnly(cmd) {
+			if serverFlagSet {
+				return fmt.Errorf("command %q does not support --server; you must use --cluster", cmd.Name())
+			}
+			if !clusterFlagSet && viper.GetString("cluster") == "" {
+				return fmt.Errorf("command %q requires the --cluster flag", cmd.Name())
+			}
+		}
 		if !serverFlagSet {
 			server = viper.GetString("server")
 		}
@@ -71,7 +79,7 @@ var rootCmd = &cobra.Command{
 			return fmt.Errorf("--server and --cluster are mutually exclusive")
 		}
 
-		requiresServer := !isCtlCommand(cmd) && !hasAuthModeFlexible(cmd)
+		requiresServer := !isCtlCommand(cmd) && !hasAuthModeFlexible(cmd) && !hasAuthModeNone(cmd)
 		if requiresServer && server == "" && cluster == "" {
 			return fmt.Errorf("required flag(s) \"--server\" not set")
 		}
@@ -227,11 +235,11 @@ func Execute() {
 func validateGlobalFlags() error {
 	validFormats := map[string]bool{
 		"kv": true, "json": true, "json-colorless": true,
-		"collapsed": true, "yaml": true, "toml": true,
+		"collapsed": true, "yaml": true, "toml": true, "table": true,
 	}
 
 	if !validFormats[outputFormat] {
-		return fmt.Errorf("invalid output format %q: choose from kv, json, json-colorless, collapsed, yaml, toml", outputFormat)
+		return fmt.Errorf("invalid output format %q: choose from kv, json, json-colorless, collapsed, yaml, toml, table", outputFormat)
 	}
 	return nil
 }
@@ -247,6 +255,14 @@ func isCtlCommand(cmd *cobra.Command) bool {
 
 func hasAuthModeFlexible(cmd *cobra.Command) bool {
 	return cmd.Annotations != nil && cmd.Annotations["auth-mode"] == "flexible"
+}
+
+func hasAuthModeNone(cmd *cobra.Command) bool {
+	return cmd.Annotations != nil && cmd.Annotations["auth-mode"] == "none"
+}
+
+func hasAuthModeClusterOnly(cmd *cobra.Command) bool {
+	return cmd.Annotations != nil && cmd.Annotations["auth-mode"] == "cluster-only"
 }
 
 func findClusterByName(kf *pathutils.KeyFileV2, name string) (*pathutils.ClusterEntry, bool) {
