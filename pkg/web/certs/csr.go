@@ -1,7 +1,8 @@
 package certs
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -16,7 +17,7 @@ import (
 )
 
 func GenerateNodeKeyAndCSR(tlsDir, nodeName string, domains []string) (csrPEM []byte, err error) {
-	_, privKey, err := ed25519.GenerateKey(rand.Reader)
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +47,7 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string, domains []string) (csrPEM []
 
 	template := x509.CertificateRequest{
 		Subject:            subj,
-		SignatureAlgorithm: x509.PureEd25519,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
 		DNSNames:           domains,
 		IPAddresses:        nwutils.GetLocalIPs(),
 	}
@@ -60,7 +61,7 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string, domains []string) (csrPEM []
 	return csrPEM, nil
 }
 
-func SignCSR(csrPEM []byte, caCert *x509.Certificate, caPrivKey ed25519.PrivateKey) ([]byte, error) {
+func SignCSR(csrPEM []byte, caCert *x509.Certificate, caPrivKey any) ([]byte, error) {
 	block, _ := pem.Decode(csrPEM)
 	if block == nil || block.Type != "CERTIFICATE REQUEST" {
 		return nil, fmt.Errorf("failed to decode PEM block containing CSR")

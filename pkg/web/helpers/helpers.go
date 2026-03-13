@@ -23,12 +23,13 @@ const (
 	ErrCodeFileNotFound         = "file_not_found"
 	ErrCodeForbidden            = "forbidden"
 	ErrCodeOffsetMismatch       = "offset_mismatch"
+	ErrCodeInvalidRequest       = "invalid_request"
 )
 
 type APIErrorResponse struct {
-	Error   string `json:"error"`
-	Code    string `json:"code,omitempty"`
-	Details string `json:"details,omitempty"`
+	Error   string `json:"error" example:"Unauthorized"`
+	Code    string `json:"code,omitempty" example:"unauthorized"`
+	Details string `json:"details,omitempty" example:"invalid or missing join token"`
 }
 
 func WriteAPIError(w http.ResponseWriter, errorMsg, code, details string, statusCode int) {

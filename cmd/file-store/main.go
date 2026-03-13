@@ -250,7 +250,7 @@ func setupRouter(
 func bootstrapCertificates(masterURL string, csrPEM []byte, certPath, caPath, token, masterCACert string, ctx context.Context) error {
 	payload, _ := json.Marshal(map[string]string{"csr": string(csrPEM)})
 
-	reqURL := masterURL + "/cluster/join/filestore"
+	reqURL := masterURL + "/api/v1/cluster/join/filestore"
 	req, _ := http.NewRequestWithContext(ctx, "POST", reqURL, bytes.NewBuffer(payload))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")

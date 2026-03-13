@@ -17,6 +17,7 @@ air = "1.62.0"
 "go:golang.org/x/tools/cmd/goimports" = "0.42.0"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.5"
 "go:storj.io/drpc/cmd/protoc-gen-go-drpc" = "v0.0.34"
+"go:github.com/swaggo/swag/cmd/swag" = "latest"
 
 [tasks.test]
 description = "Run tests"
@@ -57,7 +58,7 @@ run = "goreleaser release --snapshot --clean"
 
 [tasks.format]
 description = "Run all formatters (Go and SQL)"
-depends = ["format-go", "format-sql", "format-proto"]
+depends = ["format-go", "format-sql", "format-proto", "format-swag"]
 
 [tasks."format-go"]
 description = "Format Go code with goimports and gofumpt"
@@ -73,6 +74,10 @@ run = [
 [tasks."format-proto"]
 description = "Format protobuf files with buf"
 run = "buf format internal/shared/proto -w"
+
+[tasks."format-swag"]
+description = "Format swagger api docs"
+run = "swag fmt"
 
 [tasks.lint]
 description = "Run all linters"
@@ -102,13 +107,17 @@ run = "air -c air-file-store.toml"
 description = "Generate SQL files"
 run = "sqlc generate"
 
+[tasks.swag]
+description = "Generate swagger api docs"
+run = "swag init -g main.go -d ./cmd/master,./internal/master/handlers,./pkg/models,./pkg/web/helpers"
+
 [tasks.proto]
 description = "Generate all protobuf and dRPC files"
 run = "buf generate internal/shared/proto --template internal/shared/proto/buf.gen.yaml"
 
 [tasks.generate]
 description = "Generate all files"
-depends = ["sqlc", "proto"]
+depends = ["sqlc", "proto", "swag"]
 
 [tasks.release]
 description = "Create a production release"

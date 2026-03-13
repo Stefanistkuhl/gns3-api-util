@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tidwall/gjson"
@@ -29,6 +30,13 @@ import (
 	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/0xveya/gns3util/pkg/api/endpoints"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
+	"github.com/jedib0t/go-pretty/v6/text"
+)
+
+var (
+	keyStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	valueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
+	labelStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
 )
 
 var idElementName = map[string][2]string{
@@ -165,7 +173,7 @@ func PrintOutput(body []byte, cfg *config.GlobalOptions) {
 	case globals.OutputCollapsed:
 		PrintJSONReallyUgly(body)
 	case globals.OutputYAML:
-		PrintYaml(body)
+		PrintYaml(cfg.CommandPath, body)
 	case globals.OutputTOML:
 		PrintToml(cfg.CommandPath, body)
 	default:
@@ -173,19 +181,20 @@ func PrintOutput(body []byte, cfg *config.GlobalOptions) {
 	}
 }
 
-func unmarshalBody(body []byte) any {
+func PrintYaml(cmdPath string, body []byte) {
 	var data any
 	if err := json.Unmarshal(body, &data); err != nil {
-		return string(body)
+		fmt.Printf("Error: %v\n", err)
+		return
 	}
-	return data
-}
 
-func PrintYaml(body []byte) {
-	data := unmarshalBody(body)
-	yamlData, err := yaml.Marshal(data)
+	wrappedData := map[string]any{
+		cmdPath: data,
+	}
+
+	yamlData, err := yaml.Marshal(wrappedData)
 	if err != nil {
-		fmt.Printf("Error encoding YAML: %v\n", err)
+		fmt.Printf("Error encoding yaml: %v\n", err)
 		return
 	}
 	fmt.Print(string(yamlData))
@@ -233,97 +242,58 @@ func PrintKV(body []byte) {
 			fmt.Println("  No data found")
 			return
 		}
+		PrintSeparator()
 		result.ForEach(func(_, elem gjson.Result) bool {
-			PrintSeperator()
 			if elem.IsObject() {
-				elem.ForEach(func(key, value gjson.Result) bool {
-					fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
-					return true
-				})
+				printObject(&elem)
 			} else {
 				fmt.Printf("  %s\n", elem.Raw)
 			}
+			PrintSeparator()
 			return true
 		})
-		PrintSeperator()
 	} else if result.IsObject() {
-		PrintSeperator()
-		result.ForEach(func(key, value gjson.Result) bool {
-			fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
-			return true
-		})
-		PrintSeperator()
+		PrintSeparator()
+		printObject(&result)
+		PrintSeparator()
 	}
 }
 
 func PrintKVWithContext(body []byte, contextType, contextField, contextLabel string) {
 	result := gjson.ParseBytes(body)
 
-	if result.IsArray() {
-		if len(result.Array()) == 0 {
-			fmt.Println("  No data found")
-			return
+	if !result.IsArray() {
+		PrintKV(body)
+		return
+	}
+
+	if len(result.Array()) == 0 {
+		fmt.Println("  No data found")
+		return
+	}
+
+	if contextType == "" || contextField == "" {
+		PrintKV(body)
+		return
+	}
+
+	contextGroups := groupByContext(&result, contextField)
+
+	for contextKey, items := range contextGroups {
+		if contextLabel != "" {
+			header := labelStyle.Render(contextLabel+" ") + keyStyle.Render(contextKey)
+			fmt.Printf("\n%s\n", header)
 		}
+		PrintSeparator()
 
-		if contextType != "" && contextField != "" {
-			contextGroups := make(map[string][]gjson.Result)
-
-			result.ForEach(func(_, elem gjson.Result) bool {
-				if elem.IsObject() {
-					contextValue := elem.Get(contextField)
-					if contextValue.Exists() {
-						contextKey := contextValue.String()
-						contextGroups[contextKey] = append(contextGroups[contextKey], elem)
-					} else {
-						contextGroups["Unknown"] = append(contextGroups["Unknown"], elem)
-					}
-				} else {
-					contextGroups["Unknown"] = append(contextGroups["Unknown"], elem)
-				}
-				return true
-			})
-
-			for contextKey, items := range contextGroups {
-				if contextLabel != "" {
-					fmt.Printf("\n%s %s\n", messageUtils.Bold(contextLabel), messageUtils.Highlight(contextKey))
-				}
-				fmt.Println(strings.Repeat("-", 40))
-
-				for _, elem := range items {
-					if elem.IsObject() {
-						elem.ForEach(func(key, value gjson.Result) bool {
-							fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
-							return true
-						})
-					} else {
-						fmt.Printf("  %s\n", elem.Raw)
-					}
-					fmt.Println()
-				}
+		for _, elem := range items {
+			if elem.IsObject() {
+				printObject(&elem)
+			} else {
+				fmt.Printf("  %s\n", elem.Raw)
 			}
-		} else {
-			result.ForEach(func(_, elem gjson.Result) bool {
-				PrintSeperator()
-				if elem.IsObject() {
-					elem.ForEach(func(key, value gjson.Result) bool {
-						fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
-						return true
-					})
-				} else {
-					fmt.Printf("  %s\n", elem.Raw)
-				}
-				return true
-			})
-			PrintSeperator()
+			fmt.Println()
 		}
-	} else if result.IsObject() {
-		PrintSeperator()
-		result.ForEach(func(key, value gjson.Result) bool {
-			fmt.Printf("  %s: %s\n", messageUtils.Highlight(key.String()), value.Raw)
-			return true
-		})
-		PrintSeperator()
-		fmt.Println(result.Raw)
 	}
 }
 
@@ -336,8 +306,64 @@ func PrintKVWithResourceContext(body []byte, resourceType, contextLabel string) 
 	}
 }
 
-func PrintSeperator() {
-	fmt.Println(messageUtils.Separator(strings.Repeat("-", 69)))
+func printObject(obj *gjson.Result) {
+	var pairs []struct {
+		key   string
+		value string
+	}
+	maxKeyLen := 0
+
+	obj.ForEach(func(key, value gjson.Result) bool {
+		k := key.String()
+		v := formatValue(&value)
+		pairs = append(pairs, struct {
+			key   string
+			value string
+		}{k, v})
+		if len(k) > maxKeyLen {
+			maxKeyLen = len(k)
+		}
+		return true
+	})
+
+	for _, p := range pairs {
+		key := keyStyle.Render(padRight(p.key, maxKeyLen))
+		val := valueStyle.Render(p.value)
+		fmt.Printf("  %s  %s\n", key, val)
+	}
+}
+
+func formatValue(value *gjson.Result) string {
+	if value.IsArray() || value.IsObject() {
+		return text.Faint.Sprint(value.Raw)
+	}
+	return value.Raw
+}
+
+func groupByContext(result *gjson.Result, contextField string) map[string][]gjson.Result {
+	groups := make(map[string][]gjson.Result)
+
+	result.ForEach(func(_, elem gjson.Result) bool {
+		contextValue := elem.Get(contextField)
+		if contextValue.Exists() {
+			groups[contextValue.String()] = append(groups[contextValue.String()], elem)
+		} else {
+			groups["Unknown"] = append(groups["Unknown"], elem)
+		}
+		return true
+	})
+
+	return groups
+}
+
+func padRight(s string, width int) string {
+	return s + strings.Repeat(" ", width-len(s))
+}
+
+func PrintSeparator() {
+	fmt.Println(lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render(strings.Repeat("─", 60)))
 }
 
 func ExecuteAndPrintWithBody(cfg *config.GlobalOptions, cmdName string, args []string, body any) {
@@ -648,7 +674,9 @@ type Column[T any] struct {
 
 func PrintTable[T any](items []T, columns []Column[T]) {
 	if len(items) == 0 {
-		fmt.Println("No records found.")
+		fmt.Println(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Render("  No records found."))
 		return
 	}
 
@@ -658,29 +686,44 @@ func PrintTable[T any](items []T, columns []Column[T]) {
 	}
 	for _, it := range items {
 		for i, col := range columns {
-			val := col.Value(it)
-			if len(val) > widths[i] {
-				widths[i] = len(val)
+			if len(col.Value(it)) > widths[i] {
+				widths[i] = len(col.Value(it))
 			}
 		}
 	}
 
+	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
+	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	rowStyle := lipgloss.NewStyle()
+
 	for i, col := range columns {
-		fmt.Printf("%-*s  ", widths[i], col.Header)
+		fmt.Printf("  %s", headerStyle.Render(padRight(col.Header, widths[i])))
 	}
 	fmt.Println()
 
-	for i := range columns {
-		fmt.Print(strings.Repeat("-", widths[i]) + "  ")
-	}
-	fmt.Println()
+	fmt.Println("  " + separatorStyle.Render(strings.Repeat("─", sum(widths)+len(widths)*2-1)))
 
 	for _, it := range items {
 		for i, col := range columns {
-			fmt.Printf("%-*s  ", widths[i], col.Value(it))
+			fmt.Printf("  %s", rowStyle.Render(padRightTable(col.Value(it), widths[i])))
 		}
 		fmt.Println()
 	}
+}
+
+func padRightTable(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-len(s))
+}
+
+func sum(ints []int) int {
+	total := 0
+	for _, n := range ints {
+		total += n
+	}
+	return total
 }
 
 func ConfirmPrompt(msg string, defaultYes bool) bool {

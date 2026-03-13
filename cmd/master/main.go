@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/ed25519"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -21,6 +22,8 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/0xveya/gns3util/docs"
+
 	"github.com/0xveya/gns3util/internal/master/handlers"
 	"github.com/0xveya/gns3util/internal/master/rpc"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
@@ -33,6 +36,7 @@ import (
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
 	"github.com/0xveya/gns3util/pkg/web/middleware"
 	"github.com/go-chi/chi/v5"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 	"github.com/grandcat/zeroconf"
@@ -68,6 +72,13 @@ func init() {
 	}
 }
 
+// @title						gns3util cluster master API
+// @version					1.0
+// @description				API for gns3util cluster management
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Type "Bearer" followed by a space and JWT token.
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -152,11 +163,7 @@ func main() {
 			logger.Error("failed to parse CA", "err", parseCertErr)
 			return
 		}
-		caPrivKey, ok := cert.PrivateKey.(ed25519.PrivateKey)
-		if !ok {
-			logger.Error("failed to parse CA", "err", parseCertErr)
-			return
-		}
+		caPrivKey := cert.PrivateKey
 		adminCertPEM, adminKeyPEM, genAdminCertErr := generateAdminCert(caX509, caPrivKey)
 		if genAdminCertErr != nil {
 			logger.Error("Failed to generate admin cert", "err", genAdminCertErr)
@@ -259,6 +266,8 @@ func main() {
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
+		MinVersion:     tls.VersionTLS12,
+		NextProtos:     []string{"h2", "http/1.1"},
 	}
 
 	server := &http.Server{
@@ -352,6 +361,9 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
 	r.Get("/healthz", commonhandlers.HandleHealthz)
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
@@ -374,7 +386,7 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 }
 
 func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) {
-	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -393,7 +405,7 @@ func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) 
 		IPAddresses:           nwutils.GetLocalIPs(),
 	}
 
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, pubKey, privKey)
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -410,7 +422,7 @@ func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) 
 }
 
 func generateAdminCert(caCert *x509.Certificate, caPrivKey any) (certPEM, keyPEM []byte, err error) {
-	adminPubKey, adminPrivKey, genAdminKeyErr := ed25519.GenerateKey(rand.Reader)
+	adminPrivKey, genAdminKeyErr := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if genAdminKeyErr != nil {
 		return nil, nil, genAdminKeyErr
 	}
@@ -425,11 +437,14 @@ func generateAdminCert(caCert *x509.Certificate, caPrivKey any) (certPEM, keyPEM
 		KeyUsage:    x509.KeyUsageDigitalSignature,
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 	}
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, caCert, adminPubKey, caPrivKey)
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, caCert, &adminPrivKey.PublicKey, caPrivKey)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+
 	keyBytes, err := x509.MarshalPKCS8PrivateKey(adminPrivKey)
 	if err != nil {
 		return nil, nil, err

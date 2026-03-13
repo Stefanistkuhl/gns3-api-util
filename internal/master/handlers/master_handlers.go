@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
@@ -30,17 +29,32 @@ type Master struct {
 	Logger *slog.Logger
 }
 
+// HandleJoinCluster handles node join requests
+//
+//	@Summary		Join cluster as a new node
+//	@Description	Signs CSR and adds node to etcd cluster
+//	@Tags			cluster
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string						true	"Bearer JOIN_TOKEN"
+//	@Param			request			body		models.JoinClusterRequest	true	"Join request with CSR"
+//	@Success		200				{object}	models.JoinClusterResponse
+//	@Failure		400				{object}	helpers.APIErrorResponse
+//	@Failure		401				{object}	helpers.APIErrorResponse
+//	@Failure		500				{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/cluster/join [post]
 func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
+	// change this to use mtls proerly bc this used to be for a learner
 	expectedToken := os.Getenv("JOIN_TOKEN")
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "Bearer "+expectedToken {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		helpers.WriteAPIError(w, "Unauthorized", helpers.ErrCodeUnauthorized, "invalid or missing join token", http.StatusUnauthorized)
 		return
 	}
 
 	var req models.JoinClusterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		helpers.WriteAPIError(w, "Invalid request body", helpers.ErrCodeInvalidRequest, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -50,46 +64,41 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 
 	caCertPEM, err := os.ReadFile(caCertPath)
 	if err != nil {
-		http.Error(w, "Failed to read Master CA cert", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to read Master CA cert", helpers.ErrCodeFileNotFound, fmt.Sprintf("failed to read master ca cert: %v", err), http.StatusInternalServerError)
 		return
 	}
 	caKeyPEM, err := os.ReadFile(caKeyPath)
 	if err != nil {
-		http.Error(w, "Failed to read Master CA key", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to read Master CA key", helpers.ErrCodeFileNotFound, fmt.Sprintf("failed to read master ca key: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	caBlock, _ := pem.Decode(caCertPEM)
 	caCert, err := x509.ParseCertificate(caBlock.Bytes)
 	if err != nil {
-		http.Error(w, "Failed to parse Master CA cert", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to parse Master CA cert", helpers.ErrCodeInvalidInput, fmt.Sprintf("failed to parse master ca cert: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	keyBlock, _ := pem.Decode(caKeyPEM)
 	parsedKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
-		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
-		return
-	}
-	caPrivKey, ok := parsedKey.(ed25519.PrivateKey)
-	if !ok {
-		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to parse Master CA key", helpers.ErrCodeInvalidInput, fmt.Sprintf("failed to parse master ca key: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	signedCertPEM, err := certs.SignCSR(req.CSRPEM, caCert, caPrivKey)
+	signedCertPEM, err := certs.SignCSR(req.CSRPEM, caCert, parsedKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to sign CSR: %v", err), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to sign CSR", helpers.ErrCodeInternal, fmt.Sprintf("failed to sign csr: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
-	memberResp, err := m.Store.MasterClient.MemberAddAsLearner(ctx, req.PeerURLs)
+	memberResp, err := m.Store.MasterClient.MemberAdd(ctx, req.PeerURLs)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to add member to etcd: %v", err), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to add member to cluster", helpers.ErrCodeInternal, fmt.Sprintf("failed to add member to cluster: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -114,20 +123,33 @@ func (m *Master) HandleJoinCluster(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", encodeErr), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to encode response", helpers.ErrCodeInternal, fmt.Sprintf("failed to encode response: %v", encodeErr), http.StatusInternalServerError)
 		return
 	}
 }
 
+// HandleCreateToken creates a new authentication token
+//
+//	@Summary		Create authentication token
+//	@Description	Mints a new JWT token for user authentication
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.CreateTokenRequest	true	"Token creation request"
+//	@Success		200		{object}	map[string]string
+//	@Failure		400		{object}	helpers.APIErrorResponse
+//	@Failure		403		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/auth/token [post]
 func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		helpers.WriteAPIError(w, "Invalid request body", helpers.ErrCodeInvalidRequest, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	if req.UserID == "" {
-		http.Error(w, "user_id required\n", http.StatusBadRequest)
+		helpers.WriteAPIError(w, "user_id required", helpers.ErrCodeInvalidInput, "user_id is required to create token", http.StatusBadRequest)
 		return
 	}
 
@@ -140,7 +162,7 @@ func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 
 	scopesStr, err := m.Store.GetUserScopes(ctx, req.UserID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to fetch user permissions: %v. Run 'ctl create user' first.\n", err), http.StatusForbidden)
+		helpers.WriteAPIError(w, "Failed to fetch user permissions", helpers.ErrCodeInternal, fmt.Sprintf("failed to fetch user permissions: %v. Run 'ctl create user' first.", err), http.StatusForbidden)
 		return
 	}
 
@@ -152,7 +174,7 @@ func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 	claims := auth.NewClaims(req.UserID, req.Role, scopes, 365*24*time.Hour)
 	token, err := m.IDMgr.Mint(claims)
 	if err != nil {
-		http.Error(w, "Failed to mint token\n", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to mint token", helpers.ErrCodeInternal, fmt.Sprintf("failed to mint token: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -168,12 +190,25 @@ func (m *Master) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleGrantAccess grants a scope to a user
+//
+//	@Summary		Grant access scope to user
+//	@Description	Grants a permission scope to a specific user
+//	@Tags			auth
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			user_id	query		string	true	"User ID"
+//	@Param			scope	query		string	true	"Scope to grant"
+//	@Success		200		{string}	string	"OK"
+//	@Failure		400		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/auth/grant [post]
 func (m *Master) HandleGrantAccess(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	scope := r.URL.Query().Get("scope")
 
 	if userID == "" || scope == "" {
-		http.Error(w, "user_id and scope required", http.StatusBadRequest)
+		helpers.WriteAPIError(w, "user_id and scope required", helpers.ErrCodeInvalidInput, "both user_id and scope query parameters are required", http.StatusBadRequest)
 		return
 	}
 
@@ -182,7 +217,7 @@ func (m *Master) HandleGrantAccess(w http.ResponseWriter, r *http.Request) {
 
 	existingScopesStr, err := m.Store.GetUserScopes(ctx, userID)
 	if err != nil && !strings.Contains(err.Error(), "user not found") {
-		http.Error(w, fmt.Sprintf("Failed to fetch existing permissions: %v", err), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to fetch existing permissions", helpers.ErrCodeInternal, fmt.Sprintf("failed to fetch existing permissions: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -198,22 +233,34 @@ func (m *Master) HandleGrantAccess(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := m.Store.PutUserPermissions(ctx, userID, scopes); err != nil {
-		http.Error(w, "Failed to grant access", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to grant access", helpers.ErrCodeInternal, fmt.Sprintf("failed to grant access: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	_, writeErr := w.Write([]byte("OK"))
 	if writeErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to write response", helpers.ErrCodeInternal, fmt.Sprintf("failed to write response: %v", writeErr), http.StatusInternalServerError)
 		return
 	}
 }
 
+// HandleRevokeAccess revokes all scopes from a user
+//
+//	@Summary		Revoke user access
+//	@Description	Revokes all permission scopes from a user
+//	@Tags			auth
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			user_id	query		string	true	"User ID"
+//	@Success		200		{string}	string	"OK"
+//	@Failure		400		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/auth/revoke [post]
 func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 
 	if userID == "" {
-		http.Error(w, "user_id required", http.StatusBadRequest)
+		helpers.WriteAPIError(w, "user_id required", helpers.ErrCodeInvalidInput, "user_id query parameter is required", http.StatusBadRequest)
 		return
 	}
 
@@ -222,28 +269,42 @@ func (m *Master) HandleRevokeAccess(w http.ResponseWriter, r *http.Request) {
 
 	_, err := m.Store.MasterClient.Delete(ctx, "/auth/scopes/"+userID)
 	if err != nil {
-		http.Error(w, "Failed to revoke access", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to revoke access", helpers.ErrCodeInternal, fmt.Sprintf("failed to revoke access: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	_, writeErr := w.Write([]byte("OK"))
 	if writeErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to write response: %v", writeErr), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to write response", helpers.ErrCodeInternal, fmt.Sprintf("failed to write response: %v", writeErr), http.StatusInternalServerError)
 		return
 	}
 }
 
+// HandleJoinFilestore handles filestore node join requests
+//
+//	@Summary		Join filestore cluster
+//	@Description	Signs CSR for filestore node
+//	@Tags			cluster
+//	@Accept			json
+//	@Produce		json
+//	@Param			Authorization	header		string						true	"Bearer JOIN_TOKEN"
+//	@Param			request			body		models.JoinFilestoreRequest	true	"Join request with CSR"
+//	@Success		200				{object}	models.JoinFilestoreResponse
+//	@Failure		400				{object}	helpers.APIErrorResponse
+//	@Failure		401				{object}	helpers.APIErrorResponse
+//	@Failure		500				{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/cluster/join/filestore [post]
 func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 	expectedToken := os.Getenv("JOIN_TOKEN")
 	authHeader := r.Header.Get("Authorization")
 	if authHeader != "Bearer "+expectedToken {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		helpers.WriteAPIError(w, "Unauthorized", helpers.ErrCodeUnauthorized, "invalid or missing join token", http.StatusUnauthorized)
 		return
 	}
 
 	var req models.JoinFilestoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		helpers.WriteAPIError(w, "Invalid request body", helpers.ErrCodeInvalidRequest, fmt.Sprintf("failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -253,37 +314,31 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 
 	caCertPEM, err := os.ReadFile(caCertPath)
 	if err != nil {
-		http.Error(w, "Failed to read Master CA cert", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to read Master CA cert", helpers.ErrCodeFileNotFound, fmt.Sprintf("failed to read master ca cert: %v", err), http.StatusInternalServerError)
 		return
 	}
 	caKeyPEM, err := os.ReadFile(caKeyPath)
 	if err != nil {
-		http.Error(w, "Failed to read Master CA key", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to read Master CA key", helpers.ErrCodeFileNotFound, fmt.Sprintf("failed to read master ca key: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	caBlock, _ := pem.Decode(caCertPEM)
 	caCert, err := x509.ParseCertificate(caBlock.Bytes)
 	if err != nil {
-		http.Error(w, "Failed to parse Master CA cert", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to parse Master CA cert", helpers.ErrCodeInvalidInput, fmt.Sprintf("failed to parse master ca cert: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	keyBlock, _ := pem.Decode(caKeyPEM)
 	parsedKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
-		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to parse Master CA key", helpers.ErrCodeInvalidInput, fmt.Sprintf("failed to parse master ca key: %v", err), http.StatusInternalServerError)
 		return
 	}
-	caPrivKey, ok := parsedKey.(ed25519.PrivateKey)
-	if !ok {
-		http.Error(w, "Failed to parse Master CA key", http.StatusInternalServerError)
-		return
-	}
-
-	signedCertPEM, err := certs.SignCSR([]byte(req.CSRPEM), caCert, caPrivKey)
+	signedCertPEM, err := certs.SignCSR([]byte(req.CSRPEM), caCert, parsedKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to sign CSR: %v", err), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to sign CSR", helpers.ErrCodeInternal, fmt.Sprintf("failed to sign csr: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -294,11 +349,21 @@ func (m *Master) HandleJoinFilestore(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if encodeErr := json.NewEncoder(w).Encode(resp); encodeErr != nil {
-		http.Error(w, fmt.Sprintf("Failed to encode response: %v", encodeErr), http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to encode response", helpers.ErrCodeInternal, fmt.Sprintf("failed to encode response: %v", encodeErr), http.StatusInternalServerError)
 		return
 	}
 }
 
+// HandleAuthStatus returns current authentication status
+//
+//	@Summary		Get authentication status
+//	@Description	Returns current user's authentication status and scopes
+//	@Tags			auth
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{object}	models.AuthStatusResponse
+//	@Failure		500	{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/auth/status [get]
 func (m *Master) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
@@ -319,7 +384,7 @@ func (m *Master) HandleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if writeResErr := helpers.WriteJSON(w, res); writeResErr != nil {
 		m.Logger.Error("Failed to write auth status response", "err", writeResErr)
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		helpers.WriteAPIError(w, "Failed to write auth status response", helpers.ErrCodeInternal, fmt.Sprintf("failed to write auth status response: %v", writeResErr), http.StatusInternalServerError)
 		return
 	}
 }
