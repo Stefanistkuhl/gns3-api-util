@@ -96,7 +96,7 @@ func NewCreateTokenCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", "/data/master/tls/cluster_access.toml", "Path to cluster_access.toml")
+	cmd.Flags().StringVarP(&configPath, "config", "", "/data/master/tls/cluster_access.toml", "Path to cluster_access.toml")
 	_ = viper.BindPFlag("config", cmd.Flags().Lookup("config"))
 
 	return cmd

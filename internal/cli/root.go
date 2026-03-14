@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/carapace-sh/carapace"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	"github.com/spf13/viper"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
@@ -272,4 +274,11 @@ func findClusterByName(kf *pathutils.KeyFileV2, name string) (*pathutils.Cluster
 		}
 	}
 	return nil, false
+}
+
+func GenrateDocs(dir string) {
+	err := doc.GenMarkdownTree(rootCmd, dir)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

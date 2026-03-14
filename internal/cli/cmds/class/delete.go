@@ -61,7 +61,7 @@ func NewClassDeleteCmd() *cobra.Command {
 	deleteClassCmd.Flags().Bool("no-confirm", false, "Skip confirmation prompt")
 	deleteClassCmd.Flags().Bool("delete-exercises", false, "Delete all exercises of the class")
 	deleteClassCmd.Flags().Bool("db-first", true, "Check database first for classes (default: true)")
-	deleteClassCmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	deleteClassCmd.Flags().StringP("cluster", "", "", "Cluster name")
 
 	return deleteClassCmd
 }

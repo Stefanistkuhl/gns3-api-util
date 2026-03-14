@@ -21,7 +21,7 @@ func NewExerciseLsCmd() *cobra.Command {
 	}
 	cmd.Flags().Bool("db-only", false, "Use only DB for listing")
 	cmd.Flags().Bool("api-only", false, "Use only API for listing (not implemented)")
-	cmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	cmd.Flags().StringP("cluster", "", "", "Cluster name")
 	cmd.Flags().String("class", "", "Filter by class name")
 	return cmd
 }

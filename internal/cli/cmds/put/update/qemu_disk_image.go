@@ -129,7 +129,7 @@ func NewUpdateQemuDiskImageCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&format, "format", "f", "", "Type of image format")
 	cmd.Flags().IntVarP(&size, "size", "", 0, "Size of disk in megabytes")
 	cmd.Flags().StringVarP(&preallocation, "preallocation", "p", "", "Desired Qemu disk image pre-allocation option")
-	cmd.Flags().IntVarP(&clusterSize, "cluster-size", "c", 0, "Desired cluster size")
+	cmd.Flags().IntVarP(&clusterSize, "cluster-size", "", 0, "Desired cluster size")
 	cmd.Flags().IntVarP(&refcountBits, "refcount-bits", "r", 0, "Desired amount of refcount bits")
 	cmd.Flags().StringVarP(&lazyRefcounts, "lazy_refcounts", "l", "", "Enabling or disabling lazy refcounts")
 	cmd.Flags().StringVarP(&subformat, "subformat", "", "", "Desired image sub-format options")

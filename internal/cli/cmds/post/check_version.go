@@ -60,7 +60,7 @@ func NewCheckVersionCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&flagVersion, "version", "v", "", "Version to check against")
 	cmd.Flags().StringVarP(&flagUseJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
-	cmd.Flags().StringVarP(&flagControllerHost, "controller-host", "c", "", "Controller host to use")
+	cmd.Flags().StringVarP(&flagControllerHost, "controller-host", "", "", "Controller host to use")
 	cmd.Flags().BoolVarP(&flagLocal, "local", "l", false, "Use local mode")
 
 	return cmd

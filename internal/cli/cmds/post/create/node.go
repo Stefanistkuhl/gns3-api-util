@@ -165,7 +165,7 @@ func NewCreateNodeCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&computeID, "compute-id", "c", "", "Compute ID (default 'local')")
+	cmd.Flags().StringVarP(&computeID, "compute-id", "", "", "Compute ID (default 'local')")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Node name")
 	cmd.Flags().StringVar(&nodeType, "node-type", "", "Node type")
 	cmd.Flags().IntVar(&consolePort, "console-port", 0, "Console TCP port")
@@ -186,7 +186,7 @@ func NewCreateNodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&locked, "locked", false, "Lock node")
 	cmd.Flags().StringVarP(&portNameFormat, "port-name-format", "f", "", "Port name format (e.g., Ethernet{0})")
 	cmd.Flags().IntVarP(&portSegmentSize, "port-segment-size", "m", 0, "Port segment size")
-	cmd.Flags().StringVarP(&firstPortName, "first-port-name", "o", "", "First port name")
+	cmd.Flags().StringVarP(&firstPortName, "first-port-name", "", "", "First port name")
 	cmd.Flags().StringVarP(&useJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
 	return cmd
 }

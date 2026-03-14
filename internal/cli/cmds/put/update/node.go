@@ -177,7 +177,7 @@ func NewUpdateNodeCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&computeID, "compute-id", "c", "local", "Compute on that the Node gets created")
+	cmd.Flags().StringVarP(&computeID, "compute-id", "", "local", "Compute on that the Node gets created")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Desired name for the Node")
 	cmd.Flags().StringVarP(&nodeType, "node-type", "t", "", "Type of Node")
 	cmd.Flags().IntVarP(&console, "console", "p", 0, "TCP port of the console")

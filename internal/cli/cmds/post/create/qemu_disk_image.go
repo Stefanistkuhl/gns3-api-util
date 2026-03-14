@@ -119,7 +119,7 @@ func NewCreateQemuDiskImageCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&format, "format", "f", "", "Image format (qcow2, raw, ...)")
 	cmd.Flags().IntVarP(&size, "size", "z", 0, "Image size in MB")
 	cmd.Flags().StringVarP(&preallocation, "preallocation", "p", "", "Preallocation (off, metadata, falloc, full)")
-	cmd.Flags().IntVarP(&clusterSize, "cluster-size", "c", 0, "Cluster size")
+	cmd.Flags().IntVarP(&clusterSize, "cluster-size", "", 0, "Cluster size")
 	cmd.Flags().IntVarP(&refcountBits, "refcount-bits", "r", 0, "Refcount bits")
 	cmd.Flags().StringVarP(&lazyRefcounts, "lazy_refcounts", "l", "", "lazy_refcounts (on/off)")
 	cmd.Flags().StringVarP(&subformat, "subformat", "u", "", "Subformat")

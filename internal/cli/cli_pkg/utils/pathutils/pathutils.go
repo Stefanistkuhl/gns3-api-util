@@ -277,8 +277,7 @@ func (k *KeyFileV2) GetCACertForMaster(serverURL string) []byte {
 func (k *KeyFileV2) IsNodePresentInCluster(node *models.NodeInfo, cluster *ClusterEntry) bool {
 	for i := range cluster.Nodes {
 		n := cluster.Nodes[i]
-		expectedService, exists := typeMap[node.Type]
-		if exists && expectedService == TypeClusterMaster && n.URL == fmt.Sprintf("https://%s:%d", node.IP, node.APIPort) && node.ID == n.ID {
+		if k.CompareSvcType(node.Type, n.Type) && n.URL == fmt.Sprintf("https://%s:%d", node.IP, node.APIPort) && node.ID == n.ID {
 			return true
 		}
 	}
@@ -290,6 +289,15 @@ func (k *KeyFileV2) NodeTypeToSvcType(inp models.NodeType) ServiceType {
 		return svc
 	}
 	return "unknown_service"
+}
+
+func (k *KeyFileV2) CompareSvcType(node models.NodeType, svc ServiceType) bool {
+	expectedSvc, ok := typeMap[node]
+	if !ok {
+		return false
+	}
+
+	return expectedSvc == svc
 }
 
 func (k *KeyFileV2) AddNodes(nodes []ServiceEntry, cluster *ClusterEntry) {

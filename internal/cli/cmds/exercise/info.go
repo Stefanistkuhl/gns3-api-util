@@ -19,7 +19,7 @@ func NewExerciseInfoCmd() *cobra.Command {
 		Short: "Show detailed info for a single exercise across nodes",
 		RunE:  runExerciseInfo,
 	}
-	cmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	cmd.Flags().StringP("cluster", "", "", "Cluster name")
 	return cmd
 }
 

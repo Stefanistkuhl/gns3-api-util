@@ -29,7 +29,7 @@ func NewClassLsCmd() *cobra.Command {
 
 	listCmd.Flags().Bool("db-only", false, "Show only classes from database (skip API calls)")
 	listCmd.Flags().Bool("api-only", false, "Show only classes from API (skip database)")
-	listCmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	listCmd.Flags().StringP("cluster", "", "", "Cluster name")
 
 	return listCmd
 }

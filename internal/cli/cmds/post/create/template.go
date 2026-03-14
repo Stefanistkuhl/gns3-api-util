@@ -97,11 +97,11 @@ func NewCreateTemplateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&templateID, "template-id", "d", "", "Desired ID for template, leave empty to use a generated one")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Desired name of the template")
 	cmd.Flags().StringVarP(&version, "version", "v", "", "Version of the template")
-	cmd.Flags().StringVarP(&category, "category", "c", "", "Category")
+	cmd.Flags().StringVarP(&category, "category", "", "", "Category")
 	cmd.Flags().StringVarP(&defaultFmt, "default-name-format", "f", "", "Default name format")
 	cmd.Flags().StringVar(&symbol, "symbol", "", "Symbol name")
 	cmd.Flags().StringVarP(&templateType, "template-type", "t", "", "Template type")
-	cmd.Flags().StringVarP(&computeID, "compute-id", "o", "", "Compute ID")
+	cmd.Flags().StringVarP(&computeID, "compute-id", "", "", "Compute ID")
 	cmd.Flags().StringVar(&usage, "usage", "", "Usage")
 	cmd.Flags().StringVarP(&useJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
 	return cmd

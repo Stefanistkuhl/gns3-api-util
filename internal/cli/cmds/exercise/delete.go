@@ -73,7 +73,7 @@ func NewExerciseDeleteCmd() *cobra.Command {
 	deleteExerciseCmd.Flags().Bool("multi", false, "Enable multi-select mode for fuzzy finder (only for exercise selection)")
 	deleteExerciseCmd.Flags().Bool("confirm", true, "Require confirmation before deletion")
 	deleteExerciseCmd.Flags().Bool("no-confirm", false, "Skip confirmation prompt")
-	deleteExerciseCmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	deleteExerciseCmd.Flags().StringP("cluster", "", "", "Cluster name")
 
 	return deleteExerciseCmd
 }

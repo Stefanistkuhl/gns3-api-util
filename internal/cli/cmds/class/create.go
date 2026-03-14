@@ -64,7 +64,7 @@ The class structure includes:
 	createClassCmd.Flags().BoolVar(&interactive, "interactive", false, "Launch interactive web interface for class creation")
 	createClassCmd.Flags().Int("port", 8080, "Port for interactive web interface")
 	createClassCmd.Flags().String("host", "localhost", "Host for interactive web interface")
-	createClassCmd.Flags().StringP("cluster", "c", "", "Cluster name")
+	createClassCmd.Flags().StringP("cluster", "", "", "Cluster name")
 
 	return createClassCmd
 }

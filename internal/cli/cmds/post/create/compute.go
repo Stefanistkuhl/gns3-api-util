@@ -82,13 +82,13 @@ func NewCreateComputeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&protocol, "protocol", "r", "", "Protocol (http/https)")
-	cmd.Flags().StringVarP(&host, "host", "o", "", "Remote host")
+	cmd.Flags().StringVarP(&host, "host", "", "", "Remote host")
 	cmd.Flags().IntVarP(&port, "port", "p", 0, "Port")
 	cmd.Flags().StringVarP(&user, "user", "u", "", "Username")
 	cmd.Flags().StringVarP(&password, "password", "w", "", "Password")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Name of the compute")
 	cmd.Flags().StringVarP(&computeID, "compute-id", "d", "", "Compute ID (generated if empty)")
-	cmd.Flags().BoolVarP(&connect, "connect", "c", false, "Attempt connection after creation")
+	cmd.Flags().BoolVarP(&connect, "connect", "", false, "Attempt connection after creation")
 	cmd.Flags().StringVarP(&useJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
 	return cmd
 }

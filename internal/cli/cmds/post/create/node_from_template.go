@@ -67,7 +67,7 @@ func NewCreateNodeFromTemplateCmd() *cobra.Command {
 	cmd.Flags().IntVar(&x, "x", 0, "X coordinate")
 	cmd.Flags().IntVar(&y, "y", 0, "Y coordinate")
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Node name")
-	cmd.Flags().StringVarP(&computeID, "compute-id", "c", "local", "Compute ID")
+	cmd.Flags().StringVarP(&computeID, "compute-id", "", "local", "Compute ID")
 	cmd.Flags().StringVarP(&useJSON, "use-json", "j", "", "Provide a raw JSON string to send instead of flags")
 	return cmd
 }

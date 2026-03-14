@@ -204,7 +204,7 @@ func NewGetProjectExportCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&keepComputeIds, "keep-compute-ids", false, "Keep compute IDs in the export")
 	cmd.Flags().StringVar(&compression, "compression", "zstd", "Compression type for the export (deflate, bz2, xz, zstd, none)")
 	cmd.Flags().IntVar(&compressionLevel, "compression-level", 3, "Compression level for the export (0-9)")
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output filename (default: project-name.gns3project)")
+	cmd.Flags().StringVarP(&outputFile, "output", "", "", "Output filename (default: project-name.gns3project)")
 
 	return cmd
 }
@@ -322,7 +322,7 @@ func NewGetProjectFileCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output filename (default: original filename)")
+	cmd.Flags().StringVarP(&outputFile, "output", "", "", "Output filename (default: original filename)")
 
 	return cmd
 }
@@ -404,7 +404,7 @@ func NewGetNodeFileCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output filename (default: original filename)")
+	cmd.Flags().StringVarP(&outputFile, "output", "", "", "Output filename (default: original filename)")
 
 	return cmd
 }
@@ -485,7 +485,7 @@ func NewStreamPcapCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output filename (default: capture_{link-id}.pcap)")
+	cmd.Flags().StringVarP(&outputFile, "output", "", "", "Output filename (default: capture_{link-id}.pcap)")
 
 	return cmd
 }

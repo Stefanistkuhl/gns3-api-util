@@ -66,7 +66,7 @@ This command will:
 	createExerciseCmd.Flags().Bool("select-template", false, "Interactively select a template project from existing projects on the server (recommended)")
 	createExerciseCmd.Flags().Bool("confirm", true, "Confirm before creating projects")
 	createExerciseCmd.Flags().Bool("delete-template-project", false, "Delete the template when using a project as a template")
-	createExerciseCmd.Flags().StringP("cluster", "c", "", "Cluster name (note: create is server-scoped; use -s)")
+	createExerciseCmd.Flags().StringP("cluster", "", "", "Cluster name (note: create is server-scoped; use -s)")
 
 	_ = createExerciseCmd.MarkFlagRequired("class")
 

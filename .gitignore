@@ -56,3 +56,5 @@ data/
 # GitHub Actions / CI
 .github/event.json
 .actrc
+documentation/cli/
+documentation/openapi.json

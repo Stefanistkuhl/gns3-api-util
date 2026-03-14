@@ -1,0 +1,120 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "linden",
+  "name": "gns3util",
+  "modeToggle": {
+    "default": "dark",
+    "isHidden": false
+  },
+  "colors": {
+    "primary": "#FF4F2A",
+    "light": "#FF4F2A",
+    "dark": "#FF5C35"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "index",
+              "guides/getting-started/quick-start",
+              "guides/getting-started/installation"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "guides/features/cluster-management",
+              "guides/features/remote-operations",
+              "guides/features/educational-workflows",
+              "guides/features/sharing-and-collaboration"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "guides/scripts/overview",
+              "guides/automation/walkthrough"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Core Commands",
+            "pages": [
+              "cli/gns3util",
+              "cli/gns3util_ctl"
+            ]
+          },
+          {
+            "group": "Project Management",
+            "pages": [
+              "cli/gns3util_project",
+              "cli/gns3util_project_new",
+              "cli/gns3util_project_ls",
+              "cli/gns3util_project_delete"
+            ]
+          },
+          {
+            "group": "Cluster Management",
+            "pages": [
+              "cli/gns3util_cluster",
+              "cli/gns3util_cluster_create",
+              "cli/gns3util_cluster_add-node",
+              "cli/gns3util_cluster_config"
+            ]
+          },
+          {
+            "group": "Node Operations",
+            "pages": [
+              "cli/gns3util_node",
+              "cli/gns3util_node_create",
+              "cli/gns3util_node_start-all",
+              "cli/gns3util_node_stop-all"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "cli/gns3util_acl",
+              "cli/gns3util_group",
+              "cli/gns3util_role"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "openapi": "api-reference/gns3util-master-api-docs.json"
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/0xveya/gns3util",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/0xveya/gns3util"
+      }
+    ]
+  }
+}
