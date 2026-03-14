@@ -57,4 +57,4 @@ data/
 .github/event.json
 .actrc
 documentation/cli/
-documentation/openapi.json
+documentation/api-reference/*.json

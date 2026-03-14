@@ -1,0 +1,36 @@
+name: Generate and Deploy Docs
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-docs:
+    name: Generate and Deploy Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up mise
+        uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Generate documentation
+        run: mise run docs
+
+      - name: Push to docs-new branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: docs-new
+          publish_dir: ./documentation
+          force_orphan: true
+          commit_message: "docs: auto-generate references from ${{ github.ref_name }}"
