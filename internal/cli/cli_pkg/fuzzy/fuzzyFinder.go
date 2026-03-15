@@ -241,7 +241,6 @@ func clearLines(n int) {
 	}
 }
 
-// deduplicate removes duplicate strings from a slice while preserving order
 func deduplicate(slice []string) []string {
 	seen := make(map[string]bool)
 	result := make([]string, 0, len(slice))

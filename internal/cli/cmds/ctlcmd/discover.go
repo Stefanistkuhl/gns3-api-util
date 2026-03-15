@@ -9,10 +9,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/ctlhelpers"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/mdns"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
-	"github.com/0xveya/gns3util/pkg/api"
 )
 
 func NewAddDiscoverCMD() *cobra.Command {
@@ -75,59 +74,20 @@ func NewDiscoverNodesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "nodes",
 		Short: "discover cluster nodes in the cluster",
-		Long:  `Disscover nodes in the cluster to populate the keyfile only works with --cluster and requires authentication to the cluster master.`,
 		Annotations: map[string]string{
 			"auth-mode": "cluster-only",
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
-				return fmt.Errorf("failed to get global options: %w", err)
-			}
-			settings := api.NewSettings(
-				api.WithBaseURLV2(cfg.ClusterEntry.Master.URL+"/api/v1"),
-				api.WithToken(cfg.ClusterEntry.Master.AccessToken),
-				api.WithVerify(!cfg.Insecure),
-				api.WithCA([]byte(cfg.ClusterEntry.CaCert)),
-			)
-			client := api.NewClientV2(settings)
-
-			resp, err := client.GetNodes(cmd.Context())
-			if err != nil {
-				return fmt.Errorf("failed to get auth status: %w", err)
-			}
-			body, err := json.Marshal(resp)
-			if err != nil {
-				return fmt.Errorf("failed to marshal discovery results: %w", err)
-			}
-			keyFilePath, err := pathutils.ResolveKeyFilePath(cfg.KeyFile)
-			if err != nil {
-				return fmt.Errorf("failed to resolve key file path: %w", err)
-			}
-			kf, err := pathutils.LoadGNS3KeysFile(keyFilePath)
-			if err != nil {
-				return fmt.Errorf("failed to load keys: %w", err)
-			}
-			nodesToAdd := make([]pathutils.ServiceEntry, 0, len(resp.Nodes))
-			for i := range resp.Nodes {
-				node := &resp.Nodes[i]
-				if !kf.IsNodePresentInCluster(node, cfg.ClusterEntry) {
-					svc := pathutils.ServiceEntry{
-						Type: kf.NodeTypeToSvcType(node.Type),
-						URL:  fmt.Sprintf("https://%s:%d", node.IP, node.APIPort),
-						ID:   node.ID,
-					}
-					nodesToAdd = append(nodesToAdd, svc)
-				}
-			}
-			kf.AddNodes(nodesToAdd, cfg.ClusterEntry)
-			saveErr := pathutils.SaveKeysFile(keyFilePath, kf)
-			if saveErr != nil {
-				return fmt.Errorf("failed to save key file: %w", saveErr)
+				return err
 			}
 
-			utils.PrintOutput(body, cfg)
+			if err := ctlhelpers.DiscoverAndSyncNodes(cmd.Context(), cfg); err != nil {
+				return err
+			}
 
+			fmt.Println("Successfully discovered and synced nodes to keyfile.")
 			return nil
 		},
 	}

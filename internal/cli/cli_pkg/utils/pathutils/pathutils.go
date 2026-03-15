@@ -311,3 +311,46 @@ func (k *KeyFileV2) AddNodes(nodes []ServiceEntry, cluster *ClusterEntry) {
 		}
 	}
 }
+
+func (k *KeyFileV2) RemoveNonExistantEntrys(clusterName string, discoveredIDs []string) []ServiceEntry {
+	var removed []ServiceEntry
+
+	alive := make(map[string]struct{})
+	for _, id := range discoveredIDs {
+		alive[id] = struct{}{}
+	}
+
+	for i := range k.Clusters {
+		if k.Clusters[i].Name == clusterName {
+			var kept []ServiceEntry
+			for _, node := range k.Clusters[i].Nodes {
+				if _, exists := alive[node.ID]; exists {
+					kept = append(kept, node)
+				} else {
+					removed = append(removed, node)
+				}
+			}
+			k.Clusters[i].Nodes = kept
+		}
+	}
+	return removed
+}
+
+func (k *KeyFileV2) SyncNodes(freshNodes []ServiceEntry, cluster *ClusterEntry) {
+	for i := range k.Clusters {
+		if k.Clusters[i].Name == cluster.Name {
+			k.Clusters[i].Nodes = freshNodes
+			break
+		}
+	}
+}
+
+func (k *KeyFileV2) RemoveClusterByName(name string) {
+	for i := range k.Clusters {
+		cluster := k.Clusters[i]
+		if cluster.Name == name {
+			k.Clusters = append(k.Clusters[:i], k.Clusters[i+1:]...)
+			return
+		}
+	}
+}
