@@ -11,6 +11,7 @@ import (
 func NewDeleteDrawingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [project-name/id] [drawing-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a drawing from a project",
 		Long:    `Delete a drawing from a project on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 drawing delete my-project my-drawing",

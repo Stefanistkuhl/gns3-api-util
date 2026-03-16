@@ -11,9 +11,10 @@ import (
 
 func NewPoolCmdGroup() *cobra.Command {
 	poolCmd := &cobra.Command{
-		Use:   "pool",
-		Short: "Resource pool operations",
-		Long:  `Create, manage, and manipulate GNS3 resource pools.`,
+		Use:     "pool",
+		Aliases: []string{"po"},
+		Short:   "Resource pool operations",
+		Long:    `Create, manage, and manipulate GNS3 resource pools.`,
 	}
 
 	poolCmd.AddCommand(create.NewCreatePoolCmd())

@@ -14,8 +14,9 @@ func NewCreatePoolCmd() *cobra.Command {
 	var name string
 	var useJSON string
 	cmd := &cobra.Command{
-		Use:   "new",
-		Short: "Create a resource pool",
+		Use:     "new",
+		Aliases: []string{"create", "c", "add"},
+		Short:   "Create a resource pool",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {

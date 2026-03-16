@@ -11,6 +11,7 @@ import (
 func NewDeleteUserCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [user-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a user",
 		Long:    `Delete a user from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 user delete my-user",

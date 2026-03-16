@@ -231,7 +231,7 @@ func getMatches(matches []fuzzy.Match) []string {
 }
 
 func countLines(s string) int {
-	return strings.Count(s, "\n") + 1
+	return strings.Count(s, "\n")
 }
 
 func clearLines(n int) {
@@ -274,7 +274,6 @@ func NewFuzzyFinderWithTitle(input []string, multiMode bool, title string) []str
 	}
 	final, ok := a.(*fuzzyFinder)
 	if !ok {
-		// This should never happen in normal operation, but handle it gracefully
 		return []string{}
 	}
 	lines := countLines(final.View())

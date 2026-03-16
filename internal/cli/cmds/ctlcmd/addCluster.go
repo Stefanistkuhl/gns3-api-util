@@ -37,7 +37,7 @@ func NewAddClusterCMD() *cobra.Command {
 				api.WithToken(token),
 				api.WithVerify(false),
 			)
-			client := api.NewClientV2(settings)
+			client := api.NewClientV2(&settings)
 
 			fingerprint, caCertPEM, err := client.BootstrapConnect(cmd.Context())
 			if err != nil {

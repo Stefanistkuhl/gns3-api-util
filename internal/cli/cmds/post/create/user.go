@@ -23,6 +23,7 @@ func NewCreateUserCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "new",
+		Aliases: []string{"create", "c", "add"},
 		Short:   "Create a user account",
 		Long:    "Create a new user account on the GNS3v3 controller. Either provide -u and -p (and optional fields) or pass a full JSON payload using --use-json.",
 		Example: "gns3util -s https://controller:3080 create user -u alice -p secret --email alice@example.com",

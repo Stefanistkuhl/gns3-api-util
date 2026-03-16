@@ -19,6 +19,17 @@ type Backup struct {
 	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
 }
 
+type Bucket struct {
+	BucketID       string         `json:"bucket_id"`
+	Name           string         `json:"name"`
+	OwnerID        string         `json:"owner_id"`
+	BucketType     string         `json:"bucket_type"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	CreatedAt      sql.NullTime   `json:"created_at"`
+	UpdatedAt      sql.NullTime   `json:"updated_at"`
+}
+
 type File struct {
 	FileUuid        string            `json:"file_uuid"`
 	FilePath        string            `json:"file_path"`
@@ -28,6 +39,7 @@ type File struct {
 	ContentType     string            `json:"content_type"`
 	ScopeLabel      string            `json:"scope_label"`
 	OwnerID         string            `json:"owner_id"`
+	BucketID        string            `json:"bucket_id"`
 	CreatedAt       sql.NullTime      `json:"created_at"`
 	UpdatedAt       sql.NullTime      `json:"updated_at"`
 	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
@@ -40,6 +52,15 @@ type ProjectFile struct {
 	ProjectID  string         `json:"project_id"`
 	VersionTag sql.NullString `json:"version_tag"`
 	IsReadOnly sql.NullBool   `json:"is_read_only"`
+}
+
+type PublicFileToken struct {
+	Token       string        `json:"token"`
+	FileUuid    string        `json:"file_uuid"`
+	BucketID    string        `json:"bucket_id"`
+	CreatedAt   sql.NullTime  `json:"created_at"`
+	ExpiresAt   sql.NullTime  `json:"expires_at"`
+	AccessCount sql.NullInt64 `json:"access_count"`
 }
 
 type VmImage struct {

@@ -11,6 +11,7 @@ import (
 func NewGetComputesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get available computes",
 		Long:    `Get available computes`,
 		Example: "gns3util -s https://controller:3080 compute ls",
@@ -29,6 +30,7 @@ func NewGetComputesCmd() *cobra.Command {
 func NewGetComputeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [compute-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a compute by name or id",
 		Long:    `Get a compute by name or id`,
 		Example: "gns3util -s https://controller:3080 compute info my-compute",
@@ -55,6 +57,7 @@ func NewGetComputeCmd() *cobra.Command {
 func NewGetComputeDockerImagesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "docker-images [compute-name/id]",
+		Aliases: []string{"docker", "images", "img"},
 		Short:   "Get the docker-images of a compute by name or id",
 		Long:    `Get the docker-images of a compute by name or id`,
 		Example: "gns3util -s https://controller:3080 compute docker-images my-compute",
@@ -81,6 +84,7 @@ func NewGetComputeDockerImagesCmd() *cobra.Command {
 func NewGetComputeVirtualboxVMSCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "virtualbox-vms [compute-name/id]",
+		Aliases: []string{"vbox", "vbox-vms"},
 		Short:   "Get the virtualbox-vms of a compute by name or id",
 		Long:    `Get the virtualbox-vms of a compute by name or id`,
 		Example: "gns3util -s https://controller:3080 compute virtualbox-vms my-compute",
@@ -107,6 +111,7 @@ func NewGetComputeVirtualboxVMSCmd() *cobra.Command {
 func NewGetComputeVmWareVMSCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "vmware-vms [compute-name/id]",
+		Aliases: []string{"vmw", "vmware"},
 		Short:   "Get the vmware-vms of a compute by name or id",
 		Long:    `Get the vmware-vms of a compute by name or id`,
 		Example: "gns3util -s https://controller:3080 compute vmware-vms my-compute",

@@ -11,9 +11,10 @@ import (
 
 func NewProjectCmdGroup() *cobra.Command {
 	projectCmd := &cobra.Command{
-		Use:   "project",
-		Short: "Project operations",
-		Long:  `Create, manage, and manipulate GNS3 projects.`,
+		Use:     "project",
+		Aliases: []string{"proj", "p"},
+		Short:   "Project operations",
+		Long:    `Create, manage, and manipulate GNS3 projects.`,
 	}
 
 	projectCmd.AddCommand(create.NewCreateProjectCmd())

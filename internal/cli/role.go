@@ -11,9 +11,10 @@ import (
 
 func NewRoleCmdGroup() *cobra.Command {
 	roleCmd := &cobra.Command{
-		Use:   "role",
-		Short: "Role operations",
-		Long:  `Create, manage, and manipulate GNS3 roles.`,
+		Use:     "role",
+		Aliases: []string{"r"},
+		Short:   "Role operations",
+		Long:    `Create, manage, and manipulate GNS3 roles.`,
 	}
 
 	roleCmd.AddCommand(create.NewCreateRoleCmd())

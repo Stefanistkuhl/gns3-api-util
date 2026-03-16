@@ -11,6 +11,7 @@ import (
 func NewDeleteProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [project-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a project",
 		Long:    `Delete a project from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 project delete my-project",

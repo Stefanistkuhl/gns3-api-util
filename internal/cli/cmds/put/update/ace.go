@@ -25,6 +25,7 @@ func NewUpdateACECmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [ace-id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update an ACE",
 		Long:    "Update an ACE. User, group and role IDs will be resolved from names if UUIDs are not provided.",
 		Example: "gns3util -s https://controller:3080 acl update ace-id --ace-type user --path /some/endpoint --role-id some-role",

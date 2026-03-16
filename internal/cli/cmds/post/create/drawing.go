@@ -21,6 +21,7 @@ func NewCreateDrawingCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a drawing",
 		Long:    "Create a drawing in a project with specified properties",
 		Example: "gns3util -s https://controller:3080 drawing create my-project --x 100 --y 200 --svg '<svg>...</svg>'",

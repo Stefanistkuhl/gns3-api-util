@@ -12,6 +12,110 @@ import (
 	"github.com/0xveya/gns3util/pkg/models"
 )
 
+const createBucket = `-- name: CreateBucket :one
+INSERT INTO
+    buckets (
+        bucket_id,
+        name,
+        owner_id,
+        is_public,
+        required_scopes,
+        bucket_type
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?)
+RETURNING
+    bucket_id, name, owner_id, bucket_type, is_public, required_scopes, created_at, updated_at
+`
+
+type CreateBucketParams struct {
+	BucketID       string         `json:"bucket_id"`
+	Name           string         `json:"name"`
+	OwnerID        string         `json:"owner_id"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	BucketType     string         `json:"bucket_type"`
+}
+
+func (q *Queries) CreateBucket(ctx context.Context, arg CreateBucketParams) (Bucket, error) {
+	row := q.db.QueryRowContext(ctx, createBucket,
+		arg.BucketID,
+		arg.Name,
+		arg.OwnerID,
+		arg.IsPublic,
+		arg.RequiredScopes,
+		arg.BucketType,
+	)
+	var i Bucket
+	err := row.Scan(
+		&i.BucketID,
+		&i.Name,
+		&i.OwnerID,
+		&i.BucketType,
+		&i.IsPublic,
+		&i.RequiredScopes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const createPublicFileToken = `-- name: CreatePublicFileToken :one
+INSERT INTO
+    public_file_tokens (
+        token,
+        file_uuid,
+        bucket_id,
+        expires_at,
+        access_count
+    )
+VALUES
+    (?, ?, ?, ?, 0)
+RETURNING
+    token, file_uuid, bucket_id, created_at, expires_at, access_count
+`
+
+type CreatePublicFileTokenParams struct {
+	Token     string       `json:"token"`
+	FileUuid  string       `json:"file_uuid"`
+	BucketID  string       `json:"bucket_id"`
+	ExpiresAt sql.NullTime `json:"expires_at"`
+}
+
+func (q *Queries) CreatePublicFileToken(ctx context.Context, arg CreatePublicFileTokenParams) (PublicFileToken, error) {
+	row := q.db.QueryRowContext(ctx, createPublicFileToken,
+		arg.Token,
+		arg.FileUuid,
+		arg.BucketID,
+		arg.ExpiresAt,
+	)
+	var i PublicFileToken
+	err := row.Scan(
+		&i.Token,
+		&i.FileUuid,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.AccessCount,
+	)
+	return i, err
+}
+
+const incrementTokenAccessCount = `-- name: IncrementTokenAccessCount :exec
+UPDATE
+    public_file_tokens
+SET
+    access_count = access_count + 1,
+    last_accessed_at = CURRENT_TIMESTAMP
+WHERE
+    token = ?
+`
+
+func (q *Queries) IncrementTokenAccessCount(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, incrementTokenAccessCount, token)
+	return err
+}
+
 const initFile = `-- name: InitFile :one
 INSERT INTO
     files (
@@ -21,14 +125,17 @@ INSERT INTO
         content_type,
         scope_label,
         owner_id,
+        bucket_id,
         last_accessed_at,
         STATUS,
-        retention_period
+        retention_period,
+        file_path,
+        checksum_sha256
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, 'uploading', ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?, '', '')
 RETURNING
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
+    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
 `
 
 type InitFileParams struct {
@@ -38,6 +145,7 @@ type InitFileParams struct {
 	ContentType     string        `json:"content_type"`
 	ScopeLabel      string        `json:"scope_label"`
 	OwnerID         string        `json:"owner_id"`
+	BucketID        string        `json:"bucket_id"`
 	LastAccessedAt  sql.NullTime  `json:"last_accessed_at"`
 	RetentionPeriod sql.NullInt64 `json:"retention_period"`
 }
@@ -50,6 +158,7 @@ func (q *Queries) InitFile(ctx context.Context, arg InitFileParams) (File, error
 		arg.ContentType,
 		arg.ScopeLabel,
 		arg.OwnerID,
+		arg.BucketID,
 		arg.LastAccessedAt,
 		arg.RetentionPeriod,
 	)
@@ -63,6 +172,7 @@ func (q *Queries) InitFile(ctx context.Context, arg InitFileParams) (File, error
 		&i.ContentType,
 		&i.ScopeLabel,
 		&i.OwnerID,
+		&i.BucketID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastAccessedAt,
@@ -118,12 +228,13 @@ INSERT INTO
         content_type,
         scope_label,
         owner_id,
+        bucket_id,
         last_accessed_at,
         STATUS,
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertFileParams struct {
@@ -135,6 +246,7 @@ type InsertFileParams struct {
 	ContentType     string            `json:"content_type"`
 	ScopeLabel      string            `json:"scope_label"`
 	OwnerID         string            `json:"owner_id"`
+	BucketID        string            `json:"bucket_id"`
 	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
 	Status          models.FileStatus `json:"status"`
 	RetentionPeriod sql.NullInt64     `json:"retention_period"`
@@ -150,6 +262,7 @@ func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
 		arg.ContentType,
 		arg.ScopeLabel,
 		arg.OwnerID,
+		arg.BucketID,
 		arg.LastAccessedAt,
 		arg.Status,
 		arg.RetentionPeriod,

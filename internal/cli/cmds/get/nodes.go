@@ -15,6 +15,7 @@ func NewGetNodesCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Aliases: []string{"list", "l"},
 		Short:   "Get the nodes within a project by name or id",
 		Long:    `Get the nodes within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 node ls my-project",
@@ -77,6 +78,7 @@ func NewGetNodeCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [project-name/id] [node-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a node in a project by name or id",
 		Long:    `Get a node in a project by name or id`,
 		Example: "gns3util -s https://controller:3080 node info my-project my-node",

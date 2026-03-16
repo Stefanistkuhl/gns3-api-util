@@ -17,6 +17,7 @@ func NewCreateSnapshotCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a snapshot of a project",
 		Long:    "Create a snapshot of a project with specified name",
 		Example: "gns3util -s https://controller:3080 project create my-project --name backup-2024",

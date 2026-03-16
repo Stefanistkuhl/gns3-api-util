@@ -18,6 +18,7 @@ func NewUpdateGroupCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [group-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a group",
 		Long:    "Update a user group.",
 		Example: "gns3util -s https://controller:3080 group update my-group --name new-name",

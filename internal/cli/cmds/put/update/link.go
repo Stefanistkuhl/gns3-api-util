@@ -12,6 +12,7 @@ import (
 func NewUpdateLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [project-name/id] [link-name/id] [json-data]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a link",
 		Long:    "Update a link with JSON data.",
 		Example: "gns3util -s https://controller:3080 link update my-project my-link '{\"nodes\":[...]}'",

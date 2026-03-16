@@ -5,3 +5,7 @@ DROP TABLE IF EXISTS backups;
 DROP TABLE IF EXISTS vm_images;
 
 DROP TABLE IF EXISTS files;
+
+DROP TABLE IF EXISTS buckets;
+
+DROP TABLE IF EXISTS public_file_tokens;

@@ -12,6 +12,7 @@ import (
 func NewGetRolesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get the roles of the Server",
 		Long:    `Get the roles of the Server`,
 		Example: "gns3util -s https://controller:3080 role ls",
@@ -32,6 +33,7 @@ func NewGetRoleCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [role-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a role by id or name",
 		Long:    `Get a role by id or name`,
 		Example: "gns3util -s https://controller:3080 role info my-role",
@@ -87,6 +89,7 @@ func NewGetRolePrivsCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     "privileges [role-name/id]",
+		Aliases: []string{"privs", "perms"},
 		Short:   "Get the privileges of a role by id or name",
 		Long:    `Get the privileges of a role by id or name`,
 		Example: "gns3util -s https://controller:3080 role privileges my-role",

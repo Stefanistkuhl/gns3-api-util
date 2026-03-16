@@ -190,9 +190,9 @@ func NewProjectLoadCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/load?path=%s", projectPath)).
 				WithMethod(api.POST)
 
@@ -251,9 +251,9 @@ func NewProjectCloseCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/close", projectID)).
 				WithMethod(api.POST)
 
@@ -333,7 +333,7 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
 			ep := endpoints.Endpoints{}
 			projectID := uuid.New().String()
@@ -342,7 +342,7 @@ gns3util -s https://controller:3080 post project import --name "my-project" /pat
 				urlStr += fmt.Sprintf("?name=%s", url.QueryEscape(projectName))
 			}
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(urlStr).
 				WithMethod(api.POST).
 				WithData(buf.String())
@@ -402,9 +402,9 @@ func NewProjectLockCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/lock", projectID)).
 				WithMethod(api.POST)
 
@@ -463,9 +463,9 @@ func NewProjectOpenCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/open", projectID)).
 				WithMethod(api.POST)
 
@@ -524,9 +524,9 @@ func NewProjectUnlockCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/unlock", projectID)).
 				WithMethod(api.POST)
 
@@ -586,9 +586,9 @@ func NewProjectWriteFileCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/files%s", projectID, filePath)).
 				WithMethod(api.POST)
 
@@ -652,9 +652,9 @@ func NewProjectStartCaptureCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/links/%s/start_capture", projectID, linkID)).
 				WithMethod(api.POST)
 

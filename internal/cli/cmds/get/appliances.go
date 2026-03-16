@@ -12,6 +12,7 @@ import (
 func NewGetAppliancesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get available appliances",
 		Long:    `Get available appliances`,
 		Example: "gns3util -s https://controller:3080 appliance ls",
@@ -32,6 +33,7 @@ func NewGetApplianceCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [appliance-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get an appliance by name or id",
 		Long:    `Get an appliance by name or id`,
 		Example: "gns3util -s https://controller:3080 appliance info my-appliance",

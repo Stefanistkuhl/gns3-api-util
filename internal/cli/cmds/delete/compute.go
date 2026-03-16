@@ -11,6 +11,7 @@ import (
 func NewDeleteComputeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [compute-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a compute",
 		Long:    `Delete a compute from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 compute delete my-compute",

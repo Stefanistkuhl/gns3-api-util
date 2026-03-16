@@ -24,6 +24,7 @@ func NewCreateACLCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName,
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create an ACE rule",
 		Long:    "Create an Access Control Entry. If IDs are not UUIDv4, names will be resolved where possible.",
 		Example: "gns3util -s https://controller:3080 acl create --ace-type allow --path /projects --role-id my-role",

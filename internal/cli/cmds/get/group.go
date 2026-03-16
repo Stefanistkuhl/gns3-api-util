@@ -14,6 +14,7 @@ func NewGetGroupCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [group-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a group by id or name",
 		Long:    `Get a group by id or name`,
 		Example: "gns3util -s https://controller:3080 group info my-group",
@@ -67,6 +68,7 @@ func NewGetGroupCmd() *cobra.Command {
 func NewGetGroupsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get all groups of the Server",
 		Long:    `Get all groups of the Server`,
 		Example: "gns3util -s https://controller:3080 group ls",
@@ -87,6 +89,7 @@ func NewGetGroupMembersCmd() *cobra.Command {
 	var useFuzzy bool
 	cmd := &cobra.Command{
 		Use:     "members [group-name/id]",
+		Aliases: []string{"users", "mb"},
 		Short:   "Get the members of a group by id or name",
 		Long:    `Get the members of a group by id or name`,
 		Example: "gns3util -s https://controller:3080 group members my-group",

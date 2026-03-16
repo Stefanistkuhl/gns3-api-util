@@ -22,6 +22,7 @@ func NewUpdateDrawingCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [project-name/id] [drawing-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a drawing",
 		Long:    "Update a drawing in a project.",
 		Example: "gns3util -s https://controller:3080 drawing update my-project my-drawing -s 'some svg'",

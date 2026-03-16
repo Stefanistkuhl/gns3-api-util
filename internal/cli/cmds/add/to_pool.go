@@ -11,6 +11,7 @@ import (
 func NewAddToPoolCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "to-pool [pool-name/id] [project-name/id]",
+		Aliases: []string{"add", "join", "atp"},
 		Short:   "Add a resource to a pool",
 		Long:    `Add a resource (like a project) to a pool on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 pool to-pool my-pool my-project",

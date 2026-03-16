@@ -14,6 +14,7 @@ func NewGetSnapshotsCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Aliases: []string{"list", "l"},
 		Short:   "Get the snapshots within a project by name or id",
 		Long:    `Get the snapshots within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 snapshot ls my-project",

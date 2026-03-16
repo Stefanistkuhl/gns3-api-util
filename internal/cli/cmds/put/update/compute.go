@@ -24,6 +24,7 @@ func NewUpdateComputeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [compute-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a compute",
 		Long:    "Update a compute with new settings.",
 		Example: "gns3util -s https://controller:3080 compute update my-compute -n new-name",

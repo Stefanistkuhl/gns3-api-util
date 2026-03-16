@@ -11,6 +11,7 @@ import (
 func NewDeleteImageCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [image-path]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete an image",
 		Long:    `Delete an image from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 image delete /path/to/image",

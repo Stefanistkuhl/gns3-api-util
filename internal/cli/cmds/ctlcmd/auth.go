@@ -87,7 +87,7 @@ If GNS3_TOKEN environment variable isn't set, the token from the keyfile will be
 				api.WithVerify(!cfg.Insecure),
 				api.WithCA([]byte(cfg.ClusterEntry.CaCert)),
 			)
-			client := api.NewClientV2(settings)
+			client := api.NewClientV2(&settings)
 
 			resp, err := client.GetAuthStatus(cmd.Context())
 			if err != nil {

@@ -11,6 +11,7 @@ import (
 func NewGetIouLicenseCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "iou-license",
+		Aliases: []string{"iou", "license"},
 		Short:   "Get the iou-license of the GNS3 Server",
 		Long:    `Get the iou-license of the GNS3 Server`,
 		Example: "gns3util -s https://controller:3080 get iou-license",

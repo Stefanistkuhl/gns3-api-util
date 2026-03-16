@@ -19,6 +19,7 @@ func NewCreateRoleCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "role",
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a role",
 		Long:    "Create an RBAC role.",
 		Example: "gns3util -s https://controller:3080 create role -n some-name",

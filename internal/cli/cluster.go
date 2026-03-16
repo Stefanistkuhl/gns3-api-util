@@ -7,9 +7,10 @@ import (
 
 func NewClusterCmdGroup() *cobra.Command {
 	clusterCmd := &cobra.Command{
-		Use:   "cluster",
-		Short: "cluster operations",
-		Long:  `Create and organize your GNS3 servers inside of a cluster`,
+		Use:     "cluster",
+		Aliases: []string{"clu"},
+		Short:   "cluster operations",
+		Long:    `Create and organize your GNS3 servers inside of a cluster`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if err := validateGlobalFlags(); err != nil {
 				return err

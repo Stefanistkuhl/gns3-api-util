@@ -17,6 +17,7 @@ import (
 func NewGetProjectsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get the projects of the GNS3 Server",
 		Long:    `Get the projects of the GNS3 Server`,
 		Example: "gns3util -s https://controller:3080 project ls",
@@ -35,6 +36,7 @@ func NewGetProjectsCmd() *cobra.Command {
 func NewGetProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "info [project-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a project by id or name",
 		Long:    `Get a project by id or name`,
 		Example: "gns3util -s https://controller:3080 project info my-project",
@@ -61,6 +63,7 @@ func NewGetProjectCmd() *cobra.Command {
 func NewGetProjectStatsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "stats [project-name/id]",
+		Aliases: []string{"st"},
 		Short:   "Get project-stats by id or name",
 		Long:    `Get project-stats by id or name`,
 		Example: "gns3util -s https://controller:3080 project stats my-project",
@@ -167,9 +170,9 @@ func NewGetProjectExportCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/export", id)).
 				WithMethod(api.GET)
 
@@ -220,9 +223,9 @@ func getProjectNameFromID(cfg *config.GlobalOptions, projectID string) (string, 
 		api.WithVerify(cfg.Insecure),
 		api.WithToken(token),
 	)
-	client := api.NewGNS3Client(settings)
+	client := api.NewGNS3Client(&settings)
 
-	reqOpts := api.NewRequestOptions(settings).
+	reqOpts := api.NewRequestOptions(&settings).
 		WithURL(fmt.Sprintf("/projects/%s", projectID)).
 		WithMethod(api.GET)
 
@@ -291,9 +294,9 @@ func NewGetProjectFileCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/files/%s", projectID, filePath)).
 				WithMethod(api.GET)
 
@@ -373,9 +376,9 @@ func NewGetNodeFileCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/%s/files/%s", projectID, nodeID, filePath)).
 				WithMethod(api.GET)
 
@@ -454,9 +457,9 @@ func NewStreamPcapCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/links/%s/capture/stream", projectID, linkID)).
 				WithMethod(api.GET)
 

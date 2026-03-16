@@ -7,7 +7,11 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
 	"github.com/0xveya/gns3util/pkg/models"
@@ -28,7 +32,7 @@ type ClientV2 struct {
 	base *BaseClient
 }
 
-func NewClientV2(settings Settings) *ClientV2 {
+func NewClientV2(settings *Settings) *ClientV2 {
 	return &ClientV2{
 		base: NewBaseClient(settings),
 	}
@@ -62,7 +66,7 @@ func (c *ClientV2) parseAPIError(body []byte, statusCode int) error {
 
 	return fmt.Errorf("%s", messageUtils.WarningMsgf(
 		"unexpected response (status %d): %s",
-		statusCode, string(body),
+		statusCode, strings.TrimSpace(string(body)),
 	))
 }
 
@@ -74,7 +78,7 @@ func (c *ClientV2) BootstrapConnect(ctx context.Context) (fingerprint string, ce
 
 	tr.TLSClientConfig.InsecureSkipVerify = true
 
-	opts := NewRequestOptions(c.base.settings).WithURL("/auth/status").WithMethod(GET)
+	opts := NewRequestOptions(&c.base.settings).WithURL("/auth/status").WithMethod(GET)
 	_, resp, err := c.base.Do(ctx, opts)
 	if err != nil && resp == nil {
 		return "", nil, fmt.Errorf("initial connection failed: %w", err)
@@ -97,8 +101,10 @@ func (c *ClientV2) BootstrapConnect(ctx context.Context) (fingerprint string, ce
 	return fingerprint, certPEM, nil
 }
 
+// ========MASTER-ENDPOINTS=========
+
 func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusResponse, error) {
-	opts := NewRequestOptions(c.base.settings).
+	opts := NewRequestOptions(&c.base.settings).
 		WithURL("/auth/status").
 		WithMethod(GET)
 
@@ -116,7 +122,7 @@ func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusRespons
 }
 
 func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, error) {
-	opts := NewRequestOptions(c.base.settings).
+	opts := NewRequestOptions(&c.base.settings).
 		WithURL("/cluster/nodes").
 		WithMethod(GET)
 
@@ -128,6 +134,334 @@ func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, erro
 	var resp models.GetNodesResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &resp, nil
+}
+
+// ========FILESTORE-ENDPOINTS=========
+
+func (c *ClientV2) InitUpload(ctx context.Context, req *models.InitUploadRequest) (*models.InitUploadResponse, error) {
+	if req.BucketID == "" {
+		req.BucketID = models.GlobalBucketID
+	}
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/files").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.InitUploadResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) GetUploadStatus(ctx context.Context, fileUUID string) (*models.GetUploadStatusResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/status", fileUUID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.GetUploadStatusResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode status: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) StreamUpload(ctx context.Context, fileUUID string, content io.Reader, offset int64) (*models.FinalizeUploadResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/content", fileUUID)).
+		WithMethod(PUT).
+		WithStream()
+	if offset > 0 {
+		opts.header.Set("Content-Range", fmt.Sprintf("bytes %d-", offset))
+	}
+
+	fullURL := buildURL(c.base.settings.BaseURL, opts)
+	req, err := http.NewRequestWithContext(ctx, "PUT", fullURL, content)
+	if err != nil {
+		return nil, err
+	}
+	req.Header = opts.header
+
+	resp, err := c.base.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode >= 300 {
+		return nil, c.parseAPIError(body, resp.StatusCode)
+	}
+
+	var finalResp models.FinalizeUploadResponse
+	if err := json.Unmarshal(body, &finalResp); err != nil {
+		return nil, fmt.Errorf("failed to decode final response: %w", err)
+	}
+	return &finalResp, nil
+}
+
+func (c *ClientV2) UploadFileWrapper(ctx context.Context, filePath string, req *models.InitUploadRequest) (*models.FinalizeUploadResponse, error) {
+	file, err := os.Open(filePath) // #nosec G304
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	req.Filename = filepath.Base(filePath)
+	req.SizeBytes = stat.Size()
+	if req.ContentType == "" {
+		req.ContentType = "application/octet-stream"
+	}
+
+	initRes, err := c.InitUpload(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := c.GetUploadStatus(ctx, initRes.FileUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if status.Offset >= stat.Size() {
+		return &models.FinalizeUploadResponse{
+			FileUUID: initRes.FileUUID,
+			Status:   "available",
+		}, nil
+	}
+
+	if status.Offset > 0 {
+		if _, err := file.Seek(status.Offset, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("failed to seek local file: %w", err)
+		}
+	}
+
+	return c.StreamUpload(ctx, initRes.FileUUID, file, status.Offset)
+}
+
+func (c *ClientV2) DownloadFile(ctx context.Context, fileUUID, outputPath string) error {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s", fileUUID)).
+		WithMethod(GET).
+		WithStream()
+
+	_, resp, err := c.base.Do(ctx, opts)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return c.parseAPIError(body, resp.StatusCode)
+	}
+
+	outFile, err := os.Create(outputPath) // #nosec G304
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	if _, err := io.Copy(outFile, resp.Body); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
+}
+
+func (c *ClientV2) CreateBucket(ctx context.Context, req models.CreateBucketRequest) (*models.CreateBucketResponse, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/buckets").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.CreateBucketResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) ListBucketFiles(ctx context.Context, bucketID string) (*models.ListBucketFilesResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s/files", bucketID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListBucketFilesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) DeleteFile(ctx context.Context, fileUUID string) (*models.DeleteFileResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s", fileUUID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.DeleteFileResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) UploadFileTobucketWrapper(ctx context.Context, bucketID, filePath string, req *models.InitUploadRequest) (*models.FinalizeUploadResponse, error) {
+	file, err := os.Open(filePath) // #nosec G304
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	req.Filename = filepath.Base(filePath)
+	req.SizeBytes = stat.Size()
+	if req.ContentType == "" {
+		req.ContentType = "application/octet-stream"
+	}
+
+	initRes, err := c.initUploadToBucket(ctx, bucketID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	status, err := c.GetUploadStatus(ctx, initRes.FileUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	if status.Offset >= stat.Size() {
+		return &models.FinalizeUploadResponse{
+			FileUUID: initRes.FileUUID,
+			Status:   "available",
+		}, nil
+	}
+
+	if status.Offset > 0 {
+		if _, err := file.Seek(status.Offset, io.SeekStart); err != nil {
+			return nil, fmt.Errorf("failed to seek local file: %w", err)
+		}
+	}
+
+	return c.StreamUpload(ctx, initRes.FileUUID, file, status.Offset)
+}
+
+func (c *ClientV2) initUploadToBucket(ctx context.Context, bucketID string, req *models.InitUploadRequest) (*models.InitUploadResponse, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s/files", bucketID)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.InitUploadResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) GeneratePublicToken(ctx context.Context, fileUUID string, expiresInHours int) (*models.PublicTokenResponse, error) {
+	req := map[string]any{
+		"file_uuid":        fileUUID,
+		"expires_in_hours": expiresInHours,
+	}
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/public-token", fileUUID)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.PublicTokenResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) DeleteBucket(ctx context.Context, bucketID string) (*models.DeleteBucketResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s", bucketID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.DeleteBucketResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode buckets: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func (c *ClientV2) ListBuckets(ctx context.Context) (*models.ListBucketResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/buckets").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListBucketResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode buckets: %w", err)
 	}
 
 	return &resp, nil

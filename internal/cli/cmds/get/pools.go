@@ -12,6 +12,7 @@ import (
 func NewGetPoolsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get available resource-pools",
 		Long:    `Get available resource-pools`,
 		Example: "gns3util -s https://controller:3080 pool ls",
@@ -32,6 +33,7 @@ func NewGetPoolCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [pool-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a resource-pool by name or id",
 		Long:    `Get a resource-pool by name or id`,
 		Example: "gns3util -s https://controller:3080 pool info my-pool",
@@ -87,6 +89,7 @@ func NewGetPoolResourcesCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     "resources [pool-name/id]",
+		Aliases: []string{"res", "assets"},
 		Short:   "Get resources of a pool by name or id",
 		Long:    `Get resources of a pool by name or id`,
 		Example: "gns3util -s https://controller:3080 pool resources my-pool",

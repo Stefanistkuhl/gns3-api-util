@@ -11,6 +11,7 @@ import (
 func NewGetVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "version",
+		Aliases: []string{"v", "ver"},
 		Short:   "Get the version of the GNS3 Server",
 		Long:    `Get the version of the GNS3 Server`,
 		Example: "gns3util -s https://controller:3080 get version",

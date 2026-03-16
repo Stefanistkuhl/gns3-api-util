@@ -87,7 +87,18 @@ func NewDiscoverNodesCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Println("Successfully discovered and synced nodes to keyfile.")
+			status := struct {
+				Cluster string `json:"cluster"`
+				Action  string `json:"action"`
+				Status  string `json:"status"`
+			}{
+				Cluster: cfg.Cluster,
+				Action:  "sync_nodes",
+				Status:  "success",
+			}
+
+			body, _ := json.Marshal(status)
+			utils.PrintOutput(body, cfg)
 			return nil
 		},
 	}

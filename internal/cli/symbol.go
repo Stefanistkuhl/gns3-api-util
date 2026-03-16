@@ -7,9 +7,10 @@ import (
 
 func NewSymbolCmdGroup() *cobra.Command {
 	symbolCmd := &cobra.Command{
-		Use:   "symbol",
-		Short: "Symbol operations",
-		Long:  `Get and manage GNS3 symbols.`,
+		Use:     "symbol",
+		Aliases: []string{"sym"},
+		Short:   "Symbol operations",
+		Long:    `Get and manage GNS3 symbols.`,
 	}
 
 	symbolCmd.AddCommand(get.NewGetSymbolsCmd())

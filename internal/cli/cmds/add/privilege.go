@@ -11,6 +11,7 @@ import (
 func NewAddPrivilegeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "privilege [role-name/id] [privilege-name/id]",
+		Aliases: []string{"add", "join", "ap"},
 		Short:   "Add a privilege to a role",
 		Long:    `Add a privilege to a role on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 role privilege my-role my-privilege",

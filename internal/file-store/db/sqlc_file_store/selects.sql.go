@@ -7,6 +7,7 @@ package sqlc_file_store
 
 import (
 	"context"
+	"database/sql"
 )
 
 const getBackupByFileUUID = `-- name: GetBackupByFileUUID :one
@@ -37,6 +38,89 @@ func (q *Queries) GetBackupByFileUUID(ctx context.Context, fileUuid string) (Bac
 	return i, err
 }
 
+const getBucketByID = `-- name: GetBucketByID :one
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    bucket_id = ?
+`
+
+type GetBucketByIDRow struct {
+	BucketID       string         `json:"bucket_id"`
+	Name           string         `json:"name"`
+	OwnerID        string         `json:"owner_id"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	CreatedAt      sql.NullTime   `json:"created_at"`
+	UpdatedAt      sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getBucketByID, bucketID)
+	var i GetBucketByIDRow
+	err := row.Scan(
+		&i.BucketID,
+		&i.Name,
+		&i.OwnerID,
+		&i.IsPublic,
+		&i.RequiredScopes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDefaultBucketForOwner = `-- name: GetDefaultBucketForOwner :one
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    owner_id = ?
+    AND name = 'default'
+LIMIT
+    1
+`
+
+type GetDefaultBucketForOwnerRow struct {
+	BucketID       string         `json:"bucket_id"`
+	Name           string         `json:"name"`
+	OwnerID        string         `json:"owner_id"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	CreatedAt      sql.NullTime   `json:"created_at"`
+	UpdatedAt      sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) GetDefaultBucketForOwner(ctx context.Context, ownerID string) (GetDefaultBucketForOwnerRow, error) {
+	row := q.db.QueryRowContext(ctx, getDefaultBucketForOwner, ownerID)
+	var i GetDefaultBucketForOwnerRow
+	err := row.Scan(
+		&i.BucketID,
+		&i.Name,
+		&i.OwnerID,
+		&i.IsPublic,
+		&i.RequiredScopes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getFileByUUID = `-- name: GetFileByUUID :one
 SELECT
     file_uuid,
@@ -47,6 +131,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -70,6 +155,7 @@ func (q *Queries) GetFileByUUID(ctx context.Context, fileUuid string) (File, err
 		&i.ContentType,
 		&i.ScopeLabel,
 		&i.OwnerID,
+		&i.BucketID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastAccessedAt,
@@ -119,6 +205,80 @@ func (q *Queries) GetProjectFileByFileUUID(ctx context.Context, fileUuid string)
 	return i, err
 }
 
+const getPublicFileToken = `-- name: GetPublicFileToken :one
+SELECT
+    token,
+    file_uuid,
+    bucket_id,
+    created_at,
+    expires_at,
+    access_count
+FROM
+    public_file_tokens
+WHERE
+    token = ?
+`
+
+func (q *Queries) GetPublicFileToken(ctx context.Context, token string) (PublicFileToken, error) {
+	row := q.db.QueryRowContext(ctx, getPublicFileToken, token)
+	var i PublicFileToken
+	err := row.Scan(
+		&i.Token,
+		&i.FileUuid,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.AccessCount,
+	)
+	return i, err
+}
+
+const getPublicFileTokens = `-- name: GetPublicFileTokens :many
+SELECT
+    token,
+    file_uuid,
+    bucket_id,
+    created_at,
+    expires_at,
+    access_count
+FROM
+    public_file_tokens
+WHERE
+    file_uuid = ?
+ORDER BY
+    created_at DESC
+`
+
+func (q *Queries) GetPublicFileTokens(ctx context.Context, fileUuid string) ([]PublicFileToken, error) {
+	rows, err := q.db.QueryContext(ctx, getPublicFileTokens, fileUuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PublicFileToken{}
+	for rows.Next() {
+		var i PublicFileToken
+		if err := rows.Scan(
+			&i.Token,
+			&i.FileUuid,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.AccessCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getVMImageByFileUUID = `-- name: GetVMImageByFileUUID :one
 SELECT
     file_uuid,
@@ -147,6 +307,64 @@ func (q *Queries) GetVMImageByFileUUID(ctx context.Context, fileUuid string) (Vm
 	return i, err
 }
 
+const listBucketsByOwner = `-- name: ListBucketsByOwner :many
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    owner_id = ?
+ORDER BY
+    created_at DESC
+`
+
+type ListBucketsByOwnerRow struct {
+	BucketID       string         `json:"bucket_id"`
+	Name           string         `json:"name"`
+	OwnerID        string         `json:"owner_id"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	CreatedAt      sql.NullTime   `json:"created_at"`
+	UpdatedAt      sql.NullTime   `json:"updated_at"`
+}
+
+func (q *Queries) ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBucketsByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBucketsByOwnerRow{}
+	for rows.Next() {
+		var i ListBucketsByOwnerRow
+		if err := rows.Scan(
+			&i.BucketID,
+			&i.Name,
+			&i.OwnerID,
+			&i.IsPublic,
+			&i.RequiredScopes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFiles = `-- name: ListFiles :many
 SELECT
     file_uuid,
@@ -157,6 +375,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -186,6 +405,69 @@ func (q *Queries) ListFiles(ctx context.Context) ([]File, error) {
 			&i.ContentType,
 			&i.ScopeLabel,
 			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastAccessedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByBucket = `-- name: ListFilesByBucket :many
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    bucket_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    bucket_id = ?
+ORDER BY
+    created_at DESC
+`
+
+func (q *Queries) ListFilesByBucket(ctx context.Context, bucketID string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, listFilesByBucket, bucketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.FilePath,
+			&i.Filename,
+			&i.SizeBytes,
+			&i.ChecksumSha256,
+			&i.ContentType,
+			&i.ScopeLabel,
+			&i.OwnerID,
+			&i.BucketID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,
@@ -215,6 +497,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -246,6 +529,7 @@ func (q *Queries) ListFilesByOwner(ctx context.Context, ownerID string) ([]File,
 			&i.ContentType,
 			&i.ScopeLabel,
 			&i.OwnerID,
+			&i.BucketID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,
@@ -275,6 +559,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -306,6 +591,7 @@ func (q *Queries) ListFilesByScope(ctx context.Context, scopeLabel string) ([]Fi
 			&i.ContentType,
 			&i.ScopeLabel,
 			&i.OwnerID,
+			&i.BucketID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastAccessedAt,

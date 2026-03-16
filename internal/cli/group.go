@@ -11,9 +11,10 @@ import (
 
 func NewGroupCmdGroup() *cobra.Command {
 	groupCmd := &cobra.Command{
-		Use:   "group",
-		Short: "Group operations",
-		Long:  `Create, manage, and manipulate GNS3 groups.`,
+		Use:     "group",
+		Aliases: []string{"g"},
+		Short:   "Group operations",
+		Long:    `Create, manage, and manipulate GNS3 groups.`,
 	}
 
 	groupCmd.AddCommand(create.NewCreateGroupCmd())

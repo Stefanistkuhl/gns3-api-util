@@ -7,9 +7,10 @@ import (
 
 func NewApplianceCmdGroup() *cobra.Command {
 	applianceCmd := &cobra.Command{
-		Use:   "appliance",
-		Short: "Appliance operations",
-		Long:  `Get and manage GNS3 appliances.`,
+		Use:     "appliance",
+		Aliases: []string{"app"},
+		Short:   "Appliance operations",
+		Long:    `Get and manage GNS3 appliances.`,
 	}
 
 	applianceCmd.AddCommand(get.NewGetAppliancesCmd())

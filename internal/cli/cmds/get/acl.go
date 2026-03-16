@@ -11,6 +11,7 @@ import (
 func NewGetAclCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get the acl-rules of the GNS3 Server",
 		Long:    `Get the acl-rules of the GNS3 Server`,
 		Example: "gns3util -s https://controller:3080 acl ls",
@@ -29,6 +30,7 @@ func NewGetAclCmd() *cobra.Command {
 func NewGetAceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [ace-id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get an ace by id",
 		Long:    `Get an ace by id`,
 		Example: "gns3util -s https://controller:3080 acl info ace-id",
@@ -49,6 +51,7 @@ func NewGetAceCmd() *cobra.Command {
 func NewGetAclEndpointsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "endpoints",
+		Aliases: []string{"ends", "ep"},
 		Short:   "Get the available endpoints for acl-rules",
 		Long:    `Get the available endpoints for acl-rules`,
 		Example: "gns3util -s https://controller:3080 acl endpoints",

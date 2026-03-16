@@ -193,7 +193,7 @@ func importProjectArchive(cfg *config.GlobalOptions, archive []byte, projectName
 		return "", fmt.Errorf("get token: %w", err)
 	}
 	settings := api.NewSettings(api.WithBaseURL(cfg.Server), api.WithVerify(cfg.Insecure), api.WithToken(token))
-	client := api.NewGNS3Client(settings)
+	client := api.NewGNS3Client(&settings)
 
 	ep := endpoints.Endpoints{}
 	newID := uuid.New().String()
@@ -210,7 +210,7 @@ func importProjectArchive(cfg *config.GlobalOptions, archive []byte, projectName
 	}
 	_ = w.Close()
 
-	req := api.NewRequestOptions(settings).WithURL(urlStr).WithMethod(api.POST).WithData(buf.String())
+	req := api.NewRequestOptions(&settings).WithURL(urlStr).WithMethod(api.POST).WithData(buf.String())
 	_, resp, err := client.Do(req)
 	if err != nil {
 		return "", err

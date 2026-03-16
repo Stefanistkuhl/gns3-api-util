@@ -27,6 +27,7 @@ func NewCreateQemuImageCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName + " [image-path]",
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a QEMU disk image",
 		Long:    "Create a QEMU disk image with specified format and size",
 		Example: "gns3util -s https://controller:3080 image create /path/to/image --format qcow2 --size 10240",

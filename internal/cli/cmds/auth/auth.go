@@ -6,9 +6,10 @@ import (
 
 func NewAuthCmdGroup() *cobra.Command {
 	authCmd := &cobra.Command{
-		Use:   "auth",
-		Short: "Authentication commands",
-		Long:  `Authentication commands`,
+		Use:     "auth",
+		Aliases: []string{"a"},
+		Short:   "Authentication commands",
+		Long:    `Authentication commands`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
 			return nil

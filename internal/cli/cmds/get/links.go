@@ -15,6 +15,7 @@ func NewGetLinksCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Aliases: []string{"list", "l"},
 		Short:   "Get the links within a project by name or id",
 		Long:    `Get the links within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 link ls my-project",
@@ -77,6 +78,7 @@ func NewGetLinkCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [project-name/id] [link-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a link within a project by name or id",
 		Long:    `Get a link within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 link info my-project my-link",

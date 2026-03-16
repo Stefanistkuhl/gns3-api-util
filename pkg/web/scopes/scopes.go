@@ -18,10 +18,11 @@ const (
 	Configs   Resource = "configs"
 	System    Resource = "system"
 
-	Read   Action = "read"
-	Write  Action = "write"
-	Delete Action = "delete"
-	Admin  Action = "admin"
+	Read   Action   = "read"
+	Write  Action   = "write"
+	Delete Action   = "delete"
+	Admin  Action   = "admin"
+	Files  Resource = "files"
 )
 
 func New(a Action, r Resource) string {

@@ -11,9 +11,10 @@ import (
 
 func NewUserCmdGroup() *cobra.Command {
 	userCmd := &cobra.Command{
-		Use:   "user",
-		Short: "User operations",
-		Long:  `Create, manage, and manipulate GNS3 users.`,
+		Use:     "user",
+		Aliases: []string{"u"},
+		Short:   "User operations",
+		Long:    `Create, manage, and manipulate GNS3 users.`,
 	}
 
 	userCmd.AddCommand(create.NewCreateUserCmd())

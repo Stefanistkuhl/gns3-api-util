@@ -11,6 +11,7 @@ import (
 func NewAddGroupMemberCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "add-member [group-name/id] [user-name/id]",
+		Aliases: []string{"add", "join", "am"},
 		Short:   "Add a user to a group",
 		Long:    `Add a user to a group on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 group add-member my-group my-user",

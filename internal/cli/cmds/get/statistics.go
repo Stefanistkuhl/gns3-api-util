@@ -11,6 +11,7 @@ import (
 func NewGetStatisticsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "statistics",
+		Aliases: []string{"stats", "st"},
 		Short:   "Get the statistics of the GNS3 Server",
 		Long:    `Get the statistics of the GNS3 Server`,
 		Example: "gns3util -s https://controller:3080 get statistics",

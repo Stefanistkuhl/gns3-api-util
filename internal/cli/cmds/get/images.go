@@ -16,6 +16,7 @@ func NewGetImagesCmd() *cobra.Command {
 	var imageType string
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get the available images on the Server",
 		Long:    `Get the available images on the Server`,
 		Example: "gns3util -s https://controller:3080 image ls",
@@ -41,6 +42,7 @@ func NewGetImageCmd() *cobra.Command {
 	var imageType string
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [image-path]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get an image by path",
 		Long:    `Get an image by path`,
 		Example: "gns3util -s https://controller:3080 image info /path/to/image",

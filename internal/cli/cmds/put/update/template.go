@@ -26,6 +26,7 @@ func NewUpdateTemplateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [template-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a template",
 		Long:    "Update a template with new settings and properties.",
 		Example: "gns3util -s https://controller:3080 template update my-template --name new-name",

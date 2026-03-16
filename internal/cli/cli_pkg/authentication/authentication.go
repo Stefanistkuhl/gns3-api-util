@@ -50,8 +50,8 @@ func tryKey(token string, cfg *config.GlobalOptions) ([]byte, bool) {
 	)
 
 	ep := endpoints.GetEndpoints{}
-	client := api.NewGNS3Client(settings)
-	reqOpts := api.NewRequestOptions(settings).
+	client := api.NewGNS3Client(&settings)
+	reqOpts := api.NewRequestOptions(&settings).
 		WithURL(ep.Me()).
 		WithMethod(api.GET)
 

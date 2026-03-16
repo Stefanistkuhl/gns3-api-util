@@ -12,6 +12,7 @@ import (
 func NewGetSymbolsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get the available symbols",
 		Long:    `Get the available symbols`,
 		Example: "gns3util -s https://controller:3080 symbol ls",
@@ -32,6 +33,7 @@ func NewGetSymbolCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [symbol-id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a symbol by id",
 		Long:    `Get a symbol by id`,
 		Example: "gns3util -s https://controller:3080 symbol info symbol-id",
@@ -87,6 +89,7 @@ func NewGetSymbolDimensionsCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     "dimensions [symbol-id]",
+		Aliases: []string{"dim"},
 		Short:   "Get the dimensions of a symbol by id",
 		Long:    `Get the dimensions of a symbol by id`,
 		Example: "gns3util -s https://controller:3080 symbol dimensions symbol-id",

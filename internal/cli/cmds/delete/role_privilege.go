@@ -11,6 +11,7 @@ import (
 func NewDeleteRolePrivilegeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "role-privilege [role-name/id] [privilege-id]",
+		Aliases: []string{"priv", "rp"},
 		Short:   "Delete a privilege from a role",
 		Long:    `Delete a privilege from a role on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 role role-privilege my-role privilege-id",

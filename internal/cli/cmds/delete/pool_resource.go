@@ -11,6 +11,7 @@ import (
 func NewDeletePoolResourceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "resource [pool-name/id] [resource-id]",
+		Aliases: []string{"res", "pr"},
 		Short:   "Delete a resource from a pool",
 		Long:    `Delete a resource from a pool on the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 pool resource my-pool resource-id",

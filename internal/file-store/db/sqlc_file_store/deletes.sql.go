@@ -9,6 +9,43 @@ import (
 	"context"
 )
 
+const deleteBackup = `-- name: DeleteBackup :exec
+DELETE FROM
+    backups
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) DeleteBackup(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, deleteBackup, fileUuid)
+	return err
+}
+
+const deleteBucket = `-- name: DeleteBucket :exec
+DELETE FROM
+    buckets
+WHERE
+    bucket_id = ?
+`
+
+func (q *Queries) DeleteBucket(ctx context.Context, bucketID string) error {
+	_, err := q.db.ExecContext(ctx, deleteBucket, bucketID)
+	return err
+}
+
+const deleteExpiredPublicTokens = `-- name: DeleteExpiredPublicTokens :exec
+DELETE FROM
+    public_file_tokens
+WHERE
+    expires_at IS NOT NULL
+    AND expires_at < CURRENT_TIMESTAMP
+`
+
+func (q *Queries) DeleteExpiredPublicTokens(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteExpiredPublicTokens)
+	return err
+}
+
 const deleteFile = `-- name: DeleteFile :exec
 DELETE FROM
     files
@@ -18,5 +55,41 @@ WHERE
 
 func (q *Queries) DeleteFile(ctx context.Context, fileUuid string) error {
 	_, err := q.db.ExecContext(ctx, deleteFile, fileUuid)
+	return err
+}
+
+const deleteProjectFile = `-- name: DeleteProjectFile :exec
+DELETE FROM
+    project_files
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) DeleteProjectFile(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, deleteProjectFile, fileUuid)
+	return err
+}
+
+const deletePublicFileToken = `-- name: DeletePublicFileToken :exec
+DELETE FROM
+    public_file_tokens
+WHERE
+    token = ?
+`
+
+func (q *Queries) DeletePublicFileToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, deletePublicFileToken, token)
+	return err
+}
+
+const deleteVMImage = `-- name: DeleteVMImage :exec
+DELETE FROM
+    vm_images
+WHERE
+    file_uuid = ?
+`
+
+func (q *Queries) DeleteVMImage(ctx context.Context, fileUuid string) error {
+	_, err := q.db.ExecContext(ctx, deleteVMImage, fileUuid)
 	return err
 }

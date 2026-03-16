@@ -23,6 +23,7 @@ func NewGetNotificationsCmd() *cobra.Command {
 	timeout := 5
 	cmd := &cobra.Command{
 		Use:     "notifications",
+		Aliases: []string{"notif", "n"},
 		Short:   "Stream the notification of the controller",
 		Long:    `Stream the notification of the controller`,
 		Example: "gns3util -s https://controller:3080 get notifications",
@@ -45,8 +46,8 @@ func NewGetNotificationsCmd() *cobra.Command {
 			)
 
 			ep := endpoints.GetEndpoints{}
-			client := api.NewGNS3Client(settings)
-			reqOpts := api.NewRequestOptions(settings).
+			client := api.NewGNS3Client(&settings)
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(ep.Notifications()).
 				WithMethod(api.GET).
 				WithStream()
@@ -133,8 +134,8 @@ func NewGetProjectNotificationCmd() *cobra.Command {
 			)
 
 			ep := endpoints.GetEndpoints{}
-			client := api.NewGNS3Client(settings)
-			reqOpts := api.NewRequestOptions(settings).
+			client := api.NewGNS3Client(&settings)
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(ep.ProjectNotifications(id)).
 				WithMethod(api.GET).
 				WithStream()

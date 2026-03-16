@@ -38,6 +38,7 @@ func NewCreateNodeCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName + " [project-name/id]",
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a node in a project",
 		Long:    "Create a node in a project. To use custom adapters the --use-json option has to be used.",
 		Example: "gns3util -s https://controller:3080 node create my-project --name my-node --node-type qemu",

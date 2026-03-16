@@ -11,6 +11,7 @@ import (
 func NewDeleteGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [group-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a group",
 		Long:    `Delete a group from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 group delete my-group",

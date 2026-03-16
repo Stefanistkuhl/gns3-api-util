@@ -16,7 +16,7 @@ func DiscoverAndSyncNodes(ctx context.Context, cfg *config.GlobalOptions) error 
 		api.WithVerify(!cfg.Insecure),
 		api.WithCA([]byte(cfg.ClusterEntry.CaCert)),
 	)
-	client := api.NewClientV2(settings)
+	client := api.NewClientV2(&settings)
 
 	resp, err := client.GetNodes(ctx)
 	if err != nil {

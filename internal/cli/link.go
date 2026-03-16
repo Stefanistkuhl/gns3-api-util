@@ -11,9 +11,10 @@ import (
 
 func NewLinkCmdGroup() *cobra.Command {
 	linkCmd := &cobra.Command{
-		Use:   "link",
-		Short: "Link operations",
-		Long:  `Create, manage, and manipulate GNS3 links.`,
+		Use:     "link",
+		Aliases: []string{"l"},
+		Short:   "Link operations",
+		Long:    `Create, manage, and manipulate GNS3 links.`,
 	}
 
 	linkCmd.AddCommand(create.NewCreateLinkCmd())

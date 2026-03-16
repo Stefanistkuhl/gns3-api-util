@@ -10,9 +10,10 @@ import (
 
 func NewDrawingCmdGroup() *cobra.Command {
 	drawingCmd := &cobra.Command{
-		Use:   "drawing",
-		Short: "Drawing operations",
-		Long:  `Create, manage, and manipulate GNS3 drawings.`,
+		Use:     "drawing",
+		Aliases: []string{"draw", "d"},
+		Short:   "Drawing operations",
+		Long:    `Create, manage, and manipulate GNS3 drawings.`,
 	}
 
 	drawingCmd.AddCommand(create.NewCreateDrawingCmd())

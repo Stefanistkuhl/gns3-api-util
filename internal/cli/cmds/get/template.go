@@ -12,6 +12,7 @@ import (
 func NewGetTemplatesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName,
+		Aliases: []string{"list", "l"},
 		Short:   "Get all templates of the Server",
 		Long:    `Get all templates of the Server`,
 		Example: "gns3util -s https://controller:3080 template ls",
@@ -32,6 +33,7 @@ func NewGetTemplateCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [template-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a template by id or name",
 		Long:    `Get a template by id or name`,
 		Example: "gns3util -s https://controller:3080 template info my-template",

@@ -11,6 +11,7 @@ import (
 func NewDeletePoolCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [pool-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a pool",
 		Long:    `Delete a pool from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 pool delete my-pool",

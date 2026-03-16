@@ -11,9 +11,10 @@ import (
 
 func NewNodeCmdGroup() *cobra.Command {
 	nodeCmd := &cobra.Command{
-		Use:   "node",
-		Short: "Node operations",
-		Long:  `Create, manage, and manipulate GNS3 nodes.`,
+		Use:     "node",
+		Aliases: []string{"n"},
+		Short:   "Node operations",
+		Long:    `Create, manage, and manipulate GNS3 nodes.`,
 	}
 
 	nodeCmd.AddCommand(create.NewCreateNodeCmd())

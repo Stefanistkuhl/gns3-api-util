@@ -11,6 +11,9 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/quic-go/quic-go"
+	"github.com/quic-go/quic-go/http3"
 )
 
 type HTTPMethod string
@@ -27,11 +30,12 @@ const (
 )
 
 type Settings struct {
-	BaseURL string
-	Token   string
-	Verify  bool
-	Timeout time.Duration
-	CACert  []byte
+	BaseURL  string
+	Token    string
+	Verify   bool
+	Timeout  time.Duration
+	UseHTTP3 bool
+	CACert   []byte
 }
 
 type requestOptions struct {
@@ -66,7 +70,7 @@ func NewSettings(opts ...SettingOption) Settings {
 	return s
 }
 
-func NewRequestOptions(settings Settings) *requestOptions {
+func NewRequestOptions(settings *Settings) *requestOptions {
 	hdr := make(http.Header)
 	hdr.Set("Content-Type", "application/json")
 	hdr.Set("Authorization", fmt.Sprintf("Bearer %s", settings.Token))
@@ -119,6 +123,12 @@ func WithCA(cert []byte) SettingOption {
 	}
 }
 
+func WithHTTP3(enabled bool) SettingOption {
+	return func(s *Settings) {
+		s.UseHTTP3 = enabled
+	}
+}
+
 func (r *requestOptions) WithURL(path string) *requestOptions {
 	r.URL = path
 	return r
@@ -144,7 +154,7 @@ func (r *requestOptions) WithStream() *requestOptions {
 	return r
 }
 
-func createTLSConfig(settings Settings) *tls.Config {
+func createTLSConfig(settings *Settings) *tls.Config {
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: !settings.Verify, // #nosec G402
 	}
@@ -168,27 +178,42 @@ func createTLSConfig(settings Settings) *tls.Config {
 	return tlsConfig
 }
 
-func NewBaseClient(settings Settings) *BaseClient {
-	tr := &http.Transport{
-		TLSClientConfig: createTLSConfig(settings),
+func NewBaseClient(settings *Settings) *BaseClient {
+	var transport http.RoundTripper
+
+	if settings.UseHTTP3 {
+		transport = &http3.Transport{
+			TLSClientConfig: createTLSConfig(settings),
+			QUICConfig: &quic.Config{
+				KeepAlivePeriod: 15 * time.Second,
+				MaxIdleTimeout:  30 * time.Second,
+			},
+		}
+	} else {
+		transport = &http.Transport{
+			TLSClientConfig:   createTLSConfig(settings),
+			ForceAttemptHTTP2: true,
+			MaxIdleConns:      100,
+			IdleConnTimeout:   90 * time.Second,
+		}
 	}
 
 	return &BaseClient{
-		settings: settings,
+		settings: *settings,
 		client: &http.Client{
-			Transport: tr,
+			Transport: transport,
 			Timeout:   settings.Timeout,
 		},
 	}
 }
 
-func NewGNS3Client(settings Settings) *GNS3ApiClient {
+func NewGNS3Client(settings *Settings) *GNS3ApiClient {
 	tr := &http.Transport{
 		TLSClientConfig: createTLSConfig(settings),
 	}
 
 	return &GNS3ApiClient{
-		settings: settings,
+		settings: *settings,
 		client: &http.Client{
 			Transport: tr,
 			Timeout:   settings.Timeout,

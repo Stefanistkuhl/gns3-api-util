@@ -8,6 +8,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -28,6 +29,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -48,6 +50,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -70,6 +73,7 @@ SELECT
     content_type,
     scope_label,
     owner_id,
+    bucket_id,
     created_at,
     updated_at,
     last_accessed_at,
@@ -79,6 +83,29 @@ FROM
     files
 WHERE
     scope_label = ?
+ORDER BY
+    created_at DESC;
+
+-- name: ListFilesByBucket :many
+SELECT
+    file_uuid,
+    file_path,
+    filename,
+    size_bytes,
+    checksum_sha256,
+    content_type,
+    scope_label,
+    owner_id,
+    bucket_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    bucket_id = ?
 ORDER BY
     created_at DESC;
 
@@ -126,3 +153,78 @@ FROM
     files
 WHERE
     file_uuid = ?;
+
+-- name: GetBucketByID :one
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    bucket_id = ?;
+
+-- name: ListBucketsByOwner :many
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    owner_id = ?
+ORDER BY
+    created_at DESC;
+
+-- name: GetPublicFileToken :one
+SELECT
+    token,
+    file_uuid,
+    bucket_id,
+    created_at,
+    expires_at,
+    access_count
+FROM
+    public_file_tokens
+WHERE
+    token = ?;
+
+-- name: GetPublicFileTokens :many
+SELECT
+    token,
+    file_uuid,
+    bucket_id,
+    created_at,
+    expires_at,
+    access_count
+FROM
+    public_file_tokens
+WHERE
+    file_uuid = ?
+ORDER BY
+    created_at DESC;
+
+-- name: GetDefaultBucketForOwner :one
+SELECT
+    bucket_id,
+    name,
+    owner_id,
+    is_public,
+    required_scopes,
+    created_at,
+    updated_at
+FROM
+    buckets
+WHERE
+    owner_id = ?
+    AND name = 'default'
+LIMIT
+    1;

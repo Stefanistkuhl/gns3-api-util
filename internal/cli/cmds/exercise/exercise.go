@@ -6,9 +6,10 @@ import (
 
 func NewExerciseCmdGroup() *cobra.Command {
 	exerciseCmd := &cobra.Command{
-		Use:   "exercise",
-		Short: "Exercise operations",
-		Long:  `Create, manage, and manipulate GNS3 exercises.`,
+		Use:     "exercise",
+		Aliases: []string{"ex"},
+		Short:   "Exercise operations",
+		Long:    `Create, manage, and manipulate GNS3 exercises.`,
 	}
 
 	exerciseCmd.AddCommand(

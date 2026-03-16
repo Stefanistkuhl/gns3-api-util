@@ -9,9 +9,10 @@ import (
 
 func NewSystemCmdGroup() *cobra.Command {
 	systemCmd := &cobra.Command{
-		Use:   "system",
-		Short: "System operations",
-		Long:  `Manage GNS3 system operations and settings.`,
+		Use:     "system",
+		Aliases: []string{"sys"},
+		Short:   "System operations",
+		Long:    `Manage GNS3 system operations and settings.`,
 	}
 
 	systemCmd.AddCommand(get.NewGetVersionCmd())

@@ -7,6 +7,7 @@ package sqlc_file_store
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/0xveya/gns3util/pkg/models"
 )
@@ -23,7 +24,7 @@ SET
 WHERE
     file_uuid = ?
 RETURNING
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, created_at, updated_at, last_accessed_at, status, retention_period
+    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
 `
 
 type FinalizeFileParams struct {
@@ -50,6 +51,7 @@ func (q *Queries) FinalizeFile(ctx context.Context, arg FinalizeFileParams) (Fil
 		&i.ContentType,
 		&i.ScopeLabel,
 		&i.OwnerID,
+		&i.BucketID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastAccessedAt,
@@ -71,6 +73,55 @@ WHERE
 
 func (q *Queries) MarkFileTombstoned(ctx context.Context, fileUuid string) error {
 	_, err := q.db.ExecContext(ctx, markFileTombstoned, fileUuid)
+	return err
+}
+
+const updateBucket = `-- name: UpdateBucket :exec
+UPDATE
+    buckets
+SET
+    name = ?,
+    is_public = ?,
+    required_scopes = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    bucket_id = ?
+`
+
+type UpdateBucketParams struct {
+	Name           string         `json:"name"`
+	IsPublic       sql.NullBool   `json:"is_public"`
+	RequiredScopes sql.NullString `json:"required_scopes"`
+	BucketID       string         `json:"bucket_id"`
+}
+
+func (q *Queries) UpdateBucket(ctx context.Context, arg UpdateBucketParams) error {
+	_, err := q.db.ExecContext(ctx, updateBucket,
+		arg.Name,
+		arg.IsPublic,
+		arg.RequiredScopes,
+		arg.BucketID,
+	)
+	return err
+}
+
+const updateFileBucket = `-- name: UpdateFileBucket :exec
+UPDATE
+    files
+SET
+    bucket_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?
+`
+
+type UpdateFileBucketParams struct {
+	BucketID string `json:"bucket_id"`
+	FileUuid string `json:"file_uuid"`
+}
+
+func (q *Queries) UpdateFileBucket(ctx context.Context, arg UpdateFileBucketParams) error {
+	_, err := q.db.ExecContext(ctx, updateFileBucket, arg.BucketID, arg.FileUuid)
 	return err
 }
 

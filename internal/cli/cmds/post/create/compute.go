@@ -24,6 +24,7 @@ func NewCreateComputeCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     utils.CreateSingleElementCmdName,
+		Aliases: []string{"new", "c", "add"},
 		Short:   "Create a compute",
 		Long:    "Create a compute resource for GNS3",
 		Example: "gns3util -s https://controller:3080 compute create --protocol https --host remote-host --port 3080 --name my-compute",

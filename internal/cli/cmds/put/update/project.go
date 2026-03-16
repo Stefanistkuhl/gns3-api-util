@@ -34,6 +34,7 @@ func NewUpdateProjectCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [project-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a Project",
 		Long:    "Update a Project with new settings and properties.",
 		Example: "gns3util -s https://controller:3080 project update my-project --name new-name",

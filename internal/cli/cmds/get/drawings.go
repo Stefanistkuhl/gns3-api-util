@@ -14,6 +14,7 @@ func NewGetDrawingsCmd() *cobra.Command {
 	var multi bool
 	cmd := &cobra.Command{
 		Use:     utils.ListAllCmdName + " [project-name/id]",
+		Aliases: []string{"list", "l"},
 		Short:   "Get the drawings within a project by name or id",
 		Long:    `Get the drawings within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 drawing ls my-project",
@@ -74,6 +75,7 @@ func NewGetDrawingsCmd() *cobra.Command {
 func NewGetDrawingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.ListSingleElementCmdName + " [project-name/id] [drawing-name/id]",
+		Aliases: []string{"get", "i"},
 		Short:   "Get a drawing within a project by name or id",
 		Long:    `Get a drawing within a project by name or id`,
 		Example: "gns3util -s https://controller:3080 drawing info my-project my-drawing",

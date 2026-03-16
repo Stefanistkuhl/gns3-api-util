@@ -7,9 +7,10 @@ import (
 
 func NewShareCmdGroup() *cobra.Command {
 	shareCmd := &cobra.Command{
-		Use:   "share",
-		Short: "share operations",
-		Long:  `Share your configuration in the lan with other users.`,
+		Use:     "share",
+		Aliases: []string{"sh"},
+		Short:   "share operations",
+		Long:    `Share your configuration in the lan with other users.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Server is optional for share commands
 			return nil

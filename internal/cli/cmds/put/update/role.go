@@ -19,6 +19,7 @@ func NewUpdateRoleCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [role-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a role",
 		Long:    "Update an RBAC role.",
 		Example: "gns3util -s https://controller:3080 role update my-role --name new-name --description new-description",

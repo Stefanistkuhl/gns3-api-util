@@ -69,9 +69,9 @@ func NewNodeDuplicateCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/%s/duplicate", projectID, nodeID)).
 				WithMethod(api.POST)
 
@@ -134,9 +134,9 @@ func NewNodeConsoleResetCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/%s/console/reset", projectID, nodeID)).
 				WithMethod(api.POST)
 
@@ -199,9 +199,9 @@ func NewNodeIsolateCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/%s/isolate", projectID, nodeID)).
 				WithMethod(api.POST)
 
@@ -264,9 +264,9 @@ func NewNodeUnisolateCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/%s/unisolate", projectID, nodeID)).
 				WithMethod(api.POST)
 
@@ -324,9 +324,9 @@ func NewReloadNodesCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/reload", projectID)).
 				WithMethod(api.POST)
 
@@ -384,9 +384,9 @@ func NewStartNodesCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/start", projectID)).
 				WithMethod(api.POST)
 
@@ -444,9 +444,9 @@ func NewStopNodesCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/stop", projectID)).
 				WithMethod(api.POST)
 
@@ -504,9 +504,9 @@ func NewSuspendNodesCmd() *cobra.Command {
 				api.WithVerify(cfg.Insecure),
 				api.WithToken(token),
 			)
-			client := api.NewGNS3Client(settings)
+			client := api.NewGNS3Client(&settings)
 
-			reqOpts := api.NewRequestOptions(settings).
+			reqOpts := api.NewRequestOptions(&settings).
 				WithURL(fmt.Sprintf("/projects/%s/nodes/suspend", projectID)).
 				WithMethod(api.POST)
 

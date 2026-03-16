@@ -10,9 +10,10 @@ import (
 
 func NewACLCmdGroup() *cobra.Command {
 	aclCmd := &cobra.Command{
-		Use:   "acl",
-		Short: "ACL operations",
-		Long:  `Create, manage, and manipulate GNS3 ACL rules.`,
+		Use:     "acl",
+		Aliases: []string{"ac"},
+		Short:   "ACL operations",
+		Long:    `Create, manage, and manipulate GNS3 ACL rules.`,
 	}
 
 	aclCmd.AddCommand(create.NewCreateACLCmd())

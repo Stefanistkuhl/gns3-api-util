@@ -10,9 +10,10 @@ import (
 
 func NewImageCmdGroup() *cobra.Command {
 	imageCmd := &cobra.Command{
-		Use:   "image",
-		Short: "Image operations",
-		Long:  `Create, manage, and manipulate GNS3 images.`,
+		Use:     "image",
+		Aliases: []string{"img", "i"},
+		Short:   "Image operations",
+		Long:    `Create, manage, and manipulate GNS3 images.`,
 	}
 
 	imageCmd.AddCommand(create.NewCreateQemuImageCmd())

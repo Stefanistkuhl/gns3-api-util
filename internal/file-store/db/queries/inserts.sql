@@ -7,14 +7,36 @@ INSERT INTO
         content_type,
         scope_label,
         owner_id,
+        bucket_id,
+        last_accessed_at,
+        STATUS,
+        retention_period,
+        file_path,
+        checksum_sha256
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?, '', '')
+RETURNING
+    *;
+
+-- name: InsertFile :exec
+INSERT INTO
+    files (
+        file_uuid,
+        file_path,
+        filename,
+        size_bytes,
+        checksum_sha256,
+        content_type,
+        scope_label,
+        owner_id,
+        bucket_id,
         last_accessed_at,
         STATUS,
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, 'uploading', ?)
-RETURNING
-    *;
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertVMImage :exec
 INSERT INTO
@@ -42,24 +64,6 @@ INSERT INTO
 VALUES
     (?, ?, ?, ?, ?, ?);
 
--- name: InsertFile :exec
-INSERT INTO
-    files (
-        file_uuid,
-        file_path,
-        filename,
-        size_bytes,
-        checksum_sha256,
-        content_type,
-        scope_label,
-        owner_id,
-        last_accessed_at,
-        STATUS,
-        retention_period
-    )
-VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-
 -- name: InsertProjectFile :exec
 INSERT INTO
     project_files (
@@ -70,3 +74,41 @@ INSERT INTO
     )
 VALUES
     (?, ?, ?, ?);
+
+-- name: CreatePublicFileToken :one
+INSERT INTO
+    public_file_tokens (
+        token,
+        file_uuid,
+        bucket_id,
+        expires_at,
+        access_count
+    )
+VALUES
+    (?, ?, ?, ?, 0)
+RETURNING
+    *;
+
+-- name: IncrementTokenAccessCount :exec
+UPDATE
+    public_file_tokens
+SET
+    access_count = access_count + 1,
+    last_accessed_at = CURRENT_TIMESTAMP
+WHERE
+    token = ?;
+
+-- name: CreateBucket :one
+INSERT INTO
+    buckets (
+        bucket_id,
+        name,
+        owner_id,
+        is_public,
+        required_scopes,
+        bucket_type
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?)
+RETURNING
+    *;

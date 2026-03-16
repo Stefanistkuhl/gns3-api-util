@@ -35,6 +35,7 @@ func NewCreateProjectCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "new",
+		Aliases: []string{"create", "c", "add"},
 		Short:   "Create a Project",
 		Long:    "Create a new project on the controller.",
 		Example: "gns3util -s https://controller:3080 project new -n some_name",

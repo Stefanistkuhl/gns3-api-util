@@ -18,6 +18,7 @@ func NewUpdatePoolCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [pool-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a resource pool",
 		Long:    "Update a resource pool with a new name.",
 		Example: "gns3util -s https://controller:3080 pool update my-pool -n new-name",

@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -108,8 +109,8 @@ func CallClient(cfg *config.GlobalOptions, cmdName string, args []string, body a
 		return nil, 0, fmt.Errorf("missing required arguments for command: %s", cmdName)
 	}
 
-	client := api.NewGNS3Client(settings)
-	reqOpts := api.NewRequestOptions(settings).
+	client := api.NewGNS3Client(&settings)
+	reqOpts := api.NewRequestOptions(&settings).
 		WithURL(endpointPath).
 		WithMethod(cmd.Method)
 
@@ -437,12 +438,12 @@ func ResolveID(cfg *config.GlobalOptions, subcommand, name string, args []string
 		api.WithVerify(!cfg.Insecure),
 		api.WithToken(token),
 	)
-	client := api.NewGNS3Client(settings)
+	client := api.NewGNS3Client(&settings)
 
 	ep := endpoints.Endpoints{}
 	endpointPath := cmd.Endpoint(ep, args)
 
-	reqOpts := api.NewRequestOptions(settings).
+	reqOpts := api.NewRequestOptions(&settings).
 		WithURL(endpointPath).
 		WithMethod(api.GET)
 
@@ -707,47 +708,73 @@ func PrintTableFromBody(body []byte) {
 		}
 	}
 
-	if !result.IsArray() || len(result.Array()) == 0 {
-		fmt.Println(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Render("  No data found"))
+	var rawData any
+	if err := json.Unmarshal([]byte(result.Raw), &rawData); err != nil {
+		fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  Error parsing JSON for table output"))
 		return
 	}
 
-	items := result.Array()
-	firstItem := items[0]
+	var rowsMap []map[string]any
 
-	if !firstItem.IsObject() {
-		for _, item := range items {
-			fmt.Println("  " + item.String())
+	switch v := rawData.(type) {
+	case []any:
+		for _, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				rowsMap = append(rowsMap, flattenMap(m, ""))
+			} else {
+				rowsMap = append(rowsMap, map[string]any{"VALUE": item})
+			}
 		}
+	case map[string]any:
+		rowsMap = append(rowsMap, flattenMap(v, ""))
+	default:
+		fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  No data found or unsupported format"))
 		return
 	}
 
-	var rawKeys []string
+	if len(rowsMap) == 0 {
+		fmt.Println(lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("  No data found"))
+		return
+	}
+
+	headerSet := make(map[string]struct{})
+	for _, r := range rowsMap {
+		for k := range r {
+			headerSet[k] = struct{}{}
+		}
+	}
+
 	var headers []string
-	firstItem.ForEach(func(key, _ gjson.Result) bool {
-		rawKeys = append(rawKeys, key.String())
-		headers = append(headers, strings.ToUpper(key.String()))
-		return true
-	})
+	for k := range headerSet {
+		headers = append(headers, k)
+	}
+	sort.Strings(headers)
 
 	var rows [][]string
-	for _, item := range items {
-		var row []string
-		for _, key := range rawKeys {
-			row = append(row, item.Get(key).String())
+	for _, r := range rowsMap {
+		var rowData []string
+		for _, h := range headers {
+			val := ""
+			if v, exists := r[h]; exists {
+				val = fmt.Sprintf("%v", v)
+			}
+			rowData = append(rowData, val)
 		}
-		rows = append(rows, row)
+		rows = append(rows, rowData)
+	}
+
+	var displayHeaders []string
+	for _, h := range headers {
+		displayHeaders = append(displayHeaders, strings.ToUpper(h))
 	}
 
 	t := table.New().
 		Border(lipgloss.RoundedBorder()).
 		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("240"))).
-		Headers(headers...).
+		Headers(displayHeaders...).
 		Rows(rows...).
 		StyleFunc(func(row, col int) lipgloss.Style {
-			if row == 0 {
+			if row == -1 {
 				return lipgloss.NewStyle().
 					Foreground(lipgloss.Color("12")).
 					Bold(true).
@@ -759,6 +786,29 @@ func PrintTableFromBody(body []byte) {
 		})
 
 	fmt.Println(t.Render())
+}
+
+func flattenMap(m map[string]any, prefix string) map[string]any {
+	out := make(map[string]any)
+
+	for k, v := range m {
+		key := k
+		if prefix != "" {
+			key = prefix + "." + k
+		}
+
+		switch child := v.(type) {
+		case map[string]any:
+			nested := flattenMap(child, key)
+			maps.Copy(out, nested)
+		case []any:
+			b, _ := json.Marshal(child)
+			out[key] = string(b)
+		default:
+			out[key] = child
+		}
+	}
+	return out
 }
 
 func PrintTable[T any](items []T, columns []Column[T]) {
@@ -858,4 +908,24 @@ func GetUserInKeyFileForURL(cfg *config.GlobalOptions) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to get a matching entry in key file for the url %s", cfg.Server)
+}
+
+type ErrorResponse struct {
+	Error string `json:"error" yaml:"error" toml:"error"`
+}
+
+func PrintError(err error, cfg *config.GlobalOptions) {
+	if cfg != nil && cfg.OutputFormat == globals.OutputTable {
+		resp := []ErrorResponse{
+			{Error: err.Error()},
+		}
+		body, _ := json.Marshal(resp)
+		PrintOutput(body, cfg)
+		return
+	}
+
+	resp := ErrorResponse{Error: err.Error()}
+	body, _ := json.Marshal(resp)
+
+	PrintOutput(body, cfg)
 }

@@ -22,6 +22,7 @@ func NewUpdateUserCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     utils.UpdateSingleElementCmdName + " [user-name/id]",
+		Aliases: []string{"set", "up", "put"},
 		Short:   "Update a user",
 		Long:    "Update a given User with a given ID or name which will be resolved to a ID if a User with a matching name exists.",
 		Example: "gns3util -s https://controller:3080 user update my-user --username newname --password newpassword",

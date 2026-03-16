@@ -9,9 +9,10 @@ import (
 
 func NewSnapshotCmdGroup() *cobra.Command {
 	snapshotCmd := &cobra.Command{
-		Use:   "snapshot",
-		Short: "Snapshot operations",
-		Long:  `Create, manage, and manipulate GNS3 snapshots.`,
+		Use:     "snapshot",
+		Aliases: []string{"snap", "sn"},
+		Short:   "Snapshot operations",
+		Long:    `Create, manage, and manipulate GNS3 snapshots.`,
 	}
 
 	snapshotCmd.AddCommand(create.NewCreateSnapshotCmd())

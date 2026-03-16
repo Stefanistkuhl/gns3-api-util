@@ -10,9 +10,10 @@ import (
 
 func NewComputeCmdGroup() *cobra.Command {
 	computeCmd := &cobra.Command{
-		Use:   "compute",
-		Short: "Compute operations",
-		Long:  `Create, manage, and manipulate GNS3 computes.`,
+		Use:     "compute",
+		Aliases: []string{"comp"},
+		Short:   "Compute operations",
+		Long:    `Create, manage, and manipulate GNS3 computes.`,
 	}
 
 	computeCmd.AddCommand(create.NewCreateComputeCmd())

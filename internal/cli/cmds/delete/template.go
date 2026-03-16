@@ -11,6 +11,7 @@ import (
 func NewDeleteTemplateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [template-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a template",
 		Long:    `Delete a template from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 template delete my-template",

@@ -11,6 +11,7 @@ import (
 func NewDeletePruneImagesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "prune",
+		Aliases: []string{"clean"},
 		Short:   "Prune unused images",
 		Long:    `Delete unused images from the GNS3 server to free up disk space.`,
 		Example: `gns3util -s https://controller:3080 image prune`,

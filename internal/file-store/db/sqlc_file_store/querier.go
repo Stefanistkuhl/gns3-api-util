@@ -9,22 +9,39 @@ import (
 )
 
 type Querier interface {
+	CreateBucket(ctx context.Context, arg CreateBucketParams) (Bucket, error)
+	CreatePublicFileToken(ctx context.Context, arg CreatePublicFileTokenParams) (PublicFileToken, error)
+	DeleteBackup(ctx context.Context, fileUuid string) error
+	DeleteBucket(ctx context.Context, bucketID string) error
+	DeleteExpiredPublicTokens(ctx context.Context) error
 	DeleteFile(ctx context.Context, fileUuid string) error
+	DeleteProjectFile(ctx context.Context, fileUuid string) error
+	DeletePublicFileToken(ctx context.Context, token string) error
+	DeleteVMImage(ctx context.Context, fileUuid string) error
 	FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error)
 	GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error)
+	GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error)
+	GetDefaultBucketForOwner(ctx context.Context, ownerID string) (GetDefaultBucketForOwnerRow, error)
 	GetFileByUUID(ctx context.Context, fileUuid string) (File, error)
 	GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error)
 	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error)
+	GetPublicFileToken(ctx context.Context, token string) (PublicFileToken, error)
+	GetPublicFileTokens(ctx context.Context, fileUuid string) ([]PublicFileToken, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
+	IncrementTokenAccessCount(ctx context.Context, token string) error
 	InitFile(ctx context.Context, arg InitFileParams) (File, error)
 	InsertBackup(ctx context.Context, arg InsertBackupParams) error
 	InsertFile(ctx context.Context, arg InsertFileParams) error
 	InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error
 	InsertVMImage(ctx context.Context, arg InsertVMImageParams) error
+	ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error)
 	ListFiles(ctx context.Context) ([]File, error)
+	ListFilesByBucket(ctx context.Context, bucketID string) ([]File, error)
 	ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error)
 	ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error)
 	MarkFileTombstoned(ctx context.Context, fileUuid string) error
+	UpdateBucket(ctx context.Context, arg UpdateBucketParams) error
+	UpdateFileBucket(ctx context.Context, arg UpdateFileBucketParams) error
 	UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error
 	UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error
 	UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error

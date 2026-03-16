@@ -256,22 +256,50 @@ func setupRouter(
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(idMgr))
 
+		r.Route("/buckets", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
+				Get("/", fileStoreHandlers.ListBuckets)
+			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+				Post("/", fileStoreHandlers.CreateBucket)
+
+			r.Route("/{bucket_id}", func(r chi.Router) {
+				r.Use(middleware.BucketAccessMiddleware(store, logger))
+
+				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+					Post("/files", fileStoreHandlers.HandleInitUpload)
+
+				r.Get("/files", fileStoreHandlers.ListBucketFiles)
+
+				r.Delete("/files", fileStoreHandlers.DeleteBucket)
+			})
+		})
+
 		r.Route("/files", func(r chi.Router) {
+			// Upload standalone file (no bucket)
 			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
 				Post("/", fileStoreHandlers.HandleInitUpload)
 
 			r.Route("/{file_uuid}", func(r chi.Router) {
+				r.Use(middleware.FileAccessMiddleware(store, logger))
+
 				r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
 					Get("/", fileStoreHandlers.DownloadFileHandler)
 
-				r.Route("/content", func(r chi.Router) {
-					r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
-						Get("/", fileStoreHandlers.GetUploadStatus)
+				r.Get("/status", fileStoreHandlers.GetUploadStatus)
 
-					r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
-						Put("/", fileStoreHandlers.HandleStreamUpload)
-				})
+				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+					Put("/content", fileStoreHandlers.HandleStreamUpload)
+
+				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+					Delete("/", fileStoreHandlers.DeleteFile)
+
+				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+					Post("/public-token", fileStoreHandlers.GeneratePublicToken)
 			})
+		})
+
+		r.Route("/public", func(r chi.Router) {
+			r.Get("/files/{token}", fileStoreHandlers.PublicFileHandler)
 		})
 	})
 }

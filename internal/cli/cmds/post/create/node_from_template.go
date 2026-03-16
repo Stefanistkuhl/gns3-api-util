@@ -20,6 +20,7 @@ func NewCreateNodeFromTemplateCmd() *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:     "from-template [project-name/id] [template-name/id]",
+		Aliases: []string{"template", "from-tmpl", "ft"},
 		Short:   "Create a node from a template",
 		Long:    "Create a node from a template in a project",
 		Example: "gns3util -s https://controller:3080 node from-template my-project my-template --x 100 --y 200",

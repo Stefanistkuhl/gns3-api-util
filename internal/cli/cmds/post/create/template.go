@@ -27,6 +27,7 @@ func NewCreateTemplateCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:     "new",
+		Aliases: []string{"create", "c", "add"},
 		Short:   "Create a template",
 		Example: "gns3util -s https://controller:3080 create template -n some_name -t vpcs",
 		RunE: func(cmd *cobra.Command, args []string) error {

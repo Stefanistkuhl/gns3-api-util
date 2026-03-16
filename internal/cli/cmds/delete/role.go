@@ -11,6 +11,7 @@ import (
 func NewDeleteRoleCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     utils.DeleteSingleElementCmdName + " [role-name/id]",
+		Aliases: []string{"remove", "rm", "del"},
 		Short:   "Delete a role",
 		Long:    `Delete a role from the GNS3 server.`,
 		Example: "gns3util -s https://controller:3080 role delete my-role",

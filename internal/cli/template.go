@@ -11,9 +11,10 @@ import (
 
 func NewTemplateCmdGroup() *cobra.Command {
 	templateCmd := &cobra.Command{
-		Use:   "template",
-		Short: "Template operations",
-		Long:  `Create, manage, and manipulate GNS3 templates.`,
+		Use:     "template",
+		Aliases: []string{"tmpl", "t"},
+		Short:   "Template operations",
+		Long:    `Create, manage, and manipulate GNS3 templates.`,
 	}
 
 	templateCmd.AddCommand(create.NewCreateTemplateCmd())

@@ -49,3 +49,23 @@ SET
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?;
+
+-- name: UpdateFileBucket :exec
+UPDATE
+    files
+SET
+    bucket_id = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    file_uuid = ?;
+
+-- name: UpdateBucket :exec
+UPDATE
+    buckets
+SET
+    name = ?,
+    is_public = ?,
+    required_scopes = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    bucket_id = ?;

@@ -13,7 +13,7 @@ import (
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/internal/cli/cmds/auth"
 	"github.com/0xveya/gns3util/internal/cli/cmds/class"
@@ -42,12 +42,29 @@ var rootCmd = &cobra.Command{
 			cmd.Name() == "help" || version {
 			return nil
 		}
-		if len(args) > 0 && args[0] == "_carapace" {
-			return nil
+
+		if outputFormat == "" || outputFormat == "kv" {
+			if v := viper.GetString("output"); v != "" {
+				outputFormat = v
+			}
+		}
+
+		opts := &config.GlobalOptions{
+			OutputFormat: globals.ParseOutputFormat(outputFormat),
+			CommandPath:  cmd.CommandPath(),
+		}
+		cmd.SetContext(config.WithGlobalOptions(cmd.Context(), opts))
+
+		if err := validateGlobalFlags(); err != nil {
+			return err
 		}
 
 		serverFlagSet := cmd.Flags().Changed("server")
 		clusterFlagSet := cmd.Flags().Changed("cluster")
+
+		if serverFlagSet && clusterFlagSet {
+			return fmt.Errorf("--server and --cluster are mutually exclusive")
+		}
 
 		if hasAuthModeClusterOnly(cmd) {
 			if serverFlagSet {
@@ -57,6 +74,7 @@ var rootCmd = &cobra.Command{
 				return fmt.Errorf("command %q requires the --cluster flag", cmd.Name())
 			}
 		}
+
 		if !serverFlagSet {
 			server = viper.GetString("server")
 		}
@@ -66,20 +84,7 @@ var rootCmd = &cobra.Command{
 		if keyFile == "" {
 			keyFile = viper.GetString("key-file")
 		}
-		if outputFormat == "" || outputFormat == "kv" {
-			if v := viper.GetString("output"); v != "" {
-				outputFormat = v
-			}
-		}
 		keyFile, _ = pathutils.ExpandPath(keyFile)
-
-		if err := validateGlobalFlags(); err != nil {
-			return err
-		}
-
-		if serverFlagSet && clusterFlagSet {
-			return fmt.Errorf("--server and --cluster are mutually exclusive")
-		}
 
 		requiresServer := !isCtlCommand(cmd) && !hasAuthModeFlexible(cmd) && !hasAuthModeNone(cmd)
 		if requiresServer && server == "" && cluster == "" {
@@ -105,20 +110,11 @@ var rootCmd = &cobra.Command{
 			clusterEntry = entry
 		}
 
-		cmdPath := cmd.CommandPath()
-		fmtType := globals.ParseOutputFormat(outputFormat)
-
-		opts := &config.GlobalOptions{
-			Server:       server,
-			Insecure:     insecure,
-			KeyFile:      keyFile,
-			OutputFormat: fmtType,
-			CommandPath:  cmdPath,
-			Cluster:      cluster,
-			ClusterEntry: clusterEntry,
-		}
-		ctx := config.WithGlobalOptions(cmd.Context(), opts)
-		cmd.SetContext(ctx)
+		opts.Server = server
+		opts.Insecure = insecure
+		opts.KeyFile = keyFile
+		opts.Cluster = cluster
+		opts.ClusterEntry = clusterEntry
 
 		return nil
 	},
@@ -229,8 +225,19 @@ func init() {
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("%v\n", messageUtils.ErrorMsg(err.Error()))
+	executedCmd, err := rootCmd.ExecuteC()
+	if err != nil {
+		cfg, ctxErr := config.GetGlobalOptionsFromContext(executedCmd.Context())
+
+		if ctxErr == nil && cfg != nil {
+			utils.PrintError(err, cfg)
+		} else {
+			fallbackCfg := &config.GlobalOptions{
+				OutputFormat: globals.ParseOutputFormat(outputFormat),
+			}
+			utils.PrintError(err, fallbackCfg)
+		}
+		os.Exit(1)
 	}
 }
 
