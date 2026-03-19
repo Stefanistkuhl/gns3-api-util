@@ -18,28 +18,18 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/google/uuid"
-	"github.com/pelletier/go-toml/v2"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/pretty"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	"gopkg.in/yaml.v3"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/authentication"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/api"
 	"github.com/0xveya/gns3util/pkg/api/endpoints"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
-	"github.com/jedib0t/go-pretty/v6/text"
-)
-
-var (
-	keyStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true)
-	valueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
-	labelStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
 )
 
 var idElementName = map[string][2]string{
@@ -165,225 +155,6 @@ func ExecuteAndPrint(cfg *config.GlobalOptions, cmdName string, args []string) {
 		return
 	}
 	PrintOutput(body, cfg)
-}
-
-func PrintOutput(body []byte, cfg *config.GlobalOptions) {
-	switch cfg.OutputFormat {
-	case globals.OutputJSON:
-		PrintJSON(body)
-	case globals.OutputJSONColorless:
-		PrintJSONUgly(body)
-	case globals.OutputCollapsed:
-		PrintJSONReallyUgly(body)
-	case globals.OutputYAML:
-		PrintYaml(cfg.CommandPath, body)
-	case globals.OutputTOML:
-		PrintToml(cfg.CommandPath, body)
-	case globals.OutputTable:
-		PrintTableFromBody(body)
-	default:
-		PrintKV(body)
-	}
-}
-
-func PrintYaml(cmdPath string, body []byte) {
-	var data any
-	if err := json.Unmarshal(body, &data); err != nil {
-		fmt.Printf("Error parsing JSON for YAML output: %v\n", err)
-		return
-	}
-
-	finalData := data
-	if _, isSlice := data.([]any); isSlice && cmdPath != "" {
-		finalData = map[string]any{cmdPath: data}
-	}
-
-	yamlData, err := yaml.Marshal(finalData)
-	if err != nil {
-		fmt.Printf("Error encoding YAML: %v\n", err)
-		return
-	}
-	fmt.Print(string(yamlData))
-}
-
-func PrintToml(cmdPath string, body []byte) {
-	var data any
-	if err := json.Unmarshal(body, &data); err != nil {
-		fmt.Printf("Error parsing JSON for TOML output: %v\n", err)
-		return
-	}
-
-	finalData := data
-	if _, isSlice := data.([]any); isSlice && cmdPath != "" {
-		finalData = map[string]any{cmdPath: data}
-	}
-
-	tomlData, err := toml.Marshal(finalData)
-	if err != nil {
-		fmt.Printf("Error encoding TOML: %v\n", err)
-		return
-	}
-	fmt.Print(string(tomlData))
-}
-
-func PrintJSON(body []byte) {
-	result := pretty.Pretty(body)
-	result = pretty.Color(result, nil)
-	fmt.Print(string(result))
-}
-
-func PrintJSONUgly(body []byte) {
-	result := pretty.Pretty(body)
-	fmt.Print(string(result))
-}
-
-func PrintJSONReallyUgly(body []byte) {
-	fmt.Println(string(body))
-}
-
-func PrintKV(body []byte) {
-	result := gjson.ParseBytes(body)
-
-	if result.IsObject() {
-		var keys []string
-		var lastVal gjson.Result
-		result.ForEach(func(k, v gjson.Result) bool {
-			keys = append(keys, k.String())
-			lastVal = v
-			return true
-		})
-		if len(keys) == 1 && lastVal.IsArray() {
-			result = lastVal
-		}
-	}
-
-	if result.IsArray() {
-		if len(result.Array()) == 0 {
-			fmt.Println("  No data found")
-			return
-		}
-		PrintSeparator()
-		result.ForEach(func(_, elem gjson.Result) bool {
-			if elem.IsObject() {
-				printObject(&elem)
-			} else {
-				fmt.Printf("  %s\n", elem.Raw)
-			}
-			PrintSeparator()
-			return true
-		})
-	} else if result.IsObject() {
-		PrintSeparator()
-		printObject(&result)
-		PrintSeparator()
-	}
-}
-
-func PrintKVWithContext(body []byte, contextType, contextField, contextLabel string) {
-	result := gjson.ParseBytes(body)
-
-	if !result.IsArray() {
-		PrintKV(body)
-		return
-	}
-
-	if len(result.Array()) == 0 {
-		fmt.Println("  No data found")
-		return
-	}
-
-	if contextType == "" || contextField == "" {
-		PrintKV(body)
-		return
-	}
-
-	contextGroups := groupByContext(&result, contextField)
-
-	for contextKey, items := range contextGroups {
-		if contextLabel != "" {
-			header := labelStyle.Render(contextLabel+" ") + keyStyle.Render(contextKey)
-			fmt.Printf("\n%s\n", header)
-		}
-		PrintSeparator()
-
-		for _, elem := range items {
-			if elem.IsObject() {
-				printObject(&elem)
-			} else {
-				fmt.Printf("  %s\n", elem.Raw)
-			}
-			fmt.Println()
-		}
-	}
-}
-
-func PrintKVWithResourceContext(body []byte, resourceType, contextLabel string) {
-	if fields, ok := idElementName[resourceType]; ok {
-		contextField := fields[1]
-		PrintKVWithContext(body, resourceType, contextField, contextLabel)
-	} else {
-		PrintKV(body)
-	}
-}
-
-func printObject(obj *gjson.Result) {
-	var pairs []struct {
-		key   string
-		value string
-	}
-	maxKeyLen := 0
-
-	obj.ForEach(func(key, value gjson.Result) bool {
-		k := key.String()
-		v := formatValue(&value)
-		pairs = append(pairs, struct {
-			key   string
-			value string
-		}{k, v})
-		if len(k) > maxKeyLen {
-			maxKeyLen = len(k)
-		}
-		return true
-	})
-
-	for _, p := range pairs {
-		key := keyStyle.Render(padRight(p.key, maxKeyLen))
-		val := valueStyle.Render(p.value)
-		fmt.Printf("  %s  %s\n", key, val)
-	}
-}
-
-func formatValue(value *gjson.Result) string {
-	if value.IsArray() || value.IsObject() {
-		return text.Faint.Sprint(value.Raw)
-	}
-	return value.Raw
-}
-
-func groupByContext(result *gjson.Result, contextField string) map[string][]gjson.Result {
-	groups := make(map[string][]gjson.Result)
-
-	result.ForEach(func(_, elem gjson.Result) bool {
-		contextValue := elem.Get(contextField)
-		if contextValue.Exists() {
-			groups[contextValue.String()] = append(groups[contextValue.String()], elem)
-		} else {
-			groups["Unknown"] = append(groups["Unknown"], elem)
-		}
-		return true
-	})
-
-	return groups
-}
-
-func padRight(s string, width int) string {
-	return s + strings.Repeat(" ", width-len(s))
-}
-
-func PrintSeparator() {
-	fmt.Println(lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Render(strings.Repeat("─", 60)))
 }
 
 func ExecuteAndPrintWithBody(cfg *config.GlobalOptions, cmdName string, args []string, body any) {
@@ -523,32 +294,6 @@ func GetResourceWithContext(cfg *config.GlobalOptions, commandName string, resou
 	return resourceData, nil
 }
 
-func PrintResourceWithContext(resourceData map[string][]byte, contextLabel string) {
-	for i, contextKey := range getSortedKeys(resourceData) {
-		resourceBody := resourceData[contextKey]
-
-		if i > 0 {
-			fmt.Println()
-		}
-
-		if contextLabel != "" {
-			fmt.Printf("\n%s %s\n", messageUtils.Bold(contextLabel), messageUtils.Highlight(contextKey))
-			fmt.Println(strings.Repeat("-", 40))
-		}
-
-		if len(resourceBody) == 0 {
-			fmt.Println("  No data found")
-		} else {
-			resourceResult := gjson.ParseBytes(resourceBody)
-			if resourceResult.IsArray() && len(resourceResult.Array()) == 0 {
-				fmt.Println("  No data found")
-			} else {
-				PrintKV(resourceBody)
-			}
-		}
-	}
-}
-
 func getContextCommand(resourceType string) string {
 	contextCommands := map[string]string{
 		"user":      "getUser",
@@ -585,15 +330,6 @@ func getContextKey(result *gjson.Result, resourceType string) string {
 	}
 
 	return ""
-}
-
-func getSortedKeys(m map[string][]byte) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 //go:embed static/*
@@ -908,24 +644,4 @@ func GetUserInKeyFileForURL(cfg *config.GlobalOptions) (string, error) {
 	}
 
 	return "", fmt.Errorf("failed to get a matching entry in key file for the url %s", cfg.Server)
-}
-
-type ErrorResponse struct {
-	Error string `json:"error" yaml:"error" toml:"error"`
-}
-
-func PrintError(err error, cfg *config.GlobalOptions) {
-	if cfg != nil && cfg.OutputFormat == globals.OutputTable {
-		resp := []ErrorResponse{
-			{Error: err.Error()},
-		}
-		body, _ := json.Marshal(resp)
-		PrintOutput(body, cfg)
-		return
-	}
-
-	resp := ErrorResponse{Error: err.Error()}
-	body, _ := json.Marshal(resp)
-
-	PrintOutput(body, cfg)
 }

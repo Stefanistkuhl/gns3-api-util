@@ -83,15 +83,29 @@ func (c *MasterSyncClient) Close() error {
 
 func (c *MasterSyncClient) CheckPermission(
 	ctx context.Context,
-	userID, jti, scope string,
+	userID, jti, role, scope string,
 ) (bool, error) {
-	resp, err := c.client.CheckPermission(ctx, &pb.PermissionCheckRequest{
+	resp, err := c.client.CheckPermission(ctx, &pb.CheckPermissionRequest{
 		UserId: userID,
 		Jti:    jti,
+		Role:   role,
 		Scope:  scope,
 	})
 	if err != nil {
 		return false, err
 	}
 	return resp.Allowed, nil
+}
+
+func (c *MasterSyncClient) RegisterJob(
+	ctx context.Context,
+	jobName, nodeID, interval, description string,
+) error {
+	_, err := c.client.RegisterJob(ctx, &pb.RegisterJobRequest{
+		JobName:     jobName,
+		NodeId:      nodeID,
+		Interval:    interval,
+		Description: description,
+	})
+	return err
 }

@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
@@ -12,13 +13,14 @@ import (
 type EnvType string
 
 const (
-	EnvTypeString EnvType = "string"
-	EnvTypeInt    EnvType = "int"
-	EnvTypePort   EnvType = "port"
-	EnvTypeURL    EnvType = "url"
-	EnvTypeListen EnvType = "listen"
-	EnvTypeSecret EnvType = "secret"
-	EnvTypeBool   EnvType = "bool"
+	EnvTypeString   EnvType = "string"
+	EnvTypeInt      EnvType = "int"
+	EnvTypePort     EnvType = "port"
+	EnvTypeURL      EnvType = "url"
+	EnvTypeListen   EnvType = "listen"
+	EnvTypeSecret   EnvType = "secret"
+	EnvTypeBool     EnvType = "bool"
+	EnvTypeDuration EnvType = "duration"
 )
 
 type FieldConfig struct {
@@ -148,6 +150,15 @@ func setFieldValue(fieldVal reflect.Value, envVal string, cfg *FieldConfig) erro
 			return err
 		}
 		fieldVal.SetBool(b)
+	case EnvTypeDuration:
+		if fieldVal.Type() != reflect.TypeFor[time.Duration]() {
+			return fmt.Errorf("field type mismatch: expected time.Duration")
+		}
+		d, err := parseDuration(envVal)
+		if err != nil {
+			return err
+		}
+		fieldVal.SetInt(int64(d))
 	default:
 		if fieldVal.Kind() == reflect.String {
 			fieldVal.SetString(envVal)
@@ -172,4 +183,9 @@ func parseBool(s string) (bool, error) {
 	default:
 		return false, fmt.Errorf("invalid bool value: %s", s)
 	}
+}
+
+func parseDuration(s string) (time.Duration, error) {
+	s = strings.ToLower(s)
+	return time.ParseDuration(s)
 }

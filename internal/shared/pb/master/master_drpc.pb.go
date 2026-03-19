@@ -39,7 +39,8 @@ func (drpcEncoding_File_master_proto) JSONUnmarshal(buf []byte, msg drpc.Message
 type DRPCMasterSyncServiceClient interface {
 	DRPCConn() drpc.Conn
 
-	CheckPermission(ctx context.Context, in *PermissionCheckRequest) (*PermissionCheckResponse, error)
+	CheckPermission(ctx context.Context, in *CheckPermissionRequest) (*CheckPermissionResponse, error)
+	RegisterJob(ctx context.Context, in *RegisterJobRequest) (*RegisterJobResponse, error)
 }
 
 type drpcMasterSyncServiceClient struct {
@@ -52,8 +53,8 @@ func NewDRPCMasterSyncServiceClient(cc drpc.Conn) DRPCMasterSyncServiceClient {
 
 func (c *drpcMasterSyncServiceClient) DRPCConn() drpc.Conn { return c.cc }
 
-func (c *drpcMasterSyncServiceClient) CheckPermission(ctx context.Context, in *PermissionCheckRequest) (*PermissionCheckResponse, error) {
-	out := new(PermissionCheckResponse)
+func (c *drpcMasterSyncServiceClient) CheckPermission(ctx context.Context, in *CheckPermissionRequest) (*CheckPermissionResponse, error) {
+	out := new(CheckPermissionResponse)
 	err := c.cc.Invoke(ctx, "/master.MasterSyncService/CheckPermission", drpcEncoding_File_master_proto{}, in, out)
 	if err != nil {
 		return nil, err
@@ -61,19 +62,33 @@ func (c *drpcMasterSyncServiceClient) CheckPermission(ctx context.Context, in *P
 	return out, nil
 }
 
+func (c *drpcMasterSyncServiceClient) RegisterJob(ctx context.Context, in *RegisterJobRequest) (*RegisterJobResponse, error) {
+	out := new(RegisterJobResponse)
+	err := c.cc.Invoke(ctx, "/master.MasterSyncService/RegisterJob", drpcEncoding_File_master_proto{}, in, out)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 type DRPCMasterSyncServiceServer interface {
-	CheckPermission(context.Context, *PermissionCheckRequest) (*PermissionCheckResponse, error)
+	CheckPermission(context.Context, *CheckPermissionRequest) (*CheckPermissionResponse, error)
+	RegisterJob(context.Context, *RegisterJobRequest) (*RegisterJobResponse, error)
 }
 
 type DRPCMasterSyncServiceUnimplementedServer struct{}
 
-func (s *DRPCMasterSyncServiceUnimplementedServer) CheckPermission(context.Context, *PermissionCheckRequest) (*PermissionCheckResponse, error) {
+func (s *DRPCMasterSyncServiceUnimplementedServer) CheckPermission(context.Context, *CheckPermissionRequest) (*CheckPermissionResponse, error) {
+	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
+}
+
+func (s *DRPCMasterSyncServiceUnimplementedServer) RegisterJob(context.Context, *RegisterJobRequest) (*RegisterJobResponse, error) {
 	return nil, drpcerr.WithCode(errors.New("Unimplemented"), drpcerr.Unimplemented)
 }
 
 type DRPCMasterSyncServiceDescription struct{}
 
-func (DRPCMasterSyncServiceDescription) NumMethods() int { return 1 }
+func (DRPCMasterSyncServiceDescription) NumMethods() int { return 2 }
 
 func (DRPCMasterSyncServiceDescription) Method(n int) (string, drpc.Encoding, drpc.Receiver, interface{}, bool) {
 	switch n {
@@ -83,9 +98,18 @@ func (DRPCMasterSyncServiceDescription) Method(n int) (string, drpc.Encoding, dr
 				return srv.(DRPCMasterSyncServiceServer).
 					CheckPermission(
 						ctx,
-						in1.(*PermissionCheckRequest),
+						in1.(*CheckPermissionRequest),
 					)
 			}, DRPCMasterSyncServiceServer.CheckPermission, true
+	case 1:
+		return "/master.MasterSyncService/RegisterJob", drpcEncoding_File_master_proto{},
+			func(srv interface{}, ctx context.Context, in1, in2 interface{}) (drpc.Message, error) {
+				return srv.(DRPCMasterSyncServiceServer).
+					RegisterJob(
+						ctx,
+						in1.(*RegisterJobRequest),
+					)
+			}, DRPCMasterSyncServiceServer.RegisterJob, true
 	default:
 		return "", nil, nil, nil, false
 	}
@@ -97,14 +121,30 @@ func DRPCRegisterMasterSyncService(mux drpc.Mux, impl DRPCMasterSyncServiceServe
 
 type DRPCMasterSyncService_CheckPermissionStream interface {
 	drpc.Stream
-	SendAndClose(*PermissionCheckResponse) error
+	SendAndClose(*CheckPermissionResponse) error
 }
 
 type drpcMasterSyncService_CheckPermissionStream struct {
 	drpc.Stream
 }
 
-func (x *drpcMasterSyncService_CheckPermissionStream) SendAndClose(m *PermissionCheckResponse) error {
+func (x *drpcMasterSyncService_CheckPermissionStream) SendAndClose(m *CheckPermissionResponse) error {
+	if err := x.MsgSend(m, drpcEncoding_File_master_proto{}); err != nil {
+		return err
+	}
+	return x.CloseSend()
+}
+
+type DRPCMasterSyncService_RegisterJobStream interface {
+	drpc.Stream
+	SendAndClose(*RegisterJobResponse) error
+}
+
+type drpcMasterSyncService_RegisterJobStream struct {
+	drpc.Stream
+}
+
+func (x *drpcMasterSyncService_RegisterJobStream) SendAndClose(m *RegisterJobResponse) error {
 	if err := x.MsgSend(m, drpcEncoding_File_master_proto{}); err != nil {
 		return err
 	}

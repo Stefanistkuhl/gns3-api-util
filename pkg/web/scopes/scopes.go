@@ -17,12 +17,15 @@ const (
 	Backups   Resource = "backups"
 	Configs   Resource = "configs"
 	System    Resource = "system"
+	Metrics   Resource = "metrics"
+	Files     Resource = "files"
+	Jobs      Resource = "jobs"
 
-	Read   Action   = "read"
-	Write  Action   = "write"
-	Delete Action   = "delete"
-	Admin  Action   = "admin"
-	Files  Resource = "files"
+	Admin   Action = "admin"
+	Read    Action = "read"
+	Write   Action = "write"
+	Execute Action = "exceute"
+	Delete  Action = "delete"
 )
 
 func New(a Action, r Resource) string {
@@ -34,8 +37,8 @@ func All(r Resource) string {
 }
 
 var (
-	validActions   = []Action{Read, Write, Delete, Admin}
-	validResources = []Resource{VMs, Backups, Configs, System}
+	validActions   = []Action{Read, Write, Delete, Admin, Execute}
+	validResources = []Resource{VMs, Backups, Configs, System, Metrics, Files, Jobs}
 )
 
 func IsValid(scope string) bool {

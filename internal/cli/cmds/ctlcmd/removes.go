@@ -3,12 +3,30 @@ package ctlcmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/fuzzy"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
-	"github.com/spf13/cobra"
 )
+
+// ClusterRemoveResult is the presentation model for a removed cluster.
+type ClusterRemoveResult struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+func (c ClusterRemoveResult) GetHeaders() []string {
+	return []string{"CLUSTER NAME", "STATUS"}
+}
+
+func (c ClusterRemoveResult) GetRow() []string {
+	return []string{
+		c.Name,
+		c.Status,
+	}
+}
 
 func NewRemoveCMD() *cobra.Command {
 	cmd := &cobra.Command{
@@ -51,11 +69,11 @@ If no name is provided via flags, an interactive list will be shown.`,
 			}
 
 			targetCluster := removeClusterName
+
 			if targetCluster == "" {
 				var names []string
 				for i := range kf.Clusters {
-					c := kf.Clusters[i]
-					names = append(names, c.Name)
+					names = append(names, kf.Clusters[i].Name)
 				}
 
 				if len(names) == 0 {
@@ -84,12 +102,21 @@ If no name is provided via flags, an interactive list will be shown.`,
 
 			kf.RemoveClusterByName(targetCluster)
 
-			if err := pathutils.SaveKeysFile(keyFilePath, kf); err != nil {
-				return fmt.Errorf("failed to update keyfile: %w", err)
+			if saveErr := pathutils.SaveKeysFile(keyFilePath, kf); saveErr != nil {
+				return fmt.Errorf("failed to update keyfile: %w", saveErr)
 			}
 
-			fmt.Printf("Successfully removed cluster %q\n", targetCluster)
-			return nil
+			result := ClusterRemoveResult{
+				Name:   targetCluster,
+				Status: "Removed",
+			}
+
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 

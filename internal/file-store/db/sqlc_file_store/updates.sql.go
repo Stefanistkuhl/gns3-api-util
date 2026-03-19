@@ -8,48 +8,49 @@ package sqlc_file_store
 import (
 	"context"
 	"database/sql"
-
-	"github.com/0xveya/gns3util/pkg/models"
 )
+
+const decrementBlobRefCount = `-- name: DecrementBlobRefCount :exec
+UPDATE
+    blobs
+SET
+    ref_count = ref_count - 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    sha256 = ?
+`
+
+func (q *Queries) DecrementBlobRefCount(ctx context.Context, sha256 string) error {
+	_, err := q.db.ExecContext(ctx, decrementBlobRefCount, sha256)
+	return err
+}
 
 const finalizeFile = `-- name: FinalizeFile :one
 UPDATE
     files
 SET
-    checksum_sha256 = ?,
-    size_bytes = ?,
-    file_path = ?,
+    blob_sha256 = ?,
     STATUS = 'available',
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?
 RETURNING
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
+    file_uuid, blob_sha256, filename, content_type, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
 `
 
 type FinalizeFileParams struct {
-	ChecksumSha256 string `json:"checksum_sha256"`
-	SizeBytes      int64  `json:"size_bytes"`
-	FilePath       string `json:"file_path"`
-	FileUuid       string `json:"file_uuid"`
+	BlobSha256 sql.NullString `json:"blob_sha256"`
+	FileUuid   string         `json:"file_uuid"`
 }
 
 func (q *Queries) FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error) {
-	row := q.db.QueryRowContext(ctx, finalizeFile,
-		arg.ChecksumSha256,
-		arg.SizeBytes,
-		arg.FilePath,
-		arg.FileUuid,
-	)
+	row := q.db.QueryRowContext(ctx, finalizeFile, arg.BlobSha256, arg.FileUuid)
 	var i File
 	err := row.Scan(
 		&i.FileUuid,
-		&i.FilePath,
+		&i.BlobSha256,
 		&i.Filename,
-		&i.SizeBytes,
-		&i.ChecksumSha256,
 		&i.ContentType,
-		&i.ScopeLabel,
 		&i.OwnerID,
 		&i.BucketID,
 		&i.CreatedAt,
@@ -59,6 +60,35 @@ func (q *Queries) FinalizeFile(ctx context.Context, arg FinalizeFileParams) (Fil
 		&i.RetentionPeriod,
 	)
 	return i, err
+}
+
+const incrementBlobRefCount = `-- name: IncrementBlobRefCount :exec
+UPDATE
+    blobs
+SET
+    ref_count = ref_count + 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    sha256 = ?
+`
+
+func (q *Queries) IncrementBlobRefCount(ctx context.Context, sha256 string) error {
+	_, err := q.db.ExecContext(ctx, incrementBlobRefCount, sha256)
+	return err
+}
+
+const incrementTokenAccessCount = `-- name: IncrementTokenAccessCount :exec
+UPDATE
+    public_file_tokens
+SET
+    access_count = access_count + 1
+WHERE
+    token = ?
+`
+
+func (q *Queries) IncrementTokenAccessCount(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, incrementTokenAccessCount, token)
+	return err
 }
 
 const markFileTombstoned = `-- name: MarkFileTombstoned :exec
@@ -146,7 +176,6 @@ UPDATE
 SET
     filename = ?,
     content_type = ?,
-    scope_label = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?
@@ -155,17 +184,11 @@ WHERE
 type UpdateFileMetadataParams struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
-	ScopeLabel  string `json:"scope_label"`
 	FileUuid    string `json:"file_uuid"`
 }
 
 func (q *Queries) UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error {
-	_, err := q.db.ExecContext(ctx, updateFileMetadata,
-		arg.Filename,
-		arg.ContentType,
-		arg.ScopeLabel,
-		arg.FileUuid,
-	)
+	_, err := q.db.ExecContext(ctx, updateFileMetadata, arg.Filename, arg.ContentType, arg.FileUuid)
 	return err
 }
 
@@ -180,8 +203,8 @@ WHERE
 `
 
 type UpdateFileStatusParams struct {
-	Status   models.FileStatus `json:"status"`
-	FileUuid string            `json:"file_uuid"`
+	Status   string `json:"status"`
+	FileUuid string `json:"file_uuid"`
 }
 
 func (q *Queries) UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error {

@@ -38,6 +38,59 @@ func (q *Queries) GetBackupByFileUUID(ctx context.Context, fileUuid string) (Bac
 	return i, err
 }
 
+const getBlobByFileUUID = `-- name: GetBlobByFileUUID :one
+SELECT
+    blob_sha256,
+    blobs.file_path
+FROM
+    files
+    JOIN blobs ON blobs.sha256 = files.blob_sha256
+WHERE
+    file_uuid = ?
+`
+
+type GetBlobByFileUUIDRow struct {
+	BlobSha256 sql.NullString `json:"blob_sha256"`
+	FilePath   string         `json:"file_path"`
+}
+
+func (q *Queries) GetBlobByFileUUID(ctx context.Context, fileUuid string) (GetBlobByFileUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getBlobByFileUUID, fileUuid)
+	var i GetBlobByFileUUIDRow
+	err := row.Scan(&i.BlobSha256, &i.FilePath)
+	return i, err
+}
+
+const getBlobBySHA256 = `-- name: GetBlobBySHA256 :one
+SELECT
+    sha256,
+    file_path,
+    size_bytes,
+    ref_count,
+    created_at,
+    updated_at,
+    last_verified_at
+FROM
+    blobs
+WHERE
+    sha256 = ?
+`
+
+func (q *Queries) GetBlobBySHA256(ctx context.Context, sha256 string) (Blob, error) {
+	row := q.db.QueryRowContext(ctx, getBlobBySHA256, sha256)
+	var i Blob
+	err := row.Scan(
+		&i.Sha256,
+		&i.FilePath,
+		&i.SizeBytes,
+		&i.RefCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastVerifiedAt,
+	)
+	return i, err
+}
+
 const getBucketByID = `-- name: GetBucketByID :one
 SELECT
     bucket_id,
@@ -59,8 +112,8 @@ type GetBucketByIDRow struct {
 	OwnerID        string         `json:"owner_id"`
 	IsPublic       sql.NullBool   `json:"is_public"`
 	RequiredScopes sql.NullString `json:"required_scopes"`
-	CreatedAt      sql.NullTime   `json:"created_at"`
-	UpdatedAt      sql.NullTime   `json:"updated_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
 }
 
 func (q *Queries) GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error) {
@@ -102,8 +155,8 @@ type GetDefaultBucketForOwnerRow struct {
 	OwnerID        string         `json:"owner_id"`
 	IsPublic       sql.NullBool   `json:"is_public"`
 	RequiredScopes sql.NullString `json:"required_scopes"`
-	CreatedAt      sql.NullTime   `json:"created_at"`
-	UpdatedAt      sql.NullTime   `json:"updated_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
 }
 
 func (q *Queries) GetDefaultBucketForOwner(ctx context.Context, ownerID string) (GetDefaultBucketForOwnerRow, error) {
@@ -124,12 +177,9 @@ func (q *Queries) GetDefaultBucketForOwner(ctx context.Context, ownerID string) 
 const getFileByUUID = `-- name: GetFileByUUID :one
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -148,12 +198,9 @@ func (q *Queries) GetFileByUUID(ctx context.Context, fileUuid string) (File, err
 	var i File
 	err := row.Scan(
 		&i.FileUuid,
-		&i.FilePath,
+		&i.BlobSha256,
 		&i.Filename,
-		&i.SizeBytes,
-		&i.ChecksumSha256,
 		&i.ContentType,
-		&i.ScopeLabel,
 		&i.OwnerID,
 		&i.BucketID,
 		&i.CreatedAt,
@@ -163,6 +210,155 @@ func (q *Queries) GetFileByUUID(ctx context.Context, fileUuid string) (File, err
 		&i.RetentionPeriod,
 	)
 	return i, err
+}
+
+const getFileWithBlobByUUID = `-- name: GetFileWithBlobByUUID :one
+SELECT
+    f.file_uuid,
+    f.blob_sha256,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.last_accessed_at,
+    f.status,
+    f.retention_period,
+    b.file_path,
+    b.size_bytes,
+    b.ref_count
+FROM
+    files f
+    JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.file_uuid = ?
+`
+
+type GetFileWithBlobByUUIDRow struct {
+	FileUuid        string         `json:"file_uuid"`
+	BlobSha256      sql.NullString `json:"blob_sha256"`
+	Filename        string         `json:"filename"`
+	ContentType     string         `json:"content_type"`
+	OwnerID         string         `json:"owner_id"`
+	BucketID        string         `json:"bucket_id"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	LastAccessedAt  string         `json:"last_accessed_at"`
+	Status          string         `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
+	FilePath        string         `json:"file_path"`
+	SizeBytes       int64          `json:"size_bytes"`
+	RefCount        int64          `json:"ref_count"`
+}
+
+func (q *Queries) GetFileWithBlobByUUID(ctx context.Context, fileUuid string) (GetFileWithBlobByUUIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getFileWithBlobByUUID, fileUuid)
+	var i GetFileWithBlobByUUIDRow
+	err := row.Scan(
+		&i.FileUuid,
+		&i.BlobSha256,
+		&i.Filename,
+		&i.ContentType,
+		&i.OwnerID,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastAccessedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+		&i.FilePath,
+		&i.SizeBytes,
+		&i.RefCount,
+	)
+	return i, err
+}
+
+const getFilesWithPassedRetention = `-- name: GetFilesWithPassedRetention :many
+SELECT
+    file_uuid
+FROM
+    files
+WHERE
+    retention_period > 0
+    AND datetime(created_at, '+' || retention_period || ' hours') < datetime('now')
+`
+
+func (q *Queries) GetFilesWithPassedRetention(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, getFilesWithPassedRetention)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var file_uuid string
+		if err := rows.Scan(&file_uuid); err != nil {
+			return nil, err
+		}
+		items = append(items, file_uuid)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getFilesWithStatus = `-- name: GetFilesWithStatus :many
+SELECT
+    file_uuid,
+    blob_sha256,
+    filename,
+    content_type,
+    owner_id,
+    bucket_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    STATUS = ?
+`
+
+func (q *Queries) GetFilesWithStatus(ctx context.Context, status string) ([]File, error) {
+	rows, err := q.db.QueryContext(ctx, getFilesWithStatus, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []File{}
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.BlobSha256,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastAccessedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getOwnerOfFileByUUID = `-- name: GetOwnerOfFileByUUID :one
@@ -279,6 +475,44 @@ func (q *Queries) GetPublicFileTokens(ctx context.Context, fileUuid string) ([]P
 	return items, nil
 }
 
+const getUnreferencedBlobs = `-- name: GetUnreferencedBlobs :many
+SELECT
+    sha256,
+    file_path
+FROM
+    blobs
+WHERE
+    ref_count <= 0
+`
+
+type GetUnreferencedBlobsRow struct {
+	Sha256   string `json:"sha256"`
+	FilePath string `json:"file_path"`
+}
+
+func (q *Queries) GetUnreferencedBlobs(ctx context.Context) ([]GetUnreferencedBlobsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getUnreferencedBlobs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetUnreferencedBlobsRow{}
+	for rows.Next() {
+		var i GetUnreferencedBlobsRow
+		if err := rows.Scan(&i.Sha256, &i.FilePath); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getVMImageByFileUUID = `-- name: GetVMImageByFileUUID :one
 SELECT
     file_uuid,
@@ -330,8 +564,8 @@ type ListBucketsByOwnerRow struct {
 	OwnerID        string         `json:"owner_id"`
 	IsPublic       sql.NullBool   `json:"is_public"`
 	RequiredScopes sql.NullString `json:"required_scopes"`
-	CreatedAt      sql.NullTime   `json:"created_at"`
-	UpdatedAt      sql.NullTime   `json:"updated_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
 }
 
 func (q *Queries) ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error) {
@@ -368,12 +602,9 @@ func (q *Queries) ListBucketsByOwner(ctx context.Context, ownerID string) ([]Lis
 const listFiles = `-- name: ListFiles :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -398,12 +629,9 @@ func (q *Queries) ListFiles(ctx context.Context) ([]File, error) {
 		var i File
 		if err := rows.Scan(
 			&i.FileUuid,
-			&i.FilePath,
+			&i.BlobSha256,
 			&i.Filename,
-			&i.SizeBytes,
-			&i.ChecksumSha256,
 			&i.ContentType,
-			&i.ScopeLabel,
 			&i.OwnerID,
 			&i.BucketID,
 			&i.CreatedAt,
@@ -428,12 +656,9 @@ func (q *Queries) ListFiles(ctx context.Context) ([]File, error) {
 const listFilesByBucket = `-- name: ListFilesByBucket :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -460,12 +685,9 @@ func (q *Queries) ListFilesByBucket(ctx context.Context, bucketID string) ([]Fil
 		var i File
 		if err := rows.Scan(
 			&i.FileUuid,
-			&i.FilePath,
+			&i.BlobSha256,
 			&i.Filename,
-			&i.SizeBytes,
-			&i.ChecksumSha256,
 			&i.ContentType,
-			&i.ScopeLabel,
 			&i.OwnerID,
 			&i.BucketID,
 			&i.CreatedAt,
@@ -487,15 +709,86 @@ func (q *Queries) ListFilesByBucket(ctx context.Context, bucketID string) ([]Fil
 	return items, nil
 }
 
+const listFilesByBucketWithBlob = `-- name: ListFilesByBucketWithBlob :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.last_accessed_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes
+FROM
+    files f
+    JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.bucket_id = ?
+ORDER BY
+    f.created_at DESC
+`
+
+type ListFilesByBucketWithBlobRow struct {
+	FileUuid        string         `json:"file_uuid"`
+	Filename        string         `json:"filename"`
+	ContentType     string         `json:"content_type"`
+	OwnerID         string         `json:"owner_id"`
+	BucketID        string         `json:"bucket_id"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	LastAccessedAt  string         `json:"last_accessed_at"`
+	Status          string         `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
+	BlobSha256      sql.NullString `json:"blob_sha256"`
+	SizeBytes       int64          `json:"size_bytes"`
+}
+
+func (q *Queries) ListFilesByBucketWithBlob(ctx context.Context, bucketID string) ([]ListFilesByBucketWithBlobRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFilesByBucketWithBlob, bucketID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFilesByBucketWithBlobRow{}
+	for rows.Next() {
+		var i ListFilesByBucketWithBlobRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastAccessedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFilesByOwner = `-- name: ListFilesByOwner :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -522,74 +815,9 @@ func (q *Queries) ListFilesByOwner(ctx context.Context, ownerID string) ([]File,
 		var i File
 		if err := rows.Scan(
 			&i.FileUuid,
-			&i.FilePath,
+			&i.BlobSha256,
 			&i.Filename,
-			&i.SizeBytes,
-			&i.ChecksumSha256,
 			&i.ContentType,
-			&i.ScopeLabel,
-			&i.OwnerID,
-			&i.BucketID,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.LastAccessedAt,
-			&i.Status,
-			&i.RetentionPeriod,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listFilesByScope = `-- name: ListFilesByScope :many
-SELECT
-    file_uuid,
-    file_path,
-    filename,
-    size_bytes,
-    checksum_sha256,
-    content_type,
-    scope_label,
-    owner_id,
-    bucket_id,
-    created_at,
-    updated_at,
-    last_accessed_at,
-    STATUS,
-    retention_period
-FROM
-    files
-WHERE
-    scope_label = ?
-ORDER BY
-    created_at DESC
-`
-
-func (q *Queries) ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error) {
-	rows, err := q.db.QueryContext(ctx, listFilesByScope, scopeLabel)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []File{}
-	for rows.Next() {
-		var i File
-		if err := rows.Scan(
-			&i.FileUuid,
-			&i.FilePath,
-			&i.Filename,
-			&i.SizeBytes,
-			&i.ChecksumSha256,
-			&i.ContentType,
-			&i.ScopeLabel,
 			&i.OwnerID,
 			&i.BucketID,
 			&i.CreatedAt,

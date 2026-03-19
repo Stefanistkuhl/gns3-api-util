@@ -9,3 +9,5 @@ DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS buckets;
 
 DROP TABLE IF EXISTS public_file_tokens;
+
+DROP TABLE IF EXISTS blobs;

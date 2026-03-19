@@ -32,7 +32,35 @@ sql:
         emit_empty_slices: true
         emit_json_tags: true
         overrides:
-          - column: "files.status"
+          - column: "files.STATUS"
             go_type:
               type: "FileStatus"
               import: "github.com/0xveya/gns3util/pkg/models"
+
+          - column: "files.created_at"
+            go_type:
+              type: string
+
+          - column: "files.updated_at"
+            go_type:
+              type: string
+
+          - column: "files.last_accessed_at"
+            go_type:
+              type: string
+
+          - column: "buckets.created_at"
+            go_type:
+              type: string
+
+          - column: "buckets.updated_at"
+            go_type:
+              type: string
+
+          - column: "public_file_tokens.created_at"
+            go_type:
+              type: string
+
+          - column: "public_file_tokens.expires_at"
+            go_type:
+              type: string

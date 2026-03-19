@@ -22,7 +22,6 @@ UPDATE
 SET
     filename = ?,
     content_type = ?,
-    scope_label = ?,
     updated_at = CURRENT_TIMESTAMP
 WHERE
     file_uuid = ?;
@@ -31,9 +30,7 @@ WHERE
 UPDATE
     files
 SET
-    checksum_sha256 = ?,
-    size_bytes = ?,
-    file_path = ?,
+    blob_sha256 = ?,
     STATUS = 'available',
     updated_at = CURRENT_TIMESTAMP
 WHERE
@@ -69,3 +66,29 @@ SET
     updated_at = CURRENT_TIMESTAMP
 WHERE
     bucket_id = ?;
+
+-- name: IncrementBlobRefCount :exec
+UPDATE
+    blobs
+SET
+    ref_count = ref_count + 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    sha256 = ?;
+
+-- name: DecrementBlobRefCount :exec
+UPDATE
+    blobs
+SET
+    ref_count = ref_count - 1,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    sha256 = ?;
+
+-- name: IncrementTokenAccessCount :exec
+UPDATE
+    public_file_tokens
+SET
+    access_count = access_count + 1
+WHERE
+    token = ?;

@@ -134,6 +134,7 @@ func TestParseFieldTag(t *testing.T) {
 			got := parseFieldTag(tt.envVar, tt.tag)
 			if got == nil {
 				t.Fatal("parseFieldTag() returned nil")
+				return
 			}
 
 			if got.EnvVar != tt.expected.EnvVar {

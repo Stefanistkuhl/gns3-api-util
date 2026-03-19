@@ -24,6 +24,7 @@ const (
 	ErrCodeForbidden            = "forbidden"
 	ErrCodeOffsetMismatch       = "offset_mismatch"
 	ErrCodeInvalidRequest       = "invalid_request"
+	ErrCodeNotFound             = "not_found"
 )
 
 type APIErrorResponse struct {

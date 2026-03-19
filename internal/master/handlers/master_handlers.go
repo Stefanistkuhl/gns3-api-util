@@ -454,3 +454,18 @@ func (m *Master) GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func (m *Master) HasEffectivePermission(
+	ctx context.Context,
+	userID string,
+	requiredScope string,
+) (bool, error) {
+	return m.Store.HasEffectivePermission(ctx, userID, requiredScope)
+}
+
+func (m *Master) IsTokenRevoked(
+	ctx context.Context,
+	jti string,
+) (bool, error) {
+	return m.Store.IsTokenRevoked(ctx, jti)
+}

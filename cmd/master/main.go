@@ -27,6 +27,7 @@ import (
 
 	_ "github.com/0xveya/gns3util/docs"
 	"github.com/mvrilo/go-redoc"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger"
@@ -36,6 +37,7 @@ import (
 	"github.com/0xveya/gns3util/internal/master/rpc"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/0xveya/gns3util/pkg/env"
+	"github.com/0xveya/gns3util/pkg/metrics"
 	"github.com/0xveya/gns3util/pkg/otel"
 	"github.com/0xveya/gns3util/pkg/state"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
@@ -66,6 +68,7 @@ type MasterConfig struct {
 	OTELEndpoint   string `env:"OTEL_ENDPOINT" type:"string" default:""`
 	AppName        string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
 	AdvertiseAddr  string `env:"MASTER_ADVERTISE_ADDR" type:"string" default:"localhost"`
+	MetricsEnabled bool   `env:"METRICS_ENABLED" type:"bool" default:"true"`
 }
 
 var (
@@ -112,6 +115,33 @@ func main() {
 	}
 
 	logger = slog.New(handler).With("prefix", cfg.AppName)
+
+	metricsMgr := metrics.New(metrics.Config{
+		Enabled: cfg.MetricsEnabled,
+	})
+
+	httpMetrics := metrics.NewHTTPMetrics()
+	drpcMetrics := metrics.NewDRPCMetrics()
+	storageMetrics := metrics.NewStorageMetrics()
+	jobMetrics := metrics.NewJobMetrics()
+
+	metricsMgr.Register(
+		httpMetrics.RequestsTotal,
+		httpMetrics.RequestDuration,
+		httpMetrics.InFlightRequests,
+		drpcMetrics.RequestsTotal,
+		drpcMetrics.RequestLatency,
+		drpcMetrics.ErrorsTotal,
+		storageMetrics.FileWritesTotal,
+		storageMetrics.FileWriteBytes,
+		storageMetrics.FileWriteDuration,
+		storageMetrics.FileReadDuration,
+		storageMetrics.ActiveUploads,
+		jobMetrics.RunsTotal,
+		jobMetrics.RunDuration,
+		jobMetrics.ItemsProcessed,
+		jobMetrics.ErrorsTotal,
+	)
 
 	certPath := filepath.Join(cfg.TLSDir, "node.crt")
 	keyPath := filepath.Join(cfg.TLSDir, "node.key")
@@ -255,19 +285,13 @@ func main() {
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	go func() {
-		<-sigChan
-		logger.Info("Shutting down...")
+		sig := <-sigChan
+		logger.Info("Shutdown signal received", "signal", sig)
 		cancel()
-		etcdState.Server.Close()
-		closeErr := store.Close()
-		if closeErr != nil {
-			logger.Error("Failed to close state manager", "err", closeErr)
-		}
-		os.Exit(0)
 	}()
-
 	m := drpcmux.New()
 	syncSvc := rpc.NewSyncService(store)
 	if rpcErr := pb.DRPCRegisterMasterSyncService(m, syncSvc); rpcErr != nil {
@@ -275,7 +299,7 @@ func main() {
 		return
 	}
 	r := chi.NewRouter()
-	setupRouter(r, master, otlpEnabled)
+	setupRouter(r, master, otlpEnabled, metricsMgr)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -384,12 +408,37 @@ func main() {
 
 	g.Go(func() error {
 		<-groupCtx.Done()
-		logger.Info("Shutdown signal received, performing graceful server shutdown")
+		logger.Info("Shutting down master services")
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(
+			context.Background(),
+			10*time.Second,
+		)
+		defer shutdownCancel()
 
-		return server.Shutdown(shutdownCtx)
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			logger.Error("HTTP shutdown error", "err", err)
+		}
+
+		if tlsDRPCListener != nil {
+			if err := tlsDRPCListener.Close(); err != nil {
+				logger.Error("dRPC listener close error", "err", err)
+			}
+		}
+
+		if store != nil {
+			if err := store.Close(); err != nil {
+				logger.Error("Store close error", "err", err)
+			}
+		}
+
+		if etcdState != nil {
+			if err := etcdState.Close(); err != nil {
+				logger.Error("Etcd shutdown error", "err", err)
+			}
+		}
+
+		return nil
 	})
 
 	if err := g.Wait(); err != nil {
@@ -399,9 +448,11 @@ func main() {
 	}
 }
 
-func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
+func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool, metricsMgr *metrics.Manager) {
 	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
+	r.NotFound(commonhandlers.Handle404)
+	r.MethodNotAllowed(commonhandlers.Handle405)
 	r.Get("/healthz", commonhandlers.HandleHealthz)
 	r.Get("/swagger/*", httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
@@ -422,6 +473,7 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware(master.IDMgr))
+				r.Use(middleware.RequireScope(master, "system:admin"))
 
 				r.Post("/grant", master.HandleGrantAccess)
 				r.Post("/revoke", master.HandleRevokeAccess)
@@ -434,7 +486,29 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool) {
 			r.Post("/join/filestore", master.HandleJoinFilestore)
 			r.Get("/nodes", master.GetNodes)
 		})
+
+		r.Route("/jobs", func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(master.IDMgr))
+
+			r.With(middleware.RequireScope(master, "read:jobs")).
+				Get("/", master.ListJobs)
+
+			r.With(middleware.RequireScope(master, "execute:jobs")).
+				Post("/{job_name}/run", master.RunJob)
+
+			r.With(middleware.RequireScope(master, "read:jobs")).
+				Get("/runs", master.ListJobRuns)
+
+			r.With(middleware.RequireScope(master, "read:jobs")).
+				Get("/runs/{run_id}", master.GetJobRun)
+		})
 	})
+	if metricsMgr != nil && metricsMgr.Enabled && metricsMgr.Registry != nil {
+		r.With(
+			middleware.AuthMiddleware(master.IDMgr),
+			middleware.RequireScope(master, "metrics:read"),
+		).Get("/metrics", promhttp.HandlerFor(metricsMgr.Registry, promhttp.HandlerOpts{}).ServeHTTP)
+	}
 }
 
 func generateSelfSignedCert(subject string) (certPEM, keyPEM []byte, err error) {

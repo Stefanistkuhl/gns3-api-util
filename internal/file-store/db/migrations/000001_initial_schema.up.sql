@@ -1,19 +1,24 @@
-PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS blobs (
+    sha256 TEXT PRIMARY KEY NOT NULL,
+    file_path TEXT UNIQUE NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    ref_count INTEGER NOT NULL DEFAULT 0 CHECK(ref_count >= 0),
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    last_verified_at TEXT
+);
 
 CREATE TABLE IF NOT EXISTS files (
     file_uuid TEXT PRIMARY KEY NOT NULL,
-    file_path TEXT NOT NULL DEFAULT '',
+    blob_sha256 TEXT,
     filename TEXT NOT NULL,
-    size_bytes INTEGER NOT NULL,
-    checksum_sha256 TEXT NOT NULL DEFAULT '',
     content_type TEXT NOT NULL,
-    scope_label TEXT NOT NULL,
     owner_id TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_accessed_at DATETIME,
-    STATUS TEXT CHECK(
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    last_accessed_at TEXT,
+    STATUS TEXT NOT NULL CHECK(
         STATUS IN (
             'pending',
             'uploading',
@@ -21,10 +26,12 @@ CREATE TABLE IF NOT EXISTS files (
             'tombstoned'
         )
     ) DEFAULT 'pending',
-    retention_period INTEGER DEFAULT NULL,
-    FOREIGN KEY(bucket_id) REFERENCES buckets(bucket_id) ON DELETE
-    SET
-        NULL
+    retention_period INTEGER DEFAULT NULL CHECK (
+        retention_period IS NULL
+        OR retention_period >= 0
+    ),
+    FOREIGN KEY(blob_sha256) REFERENCES blobs(sha256) ON DELETE RESTRICT,
+    FOREIGN KEY(bucket_id) REFERENCES buckets(bucket_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS vm_images (
@@ -73,24 +80,24 @@ CREATE TABLE IF NOT EXISTS buckets (
     bucket_type TEXT NOT NULL DEFAULT 'standard',
     is_public BOOLEAN DEFAULT FALSE,
     required_scopes TEXT DEFAULT '',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
 );
 
 CREATE TABLE IF NOT EXISTS public_file_tokens (
     token TEXT PRIMARY KEY NOT NULL,
     file_uuid TEXT NOT NULL,
     bucket_id TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    expires_at DATETIME,
-    access_count INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    expires_at TEXT,
+    access_count INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY(file_uuid) REFERENCES files(file_uuid) ON DELETE CASCADE,
     FOREIGN KEY(bucket_id) REFERENCES buckets(bucket_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_files_uuid ON files(file_uuid);
+CREATE INDEX IF NOT EXISTS idx_blob_sha256 ON blobs(sha256);
 
-CREATE INDEX IF NOT EXISTS idx_files_scope ON files(scope_label);
+CREATE INDEX IF NOT EXISTS idx_files_blob_sha256 ON files(blob_sha256);
 
 CREATE INDEX IF NOT EXISTS idx_files_status ON files(STATUS);
 
@@ -99,6 +106,10 @@ CREATE INDEX IF NOT EXISTS idx_files_bucket ON files(bucket_id);
 CREATE INDEX IF NOT EXISTS idx_vm_format ON vm_images(format);
 
 CREATE INDEX IF NOT EXISTS idx_public_tokens ON public_file_tokens(token);
+
+CREATE INDEX IF NOT EXISTS idx_public_uuid ON public_file_tokens(file_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_blobs_ref_count ON blobs(ref_count);
 
 INSERT INTO
     buckets (bucket_id, name, owner_id, is_public)

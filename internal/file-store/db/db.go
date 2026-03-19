@@ -16,7 +16,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	_ "modernc.org/sqlite"
+	_ "turso.tech/database/tursogo"
 )
 
 //go:embed migrations/*.sql
@@ -40,7 +40,7 @@ type DBTX interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-func NewStore(dbPath string) (*Store, error) {
+func NewStore(dbPath string, isPrimary bool) (*Store, error) {
 	if dbPath == "" {
 		dbPath = filepath.Join("data", "file-store.db")
 	}
@@ -49,26 +49,35 @@ func NewStore(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 
-	dsn := fmt.Sprintf(
-		"file:%s?_foreign_keys=on&_busy_timeout=5000&_journal_mode=WAL&_synchronous=NORMAL",
-		dbPath,
-	)
+	if isPrimary {
+		migrationDB, err := sql.Open("turso", dbPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open migration db: %w", err)
+		}
+		defer migrationDB.Close()
 
-	db, err := sql.Open("sqlite", dsn)
+		if err := runMigrations(migrationDB); err != nil {
+			return nil, fmt.Errorf("migration failed: %w", err)
+		}
+	}
+
+	db, err := sql.Open("turso", dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := runMigrations(db); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("migration failed: %w", err)
+	setupSQL := `
+        PRAGMA foreign_keys = ON;
+        PRAGMA journal_mode = 'experimental_mvcc';
+        PRAGMA busy_timeout = 5000;
+	`
+	if _, err := db.ExecContext(context.Background(), setupSQL); err != nil {
+		return nil, fmt.Errorf("failed to initialize turso engine: %w", err)
 	}
 
 	tracer := otel.Tracer("file-store-db")
-	tracedDB := &TracedDB{inner: db, tracer: tracer}
-
 	return &Store{
-		Queries: sqlc_file_store.New(tracedDB),
+		Queries: sqlc_file_store.New(&TracedDB{inner: db, tracer: tracer}),
 		DB:      db,
 		tracer:  tracer,
 	}, nil
@@ -98,17 +107,32 @@ func runMigrations(db *sql.DB) error {
 	return nil
 }
 
-func (s *Store) WithTx(ctx context.Context, fn func(*sqlc_file_store.Queries) error) error {
-	tx, err := s.DB.BeginTx(ctx, nil)
+func (s *Store) WithTx(
+	ctx context.Context,
+	fn func(*sqlc_file_store.Queries) error,
+) (err error) {
+	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
 	}
 
-	tracedTx := &TracedDB{inner: tx, tracer: s.tracer}
-	q := sqlc_file_store.New(tracedTx)
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
 
-	if err := fn(q); err != nil {
-		_ = tx.Rollback()
+	q := sqlc_file_store.New(&TracedDB{
+		inner:  tx,
+		tracer: s.tracer,
+	})
+
+	err = fn(q)
+	if err != nil {
 		return err
 	}
 

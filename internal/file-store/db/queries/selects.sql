@@ -1,12 +1,9 @@
 -- name: GetFileByUUID :one
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -22,12 +19,9 @@ WHERE
 -- name: ListFiles :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -43,12 +37,9 @@ ORDER BY
 -- name: ListFilesByOwner :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -63,38 +54,12 @@ WHERE
 ORDER BY
     created_at DESC;
 
--- name: ListFilesByScope :many
-SELECT
-    file_uuid,
-    file_path,
-    filename,
-    size_bytes,
-    checksum_sha256,
-    content_type,
-    scope_label,
-    owner_id,
-    bucket_id,
-    created_at,
-    updated_at,
-    last_accessed_at,
-    STATUS,
-    retention_period
-FROM
-    files
-WHERE
-    scope_label = ?
-ORDER BY
-    created_at DESC;
-
 -- name: ListFilesByBucket :many
 SELECT
     file_uuid,
-    file_path,
+    blob_sha256,
     filename,
-    size_bytes,
-    checksum_sha256,
     content_type,
-    scope_label,
     owner_id,
     bucket_id,
     created_at,
@@ -228,3 +193,107 @@ WHERE
     AND name = 'default'
 LIMIT
     1;
+
+-- name: GetFilesWithStatus :many
+SELECT
+    file_uuid,
+    blob_sha256,
+    filename,
+    content_type,
+    owner_id,
+    bucket_id,
+    created_at,
+    updated_at,
+    last_accessed_at,
+    STATUS,
+    retention_period
+FROM
+    files
+WHERE
+    STATUS = ?;
+
+-- name: GetFilesWithPassedRetention :many
+SELECT
+    file_uuid
+FROM
+    files
+WHERE
+    retention_period > 0
+    AND datetime(created_at, '+' || retention_period || ' hours') < datetime('now');
+
+-- name: GetBlobBySHA256 :one
+SELECT
+    sha256,
+    file_path,
+    size_bytes,
+    ref_count,
+    created_at,
+    updated_at,
+    last_verified_at
+FROM
+    blobs
+WHERE
+    sha256 = ?;
+
+-- name: GetUnreferencedBlobs :many
+SELECT
+    sha256,
+    file_path
+FROM
+    blobs
+WHERE
+    ref_count <= 0;
+
+-- name: ListFilesByBucketWithBlob :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.last_accessed_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes
+FROM
+    files f
+    JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.bucket_id = ?
+ORDER BY
+    f.created_at DESC;
+
+-- name: GetFileWithBlobByUUID :one
+SELECT
+    f.file_uuid,
+    f.blob_sha256,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.last_accessed_at,
+    f.status,
+    f.retention_period,
+    b.file_path,
+    b.size_bytes,
+    b.ref_count
+FROM
+    files f
+    JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.file_uuid = ?;
+
+-- name: GetBlobByFileUUID :one
+SELECT
+    blob_sha256,
+    blobs.file_path
+FROM
+    files
+    JOIN blobs ON blobs.sha256 = files.blob_sha256
+WHERE
+    file_uuid = ?;

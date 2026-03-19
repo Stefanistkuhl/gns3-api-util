@@ -62,6 +62,11 @@ linters:
         linters:
           - errcheck
 
+      # Ignore error return on Fprintf to stdout/stderr
+      - text: "Error return value of `.*Fprintf.*` is not checked"
+        linters:
+          - errcheck
+
       # Ignore err shadow in defer
       - text: 'shadow: declaration of "err"'
         source: "defer "

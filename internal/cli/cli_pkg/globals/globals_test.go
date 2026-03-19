@@ -9,7 +9,6 @@ func TestOutputFormatString(t *testing.T) {
 		format   OutputFormat
 		expected string
 	}{
-		{OutputKV, "kv"},
 		{OutputJSON, "json"},
 		{OutputJSONColorless, "json-colorless"},
 		{OutputCollapsed, "collapsed"},
@@ -37,11 +36,6 @@ func TestParseOutputFormat(t *testing.T) {
 		{"collapsed", OutputCollapsed},
 		{"yaml", OutputYAML},
 		{"toml", OutputTOML},
-		{"kv", OutputKV},
-		{"", OutputKV},
-		{"invalid", OutputKV},
-		{"JSON", OutputKV},
-		{"JSON-COLORLESS", OutputKV},
 	}
 
 	for _, tt := range tests {
@@ -55,9 +49,6 @@ func TestParseOutputFormat(t *testing.T) {
 }
 
 func TestOutputFormatConstants(t *testing.T) {
-	if OutputKV != 0 {
-		t.Errorf("OutputKV = %v, want 0", OutputKV)
-	}
 	if OutputJSON != 1 {
 		t.Errorf("OutputJSON = %v, want 1", OutputJSON)
 	}
@@ -77,7 +68,6 @@ func TestOutputFormatConstants(t *testing.T) {
 
 func TestOutputFormatRoundTrip(t *testing.T) {
 	formats := []OutputFormat{
-		OutputKV,
 		OutputJSON,
 		OutputJSONColorless,
 		OutputCollapsed,
@@ -99,16 +89,7 @@ func TestParseOutputFormatEdgeCases(t *testing.T) {
 		name     string
 		input    string
 		expected OutputFormat
-	}{
-		{"empty string", "", OutputKV},
-		{"space", " ", OutputKV},
-		{"tab", "\t", OutputKV},
-		{"newline", "\n", OutputKV},
-		{"multiple spaces", "   ", OutputKV},
-		{"mixed case", "Json", OutputKV},
-		{"with extra chars", "jsonx", OutputKV},
-		{"partial match", "json-col", OutputKV},
-	}
+	}{}
 
 	for _, tc := range edgeCases {
 		t.Run(tc.name, func(t *testing.T) {

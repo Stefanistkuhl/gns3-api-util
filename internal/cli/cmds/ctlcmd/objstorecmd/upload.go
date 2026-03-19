@@ -1,7 +1,6 @@
 package objstorecmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 
@@ -19,6 +18,18 @@ type UploadResult struct {
 	FilestoreURL string                         `json:"filestore_url"`
 	Filename     string                         `json:"filename"`
 	Response     *models.FinalizeUploadResponse `json:"response"`
+}
+
+func (u UploadResult) GetHeaders() []string {
+	return []string{"FILESTORE ID", "FILENAME", "STATUS"}
+}
+
+func (u UploadResult) GetRow() []string {
+	return []string{
+		u.FilestoreID,
+		u.Filename,
+		"Complete",
+	}
 }
 
 func NewUploadCmd() *cobra.Command {
@@ -93,39 +104,27 @@ func NewUploadCmd() *cobra.Command {
 				}
 			} else {
 				if len(available) > 1 {
-					type fsOption struct {
-						ID  string `json:"filestore_id"`
-						URL string `json:"filestore_url"`
-					}
-					var options []fsOption
+					var optionIDs []string
 					for _, fs := range available {
-						options = append(options, fsOption{ID: fs.ID, URL: fs.URL})
+						optionIDs = append(optionIDs, fs.ID)
 					}
-
-					body, _ := json.Marshal(struct {
-						Error   string     `json:"error"`
-						Message string     `json:"message"`
-						Options []fsOption `json:"options"`
-					}{
-						Error:   "ambiguous filestore selection",
-						Message: "Multiple filestores detected. Specify one with --filestore-id",
-						Options: options,
-					})
-
-					utils.PrintOutput(body, cfg)
-
-					return fmt.Errorf("ambiguous filestore selection")
+					return fmt.Errorf("ambiguous filestore selection. Multiple filestores detected %v. Specify one with --filestore-id", optionIDs)
 				}
 				filestore = &available[0]
 			}
 
 			uploadReq := models.InitUploadRequest{
-				ScopeLabel:      scope,
-				ContentType:     contentType,
-				RetentionPeriod: retention,
-				Filename:        filepath.Base(filePath),
-				BucketID:        models.GlobalBucketID,
+				ContentType: contentType,
+				Filename:    filepath.Base(filePath),
+				BucketID:    models.GlobalBucketID,
 			}
+			if cmd.Flags().Changed("retention") {
+				uploadReq.RetentionPeriod = &retention
+			} else {
+				uploadReq.RetentionPeriod = nil
+			}
+
+			fmt.Fprintf(cmd.ErrOrStderr(), "Uploading %s to %s...\n", uploadReq.Filename, filestore.ID)
 
 			resp, err := helpers.RunUpload(
 				filestore.URL,
@@ -137,6 +136,7 @@ func NewUploadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
 			result := UploadResult{
 				FilestoreID:  filestore.ID,
 				FilestoreURL: filestore.URL,
@@ -144,21 +144,19 @@ func NewUploadCmd() *cobra.Command {
 				Response:     resp,
 			}
 
-			body, err := json.Marshal(result)
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
 			if err != nil {
-				return fmt.Errorf("failed to marshal upload result: %w", err)
+				return fmt.Errorf("printer setup failed: %w", err)
 			}
 
-			utils.PrintOutput(body, cfg)
-
-			return nil
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 
 	cmd.Flags().StringVar(&fileStoreName, "filestore-id", "", "Specific filestore node ID")
 	cmd.Flags().StringVarP(&scope, "scope", "", "default", "Storage scope/label (e.g. 'iso', 'images')")
 	cmd.Flags().StringVarP(&contentType, "type", "t", "application/octet-stream", "Explicit Content-Type for the file")
-	cmd.Flags().Int64VarP(&retention, "retention", "r", 0, "Retention period in hours (0 = permanent)")
+	cmd.Flags().Int64VarP(&retention, "retention", "r", 0, "Retention period in hours (unset = permanent)")
 
 	return cmd
 }

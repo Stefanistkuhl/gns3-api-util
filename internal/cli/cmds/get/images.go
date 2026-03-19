@@ -6,7 +6,6 @@ import (
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/fuzzy"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/spf13/cobra"
 	"github.com/tidwall/gjson"
@@ -121,11 +120,7 @@ func NewGetImageCmd() *cobra.Command {
 				buf.WriteByte(']')
 
 				toPrint := buf.Bytes()
-				if cfg.OutputFormat != globals.OutputKV {
-					utils.PrintOutput(toPrint, cfg)
-				} else {
-					utils.PrintKV(toPrint)
-				}
+				utils.PrintOutput(toPrint, cfg)
 			} else {
 				path := args[0]
 				utils.ExecuteAndPrint(cfg, "getImage", []string{path})

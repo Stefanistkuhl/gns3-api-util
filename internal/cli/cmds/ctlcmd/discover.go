@@ -1,7 +1,6 @@
 package ctlcmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -14,10 +13,46 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/mdns"
 )
 
+type DiscoveredMasterRow struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+}
+
+func (d DiscoveredMasterRow) GetHeaders() []string {
+	return []string{"HOSTNAME", "ADDRESS", "PORT"}
+}
+
+func (d DiscoveredMasterRow) GetRow() []string {
+	return []string{
+		d.Name,
+		d.Address,
+		fmt.Sprintf("%d", d.Port),
+	}
+}
+
+type NodeSyncResult struct {
+	Cluster string `json:"cluster"`
+	Action  string `json:"action"`
+	Status  string `json:"status"`
+}
+
+func (n NodeSyncResult) GetHeaders() []string {
+	return []string{"CLUSTER", "ACTION", "STATUS"}
+}
+
+func (n NodeSyncResult) GetRow() []string {
+	return []string{
+		n.Cluster,
+		n.Action,
+		n.Status,
+	}
+}
+
 func NewAddDiscoverCMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "discover",
-		Short: "Subcommand for discovering clusters and their servcices",
+		Short: "Subcommand for discovering clusters and their services",
 		Long:  `Used to discover clusters and their services.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			_ = cmd.Help()
@@ -34,7 +69,7 @@ func NewDiscoverClusterCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cluster",
 		Short: "discover a cluster master using mdns",
-		Long:  `Discover a cluster master using mdns. This doenst check for authenticity of the master in anway and just displays avaliable masters on the network.`,
+		Long:  `Discover a cluster master using mdns. This doesn't check for authenticity of the master in any way and just displays available masters on the network.`,
 		Annotations: map[string]string{
 			"auth-mode": "none",
 		},
@@ -44,23 +79,33 @@ func NewDiscoverClusterCmd() *cobra.Command {
 				return fmt.Errorf("failed to get global options: %w", err)
 			}
 
+			fmt.Fprintf(cmd.ErrOrStderr(), "Listening for mDNS responses for %v...\n", timeout)
+
 			peers, err := mdns.BrowseMasters(cmd.Context(), timeout)
 			if err != nil {
 				return fmt.Errorf("failed to discover masters: %w", err)
 			}
 
 			if len(peers) == 0 {
-				fmt.Println("No cluster masters discovered")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No cluster masters discovered")
 				return nil
 			}
 
-			body, err := json.Marshal(peers)
-			if err != nil {
-				return fmt.Errorf("failed to marshal discovery results: %w", err)
+			var records []utils.TableRecord
+			for _, p := range peers {
+				records = append(records, DiscoveredMasterRow{
+					Name:    p.Instance,
+					Address: p.Address,
+					Port:    p.Port,
+				})
 			}
 
-			utils.PrintOutput(body, cfg)
-			return nil
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(records, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Second,
@@ -83,23 +128,24 @@ func NewDiscoverNodesCmd() *cobra.Command {
 				return err
 			}
 
-			if err := ctlhelpers.DiscoverAndSyncNodes(cmd.Context(), cfg); err != nil {
-				return err
+			fmt.Fprintf(cmd.ErrOrStderr(), "Syncing nodes for cluster %q...\n", cfg.Cluster)
+
+			if syncErr := ctlhelpers.DiscoverAndSyncNodes(cmd.Context(), cfg); syncErr != nil {
+				return syncErr
 			}
 
-			status := struct {
-				Cluster string `json:"cluster"`
-				Action  string `json:"action"`
-				Status  string `json:"status"`
-			}{
+			result := NodeSyncResult{
 				Cluster: cfg.Cluster,
 				Action:  "sync_nodes",
 				Status:  "success",
 			}
 
-			body, _ := json.Marshal(status)
-			utils.PrintOutput(body, cfg)
-			return nil
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 	return cmd

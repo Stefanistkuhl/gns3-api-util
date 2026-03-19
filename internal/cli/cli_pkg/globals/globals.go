@@ -3,24 +3,24 @@ package globals
 type OutputFormat int
 
 const (
-	OutputKV OutputFormat = iota
-	OutputJSON
+	OutputJSON OutputFormat = iota
 	OutputJSONColorless
 	OutputCollapsed
 	OutputYAML
 	OutputTOML
 	OutputTable
+	OutputTableASCII
 )
 
 func (o OutputFormat) String() string {
 	return [...]string{
-		"kv",
 		"json",
 		"json-colorless",
 		"collapsed",
 		"yaml",
 		"toml",
 		"table",
+		"table-ascii",
 	}[o]
 }
 
@@ -38,7 +38,9 @@ func ParseOutputFormat(s string) OutputFormat {
 		return OutputTOML
 	case "table":
 		return OutputTable
+	case "plain", "table-ascii":
+		return OutputTableASCII
 	default:
-		return OutputKV
+		return OutputJSON
 	}
 }

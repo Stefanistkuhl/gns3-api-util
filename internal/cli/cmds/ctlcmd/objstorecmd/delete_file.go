@@ -1,7 +1,6 @@
 package objstorecmd
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -9,9 +8,26 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
-	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 )
+
+type FileDeleteResult struct {
+	FilestoreID string `json:"filestore_id"`
+	FileUUID    string `json:"file_uuid"`
+	Status      string `json:"status"`
+}
+
+func (f FileDeleteResult) GetHeaders() []string {
+	return []string{"FILESTORE ID", "FILE UUID", "STATUS"}
+}
+
+func (f FileDeleteResult) GetRow() []string {
+	return []string{
+		f.FilestoreID,
+		f.FileUUID,
+		f.Status,
+	}
+}
 
 func NewDeleteFileCmd() *cobra.Command {
 	var fileStoreName string
@@ -24,14 +40,9 @@ func NewDeleteFileCmd() *cobra.Command {
 		},
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.GetGlobalOptionsFromContext(
-				cmd.Context(),
-			)
+			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
-				return fmt.Errorf(
-					"failed to get global options: %w",
-					err,
-				)
+				return fmt.Errorf("failed to get global options: %w", err)
 			}
 
 			fileUUID := args[0]
@@ -55,24 +66,17 @@ func NewDeleteFileCmd() *cobra.Command {
 			}
 
 			if targetCluster == nil {
-				return fmt.Errorf(
-					"cluster %q not found in keys file",
-					clusterName,
-				)
+				return fmt.Errorf("cluster %q not found in keys file", clusterName)
 			}
 
 			cfg.ClusterEntry.CaCert = targetCluster.CaCert
 
-			filestore, err := selectFilestore(
-				targetCluster,
-				fileStoreName,
-			)
+			filestore, err := selectFilestore(targetCluster, fileStoreName)
 			if err != nil {
 				return err
 			}
 
-			var resp *models.DeleteFileResponse
-			resp, err = helpers.RunDeleteFile(
+			_, err = helpers.RunDeleteFile(
 				filestore.URL,
 				cfg.ClusterEntry.Master.AccessToken,
 				fileUUID,
@@ -81,22 +85,23 @@ func NewDeleteFileCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			body, err := json.Marshal(resp)
-			if err != nil {
-				return fmt.Errorf("failed to marshal upload result: %w", err)
+
+			result := FileDeleteResult{
+				FilestoreID: filestore.ID,
+				FileUUID:    fileUUID,
+				Status:      "Deleted",
 			}
 
-			utils.PrintOutput(body, cfg)
-			return nil
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return fmt.Errorf("printer setup failed: %w", err)
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 
-	cmd.Flags().StringVar(
-		&fileStoreName,
-		"filestore-id",
-		"",
-		"Specific filestore node ID",
-	)
+	cmd.Flags().StringVar(&fileStoreName, "filestore-id", "", "Specific filestore node ID")
 
 	return cmd
 }

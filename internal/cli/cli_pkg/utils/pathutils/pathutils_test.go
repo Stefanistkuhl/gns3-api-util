@@ -75,10 +75,11 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 	t.Run("non-existent file", func(t *testing.T) {
 		kf, err := LoadGNS3KeysFile(filepath.Join(tempDir, "nonexistent"))
 		if err != nil {
-			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+			t.Fatalf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
 		if kf == nil {
 			t.Fatal("LoadGNS3KeysFile() should return non-nil KeyFileV2")
+			return
 		}
 		if len(kf.StandaloneGNS3) != 0 {
 			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", kf.StandaloneGNS3)
@@ -94,10 +95,11 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 
 		kf, err := LoadGNS3KeysFile(emptyFile)
 		if err != nil {
-			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+			t.Fatalf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
 		if kf == nil {
 			t.Fatal("LoadGNS3KeysFile() should return non-nil KeyFileV2")
+			return
 		}
 		if len(kf.StandaloneGNS3) != 0 {
 			t.Errorf("LoadGNS3KeysFile() = %v, want empty slice", kf.StandaloneGNS3)
@@ -125,10 +127,11 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 
 		kf, err := LoadGNS3KeysFile(keyFile)
 		if err != nil {
-			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+			t.Fatalf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
 		if kf == nil {
 			t.Fatal("LoadGNS3KeysFile() returned nil")
+			return
 		}
 		if len(kf.StandaloneGNS3) != 1 {
 			t.Fatalf("LoadGNS3KeysFile() = %v, want 1 key", len(kf.StandaloneGNS3))
@@ -184,10 +187,11 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 
 		kf, err := LoadGNS3KeysFile(keyFile)
 		if err != nil {
-			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+			t.Fatalf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
 		if kf == nil {
 			t.Fatal("LoadGNS3KeysFile() returned nil")
+			return
 		}
 		if len(kf.StandaloneGNS3) != 2 {
 			t.Fatalf("LoadGNS3KeysFile() = %v, want 2 keys", len(kf.StandaloneGNS3))
@@ -228,10 +232,11 @@ func TestLoadGNS3KeysFile(t *testing.T) {
 
 		loadedKf, err := LoadGNS3KeysFile(keyFile)
 		if err != nil {
-			t.Errorf("LoadGNS3KeysFile() error = %v, want nil", err)
+			t.Fatalf("LoadGNS3KeysFile() error = %v, want nil", err)
 		}
 		if loadedKf == nil {
 			t.Fatal("LoadGNS3KeysFile() returned nil")
+			return
 		}
 		if loadedKf.Version != 2 {
 			t.Errorf("Version = %v, want 2", loadedKf.Version)

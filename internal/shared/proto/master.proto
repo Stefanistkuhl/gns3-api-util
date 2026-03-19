@@ -3,16 +3,29 @@ package master;
 
 option go_package = "github.com/0xveya/gns3util/internal/shared/pb/master";
 
-message PermissionCheckRequest {
+message CheckPermissionRequest {
   string user_id = 1;
   string jti = 2;
-  string scope = 3;
+  string role = 3;
+  string scope = 4;
 }
 
-message PermissionCheckResponse {
+message CheckPermissionResponse {
   bool allowed = 1;
 }
 
+message RegisterJobRequest {
+  string job_name = 1;
+  string node_id = 2;
+  string interval = 3;
+  string description = 4;
+}
+
+message RegisterJobResponse {
+  bool success = 1;
+}
+
 service MasterSyncService {
-  rpc CheckPermission(PermissionCheckRequest) returns (PermissionCheckResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  rpc RegisterJob(RegisterJobRequest) returns (RegisterJobResponse);
 }

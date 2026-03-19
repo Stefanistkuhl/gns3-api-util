@@ -18,18 +18,22 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
+	backgroundjobs "github.com/0xveya/gns3util/internal/file-store/backroundjobs"
 	dbpkg "github.com/0xveya/gns3util/internal/file-store/db"
 	"github.com/0xveya/gns3util/internal/file-store/fs"
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
 	"github.com/0xveya/gns3util/pkg/env"
+	"github.com/0xveya/gns3util/pkg/metrics"
 	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/otel"
 	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/auth"
 	"github.com/0xveya/gns3util/pkg/web/certs"
 	commonhandlers "github.com/0xveya/gns3util/pkg/web/common_handlers"
-	"golang.org/x/sync/errgroup"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/quic-go/quic-go/http3"
@@ -40,20 +44,25 @@ import (
 )
 
 type FilestoreConfig struct {
-	NodeName      string `env:"FILE_STORE_NODE_NAME" type:"string" default:"filestore-1"`
-	Port          int    `env:"FILE_STORE_API_PORT" type:"port" default:"443"`
-	DrpcPort      int    `env:"FILE_STORE_DRPC_PORT" type:"port" default:"2749"`
-	ListenAddr    string `env:"FILE_STORE_API_LISTEN_ADDR" type:"listen" default:"0.0.0.0"`
-	AdvertiseAddr string `env:"FILE_STORE_ADVERTISE_ADDR" type:"string" default:"localhost"`
-	MasterAPIURL  string `env:"MASTER_API_URL" type:"url" default:"https://localhost:8443"`
-	MasterDRPC    string `env:"MASTER_DRPC_ADDR" type:"string" default:"localhost:2748"`
-	ClusterPubKey string `env:"CLUSTER_PUB_KEY" type:"string" required:"true"`
-	TLSDir        string `env:"FILE_STORE_TLS_DIR" type:"string" default:"/data/filestore/tls/"`
-	OTELEndpoint  string `env:"OTEL_ENDPOINT" type:"string" default:""`
-	AppName       string `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
-	JoinToken     string `env:"JOIN_TOKEN" type:"string" default:""`
-	DBPath        string `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
-	DataDir       string `env:"FILE_STORE_DATA_PATH" type:"string" default:"/data/storrage/"`
+	NodeName                   string        `env:"FILE_STORE_NODE_NAME" type:"string" default:"filestore-1"`
+	Port                       int           `env:"FILE_STORE_API_PORT" type:"port" default:"443"`
+	DrpcPort                   int           `env:"FILE_STORE_DRPC_PORT" type:"port" default:"2749"`
+	ListenAddr                 string        `env:"FILE_STORE_API_LISTEN_ADDR" type:"listen" default:"0.0.0.0"`
+	AdvertiseAddr              string        `env:"FILE_STORE_ADVERTISE_ADDR" type:"string" default:"localhost"`
+	MasterAPIURL               string        `env:"MASTER_API_URL" type:"url" default:"https://localhost:8443"`
+	MasterDRPC                 string        `env:"MASTER_DRPC_ADDR" type:"string" default:"localhost:2748"`
+	ClusterPubKey              string        `env:"CLUSTER_PUB_KEY" type:"string" required:"true"`
+	TLSDir                     string        `env:"FILE_STORE_TLS_DIR" type:"string" default:"/data/filestore/tls/"`
+	OTELEndpoint               string        `env:"OTEL_ENDPOINT" type:"string" default:""`
+	AppName                    string        `env:"APP_NAME" type:"string" default:"gns3util-cluster"`
+	JoinToken                  string        `env:"JOIN_TOKEN" type:"string" default:""`
+	DBPath                     string        `env:"FILE_STORE_DB_PATH" type:"string" default:"/data/sqlite/file-store.db"`
+	DataDir                    string        `env:"FILE_STORE_DATA_PATH" type:"string" default:"/data/storrage/"`
+	VacuumInterval             time.Duration `env:"FILE_STORE_VACUUM_INTERVAL" type:"duration" default:"60m"`
+	TombstoneRemoveInterval    time.Duration `env:"FILE_STORE_TOMBSTONE_EXPIRY" type:"duration" default:"1440m"`
+	PendingFileRemoveInterval  time.Duration `env:"FILE_STORE_PENDING_EXPIRY" type:"duration" default:"360m"`
+	NoWriteSinceUploadInterval time.Duration `env:"FILE_STORE_STALLED_UPLOAD_EXPIRY" type:"duration" default:"120m"`
+	MetricsEnabled             bool          `env:"METRICS_ENABLED" type:"bool" default:"true"`
 }
 
 var (
@@ -93,6 +102,33 @@ func main() {
 
 	logger = slog.New(handler).With("prefix", cfg.AppName)
 
+	metricsMgr := metrics.New(metrics.Config{
+		Enabled: cfg.MetricsEnabled,
+	})
+
+	httpMetrics := metrics.NewHTTPMetrics()
+	drpcMetrics := metrics.NewDRPCMetrics()
+	storageMetrics := metrics.NewStorageMetrics()
+	jobMetrics := metrics.NewJobMetrics()
+
+	metricsMgr.Register(
+		httpMetrics.RequestsTotal,
+		httpMetrics.RequestDuration,
+		httpMetrics.InFlightRequests,
+		drpcMetrics.RequestsTotal,
+		drpcMetrics.RequestLatency,
+		drpcMetrics.ErrorsTotal,
+		storageMetrics.FileWritesTotal,
+		storageMetrics.FileWriteBytes,
+		storageMetrics.FileWriteDuration,
+		storageMetrics.FileReadDuration,
+		storageMetrics.ActiveUploads,
+		jobMetrics.RunsTotal,
+		jobMetrics.RunDuration,
+		jobMetrics.ItemsProcessed,
+		jobMetrics.ErrorsTotal,
+	)
+
 	certPath := filepath.Join(cfg.TLSDir, "node.crt")
 	keyPath := filepath.Join(cfg.TLSDir, "node.key")
 	caPath := filepath.Join(cfg.TLSDir, "ca.crt")
@@ -125,7 +161,8 @@ func main() {
 		return
 	}
 
-	dbStore, err := dbpkg.NewStore(cfg.DBPath)
+	// TODO: make this configurable once syncing is implemented
+	dbStore, err := dbpkg.NewStore(cfg.DBPath, true)
 	if err != nil {
 		logger.Error("Failed to open sqlite store", "err", err)
 		return
@@ -164,16 +201,28 @@ func main() {
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigChan)
 
 	go func() {
-		<-sigChan
-		logger.Info("Shutting down...")
+		sig := <-sigChan
+		logger.Info("Shutdown signal received", "signal", sig)
 		cancel()
-		os.Exit(0)
 	}()
 
+	vacuumJob := &backgroundjobs.DBVacuumJob{
+		Store:                      dbStore,
+		Interval:                   cfg.VacuumInterval,
+		Logger:                     logger,
+		TombstoneRemoveInterval:    cfg.TombstoneRemoveInterval,
+		PendingFileRemoveInterval:  cfg.PendingFileRemoveInterval,
+		NoWriteSinceUploadInterval: cfg.NoWriteSinceUploadInterval,
+		Dirs:                       fsState,
+	}
+
+	registerJobsWithMaster(ctx, masterClient, vacuumJob)
+
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, masterClient, dbStore, otlpEnabled, fsState)
+	setupRouter(r, idMgr, masterClient, dbStore, otlpEnabled, fsState, metricsMgr, vacuumJob)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -213,25 +262,50 @@ func main() {
 	})
 
 	g.Go(func() error {
+		logger.Info("Starting DB vaccum job")
+		vacuumJob.Run(groupCtx)
+		return nil
+	})
+
+	g.Go(func() error {
 		<-groupCtx.Done()
-		logger.Info("Shutdown signal received, closing servers...")
+		logger.Info("Shutting down filestore services")
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
+		shutdownCtx, shutdownCancel := context.WithTimeout(
+			context.Background(),
+			10*time.Second,
+		)
+		defer shutdownCancel()
 
-		stopErr := tcpServer.Shutdown(shutdownCtx)
-		if stopErr != nil {
-			logger.Error("Error shutting down TCP server", "err", stopErr)
+		if err := tcpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error("TCP server shutdown error", "err", err)
 		}
-		closeErr := h3Server.Close()
-		if closeErr != nil {
-			logger.Error("Error shutting down HTTP/3 server", "err", closeErr)
+
+		if h3Server != nil {
+			if err := h3Server.Close(); err != nil {
+				logger.Error("HTTP/3 server close error", "err", err)
+			}
 		}
+
+		if masterClient != nil {
+			if err := masterClient.Close(); err != nil {
+				logger.Error("Master client close error", "err", err)
+			}
+		}
+
+		if dbStore != nil && dbStore.DB != nil {
+			if err := dbStore.DB.Close(); err != nil {
+				logger.Error("DB close error", "err", err)
+			}
+		}
+
 		return nil
 	})
 
 	if err := g.Wait(); err != nil {
 		logger.Error("Execution stopped with error", "err", err)
+	} else {
+		logger.Info("Filestore exited cleanly")
 	}
 }
 
@@ -242,15 +316,26 @@ func setupRouter(
 	store *dbpkg.Store,
 	otelEnabled bool,
 	dirs fs.Dirs,
+	metricsMgr *metrics.Manager,
+	vacuumJob *backgroundjobs.DBVacuumJob,
 ) {
 	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
+	r.NotFound(commonhandlers.Handle404)
+	r.MethodNotAllowed(commonhandlers.Handle405)
 	r.Get("/healthz", commonhandlers.HandleHealthz)
 
+	jobRunners := map[string]handlers.JobRunnerFunc{
+		"db-vacuum": func(ctx context.Context, invokedBy backgroundjobs.Invocator) (any, error) {
+			return vacuumJob.ExecuteIteration(ctx, invokedBy)
+		},
+	}
+
 	fileStoreHandlers := &handlers.FilestoreHandlers{
-		Store:  store,
-		Logger: logger,
-		Dirs:   &dirs,
+		Store:      store,
+		Logger:     logger,
+		Dirs:       &dirs,
+		JobRunners: jobRunners,
 	}
 
 	r.Route("/api/v1", func(r chi.Router) {
@@ -275,7 +360,6 @@ func setupRouter(
 		})
 
 		r.Route("/files", func(r chi.Router) {
-			// Upload standalone file (no bucket)
 			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
 				Post("/", fileStoreHandlers.HandleInitUpload)
 
@@ -299,9 +383,34 @@ func setupRouter(
 		})
 
 		r.Route("/public", func(r chi.Router) {
-			r.Get("/files/{token}", fileStoreHandlers.PublicFileHandler)
+			r.Get("/files/{bucket_id}/{token}", fileStoreHandlers.PublicFileHandler)
+		})
+
+		r.Route("/jobs", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, "execute:jobs")).
+				Post("/{job_name}/run", fileStoreHandlers.RunJob)
 		})
 	})
+	if metricsMgr != nil && metricsMgr.Enabled && metricsMgr.Registry != nil {
+		r.With(
+			middleware.AuthMiddleware(idMgr),
+			middleware.RequireScopeRemote(masterClient, "metrics:read"),
+		).Get("/metrics", promhttp.HandlerFor(metricsMgr.Registry, promhttp.HandlerOpts{}).ServeHTTP)
+	}
+}
+
+func registerJobsWithMaster(ctx context.Context, client *filerpc.MasterSyncClient, vacuumJob *backgroundjobs.DBVacuumJob) {
+	if err := client.RegisterJob(
+		ctx,
+		"db-vacuum",
+		cfg.NodeName,
+		vacuumJob.Interval.String(),
+		"Cleans up expired files, stalled uploads, orphaned blobs, and temporary files",
+	); err != nil {
+		logger.Warn("Failed to register db-vacuum job with master", "err", err)
+	} else {
+		logger.Info("Registered db-vacuum job with master")
+	}
 }
 
 func bootstrapCertificates(

@@ -1,16 +1,34 @@
 package objstorecmd
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/spf13/cobra"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
-	"github.com/spf13/cobra"
 )
+
+type BucketDeleteResult struct {
+	FilestoreID string `json:"filestore_id"`
+	BucketID    string `json:"bucket_id"`
+	Status      string `json:"status"`
+}
+
+func (b BucketDeleteResult) GetHeaders() []string {
+	return []string{"FILESTORE ID", "BUCKET ID", "STATUS"}
+}
+
+func (b BucketDeleteResult) GetRow() []string {
+	return []string{
+		b.FilestoreID,
+		b.BucketID,
+		b.Status,
+	}
+}
 
 func NewDeleteBucketCmd() *cobra.Command {
 	var fileStoreName string
@@ -61,8 +79,7 @@ func NewDeleteBucketCmd() *cobra.Command {
 				return err
 			}
 
-			var resp *models.DeleteBucketResponse
-			resp, err = helpers.RunDeleteBucket(
+			_, err = helpers.RunDeleteBucket(
 				filestore.URL,
 				cfg.ClusterEntry.Master.AccessToken,
 				bucketID,
@@ -71,14 +88,19 @@ func NewDeleteBucketCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			body, err := json.Marshal(resp)
-			if err != nil {
-				return fmt.Errorf("failed to marshal upload result: %w", err)
+
+			result := BucketDeleteResult{
+				FilestoreID: filestore.ID,
+				BucketID:    bucketID,
+				Status:      "Deleted",
 			}
 
-			utils.PrintOutput(body, cfg)
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return fmt.Errorf("printer setup failed: %w", err)
+			}
 
-			return nil
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 

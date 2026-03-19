@@ -63,3 +63,22 @@ enum NodeType {
   NODE_TYPE_MASTER = 1;
   NODE_TYPE_STORAGE = 2;
 }
+
+message JobDefinition {
+  string name = 1;
+  string node_id = 2;
+  string interval = 3;
+  string description = 4;
+  google.protobuf.Timestamp registered_at = 5;
+}
+
+message JobRun {
+  string run_id = 1;
+  string job_name = 2;
+  string node_id = 3;
+  string status = 4;
+  string invoked_by = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  bytes result = 8;
+}

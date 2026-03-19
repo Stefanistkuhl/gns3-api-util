@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/0xveya/gns3util/pkg/state/pb"
+	"github.com/0xveya/gns3util/pkg/web/scopes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -84,10 +85,23 @@ func (s *StateManager) Close() error {
 	return err
 }
 
-func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, scopes []string) error {
+func (s *StateManager) IsTokenRevoked(ctx context.Context, jti string) (bool, error) {
+	resp, err := s.MasterClient.Get(ctx, fmt.Sprintf("/auth/revoked/%s", jti))
+	if err != nil {
+		return false, err
+	}
+	return len(resp.Kvs) > 0, nil
+}
+
+func (s *StateManager) RevokeToken(ctx context.Context, jti string) error {
+	_, err := s.MasterClient.Put(ctx, fmt.Sprintf("/auth/revoked/%s", jti), "1")
+	return err
+}
+
+func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, userScopes []string) error {
 	msg := &pb.UserPermissions{
 		UserId:    userID,
-		Scopes:    scopes,
+		Scopes:    userScopes,
 		UpdatedAt: timestamppb.Now(),
 	}
 
@@ -118,7 +132,11 @@ func (s *StateManager) GetUserPermissions(ctx context.Context, userID string) (*
 	return perms, nil
 }
 
-func (s *StateManager) CheckPermission(ctx context.Context, userID, requiredScope string) (bool, error) {
+func (s *StateManager) CheckPermission(
+	ctx context.Context,
+	userID string,
+	requiredScope string,
+) (bool, error) {
 	perms, err := s.GetUserPermissions(ctx, userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
@@ -127,9 +145,14 @@ func (s *StateManager) CheckPermission(ctx context.Context, userID, requiredScop
 		return false, err
 	}
 
+	if slices.Contains(perms.Scopes, scopes.Superuser) {
+		return true, nil
+	}
+
 	if slices.Contains(perms.Scopes, requiredScope) {
 		return true, nil
 	}
+
 	return false, nil
 }
 
@@ -159,7 +182,7 @@ func (s *StateManager) PutNode(ctx context.Context, node *pb.Node) error {
 	return err
 }
 
-func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, scopes []string) (bool, error) {
+func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, nodeScopes []string) (bool, error) {
 	nodeKey := s.nodeKey(node.Id)
 	userKey := s.userKey(node.Id)
 
@@ -170,7 +193,7 @@ func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, scope
 
 	perms := &pb.UserPermissions{
 		UserId:    node.Id,
-		Scopes:    scopes,
+		Scopes:    nodeScopes,
 		UpdatedAt: timestamppb.Now(),
 	}
 	permData, err := proto.Marshal(perms)
@@ -243,4 +266,96 @@ func (s *StateManager) GetNodes(ctx context.Context) ([]*pb.Node, error) {
 	}
 
 	return nodes, nil
+}
+
+func (s *StateManager) HasEffectivePermission(
+	ctx context.Context,
+	userID string,
+	requiredScope string,
+) (bool, error) {
+	return s.CheckPermission(ctx, userID, requiredScope)
+}
+
+// Job management
+
+func (s *StateManager) jobKey(nodeID, jobName string) string {
+	return fmt.Sprintf("%s/jobs/%s/%s", RootPrefix, nodeID, jobName)
+}
+
+func (s *StateManager) jobRunKey(runID string) string {
+	return fmt.Sprintf("%s/job-runs/%s", RootPrefix, runID)
+}
+
+func (s *StateManager) RegisterJob(ctx context.Context, job *pb.JobDefinition) error {
+	data, err := proto.Marshal(job)
+	if err != nil {
+		return fmt.Errorf("failed to marshal job definition: %w", err)
+	}
+
+	_, err = s.MasterClient.Put(ctx, s.jobKey(job.NodeId, job.Name), string(data))
+	return err
+}
+
+func (s *StateManager) GetRegisteredJobs(ctx context.Context) ([]*pb.JobDefinition, error) {
+	resp, err := s.LocalClient.Get(ctx, fmt.Sprintf("%s/jobs/", RootPrefix), clientv3.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get jobs: %w", err)
+	}
+
+	jobs := make([]*pb.JobDefinition, 0, len(resp.Kvs))
+	for _, kv := range resp.Kvs {
+		job := &pb.JobDefinition{}
+		if err := proto.Unmarshal(kv.Value, job); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal job definition: %w", err)
+		}
+		jobs = append(jobs, job)
+	}
+
+	return jobs, nil
+}
+
+func (s *StateManager) PutJobRun(ctx context.Context, run *pb.JobRun) error {
+	data, err := proto.Marshal(run)
+	if err != nil {
+		return fmt.Errorf("failed to marshal job run: %w", err)
+	}
+
+	_, err = s.MasterClient.Put(ctx, s.jobRunKey(run.RunId), string(data))
+	return err
+}
+
+func (s *StateManager) GetJobRun(ctx context.Context, runID string) (*pb.JobRun, error) {
+	resp, err := s.LocalClient.Get(ctx, s.jobRunKey(runID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job run: %w", err)
+	}
+
+	if len(resp.Kvs) == 0 {
+		return nil, fmt.Errorf("job run %s not found", runID)
+	}
+
+	run := &pb.JobRun{}
+	if err := proto.Unmarshal(resp.Kvs[0].Value, run); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job run: %w", err)
+	}
+
+	return run, nil
+}
+
+func (s *StateManager) ListJobRuns(ctx context.Context) ([]*pb.JobRun, error) {
+	resp, err := s.LocalClient.Get(ctx, fmt.Sprintf("%s/job-runs/", RootPrefix), clientv3.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list job runs: %w", err)
+	}
+
+	runs := make([]*pb.JobRun, 0, len(resp.Kvs))
+	for _, kv := range resp.Kvs {
+		run := &pb.JobRun{}
+		if err := proto.Unmarshal(kv.Value, run); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal job run: %w", err)
+		}
+		runs = append(runs, run)
+	}
+
+	return runs, nil
 }

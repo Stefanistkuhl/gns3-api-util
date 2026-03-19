@@ -14,6 +14,7 @@ const (
 	FileStatusUploading  FileStatus = "uploading"
 	FileStatusAvailable  FileStatus = "available"
 	FileStatusTombstoned FileStatus = "tombstoned"
+	FileStatusDeleted    FileStatus = "deleted"
 )
 
 func (f FileStatus) String() string {
@@ -24,8 +25,7 @@ type InitUploadRequest struct {
 	Filename        string `json:"filename"`
 	SizeBytes       int64  `json:"size_bytes"`
 	ContentType     string `json:"content_type"`
-	ScopeLabel      string `json:"scope_label"`
-	RetentionPeriod int64  `json:"retention_period"`
+	RetentionPeriod *int64 `json:"retention_period"`
 	BucketID        string `json:"bucket_id,omitempty"`
 }
 
@@ -39,10 +39,10 @@ type InitUploadResponse struct {
 }
 
 type FinalizeUploadResponse struct {
-	FileUUID       string     `json:"file_uuid"`
-	Status         FileStatus `json:"status"`
-	ChecksumSHA256 string     `json:"checksum_sha256"`
-	SizeBytes      int64      `json:"size_bytes"`
+	FileUUID   string     `json:"file_uuid"`
+	Status     FileStatus `json:"status"`
+	BlobSHA256 string     `json:"blob_sha256"`
+	SizeBytes  int64      `json:"size_bytes"`
 }
 
 type GetUploadStatusResponse struct {
@@ -50,9 +50,9 @@ type GetUploadStatusResponse struct {
 }
 
 type CreateBucketRequest struct {
-	Name           string `json:"name"`
-	IsPublic       bool   `json:"is_public,omitempty"`
-	RequiredScopes string `json:"required_scopes,omitempty"`
+	Name           string  `json:"name"`
+	IsPublic       bool    `json:"is_public,omitempty"`
+	RequiredScopes *string `json:"required_scopes,omitempty"`
 }
 
 type CreateBucketResponse struct {
@@ -64,24 +64,32 @@ type CreateBucketResponse struct {
 }
 
 type FileInfo struct {
-	FileUUID    string    `json:"file_uuid"`
-	Filename    string    `json:"filename"`
-	SizeBytes   int64     `json:"size_bytes"`
-	ContentType string    `json:"content_type"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
+	FileUUID    string     `json:"file_uuid"`
+	Filename    string     `json:"filename"`
+	SizeBytes   int64      `json:"size_bytes"`
+	ContentType string     `json:"content_type"`
+	BlobSHA256  string     `json:"blob_sha256"`
+	Status      FileStatus `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+type PublicTokenRequest struct {
+	FileUUID   string     `json:"file_uuid"`
+	BucketUUID string     `json:"bucket_uuid"`
+	ExpiresAt  *time.Time `json:"expires_at"`
 }
 
 type PublicTokenResponse struct {
-	Token     string    `json:"token"`
-	FileUUID  string    `json:"file_uuid"`
-	ExpiresAt time.Time `json:"expires_at"`
-	URL       string    `json:"url"`
+	Token      string `json:"token"`
+	FileUUID   string `json:"file_uuid"`
+	BucketUUID string `json:"bucket_uuid"`
+	ExpiresAt  string `json:"expires_at"`
+	URL        string `json:"url"`
 }
 
 type DeleteFileResponse struct {
-	FileUUID string `json:"file_uuid"`
-	Status   string `json:"status"`
+	FileUUID string     `json:"file_uuid"`
+	Status   FileStatus `json:"status"`
 }
 
 type DeleteBucketResponse struct {
@@ -98,4 +106,26 @@ type ListBucketFilesResponse struct {
 	BucketUUID string     `json:"bucket_uuid"`
 	Files      []FileInfo `json:"files"`
 	Count      int        `json:"count"`
+}
+
+type BlobInfo struct {
+	SHA256         string     `json:"sha256"`
+	FilePath       string     `json:"file_path"`
+	SizeBytes      int64      `json:"size_bytes"`
+	RefCount       int64      `json:"ref_count"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	LastVerifiedAt *time.Time `json:"last_verified_at,omitempty"`
+}
+
+type FileDetailResponse struct {
+	FileUUID    string     `json:"file_uuid"`
+	Filename    string     `json:"filename"`
+	SizeBytes   int64      `json:"size_bytes"`
+	ContentType string     `json:"content_type"`
+	BlobSHA256  string     `json:"blob_sha256"`
+	FilePath    string     `json:"file_path"`
+	Status      FileStatus `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }

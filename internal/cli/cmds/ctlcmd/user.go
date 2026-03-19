@@ -9,16 +9,39 @@ import (
 	"strings"
 	"time"
 
-	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
-	"github.com/0xveya/gns3util/pkg/state/pb"
-	scopesPkg "github.com/0xveya/gns3util/pkg/web/scopes"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
+	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
+	"github.com/0xveya/gns3util/pkg/state/pb"
+	scopesPkg "github.com/0xveya/gns3util/pkg/web/scopes"
 )
+
+type UserCreateResult struct {
+	User    string   `json:"user"`
+	Scopes  []string `json:"scopes"`
+	EtcdKey string   `json:"etcd_key"`
+	Status  string   `json:"status"`
+}
+
+func (u UserCreateResult) GetHeaders() []string {
+	return []string{"USER", "SCOPES", "ETCD KEY", "STATUS"}
+}
+
+func (u UserCreateResult) GetRow() []string {
+	return []string{
+		u.User,
+		strings.Join(u.Scopes, ", "),
+		u.EtcdKey,
+		u.Status,
+	}
+}
 
 func NewCreateUserCmd() *cobra.Command {
 	var (
@@ -31,8 +54,12 @@ func NewCreateUserCmd() *cobra.Command {
 		Short: "Create or update a user's permissions in etcd",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			configPath, _ := cmd.Flags().GetString("config")
+			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get global options: %w", err)
+			}
 
+			configPath, _ := cmd.Flags().GetString("config")
 			if configPath == "" {
 				configPath = viper.GetString("config")
 			}
@@ -107,8 +134,19 @@ func NewCreateUserCmd() *cobra.Command {
 				return fmt.Errorf("failed to write to etcd: %w", err)
 			}
 
-			fmt.Printf("Successfully created/updated user '%s' with scopes: %s\n", targetUser, strings.Join(cleanScopes, ","))
-			return nil
+			result := UserCreateResult{
+				User:    targetUser,
+				Scopes:  cleanScopes,
+				EtcdKey: key,
+				Status:  "Created/Updated",
+			}
+
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 

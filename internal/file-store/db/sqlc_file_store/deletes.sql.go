@@ -21,6 +21,31 @@ func (q *Queries) DeleteBackup(ctx context.Context, fileUuid string) error {
 	return err
 }
 
+const deleteBlob = `-- name: DeleteBlob :exec
+DELETE FROM
+    blobs
+WHERE
+    sha256 = ?
+`
+
+func (q *Queries) DeleteBlob(ctx context.Context, sha256 string) error {
+	_, err := q.db.ExecContext(ctx, deleteBlob, sha256)
+	return err
+}
+
+const deleteBlobIfUnreferenced = `-- name: DeleteBlobIfUnreferenced :exec
+DELETE FROM
+    blobs
+WHERE
+    sha256 = ?
+    AND ref_count <= 0
+`
+
+func (q *Queries) DeleteBlobIfUnreferenced(ctx context.Context, sha256 string) error {
+	_, err := q.db.ExecContext(ctx, deleteBlobIfUnreferenced, sha256)
+	return err
+}
+
 const deleteBucket = `-- name: DeleteBucket :exec
 DELETE FROM
     buckets

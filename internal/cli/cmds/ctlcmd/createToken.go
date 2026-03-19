@@ -11,10 +11,13 @@ import (
 	"os"
 	"strings"
 
-	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
+	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 )
 
 type TokenRequest struct {
@@ -25,6 +28,22 @@ type TokenResponse struct {
 	Token string `json:"token"`
 }
 
+type TokenCreateResult struct {
+	User  string `json:"user"`
+	Token string `json:"token"`
+}
+
+func (t TokenCreateResult) GetHeaders() []string {
+	return []string{"USER", "TOKEN"}
+}
+
+func (t TokenCreateResult) GetRow() []string {
+	return []string{
+		t.User,
+		t.Token,
+	}
+}
+
 func NewCreateTokenCmd() *cobra.Command {
 	var configPath string
 
@@ -33,6 +52,11 @@ func NewCreateTokenCmd() *cobra.Command {
 		Short: "Mint a new JWT for a user (Admin only)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
+			if err != nil {
+				return fmt.Errorf("failed to get global options: %w", err)
+			}
+
 			targetUser := args[0]
 			configPath = viper.GetString("config")
 
@@ -63,7 +87,7 @@ func NewCreateTokenCmd() *cobra.Command {
 				},
 			}
 
-			reqBody := map[string]string{"user_id": targetUser}
+			reqBody := TokenRequest{UserID: targetUser}
 			jsonBody, _ := json.Marshal(reqBody)
 
 			url := fmt.Sprintf("%s/auth/token", accessConfig.ServerURL)
@@ -91,8 +115,17 @@ func NewCreateTokenCmd() *cobra.Command {
 				return fmt.Errorf("failed to decode token response: %w", decodeErr)
 			}
 
-			fmt.Printf("Token for user '%s' generated successfully:\n\n%s\n", targetUser, tokenResp.Token)
-			return nil
+			result := TokenCreateResult{
+				User:  targetUser,
+				Token: tokenResp.Token,
+			}
+
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 

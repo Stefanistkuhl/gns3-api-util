@@ -9,6 +9,7 @@ func TestNewAuthCmdGroup(t *testing.T) {
 
 	if cmd == nil {
 		t.Fatal("NewAuthCmdGroup() returned nil")
+		return
 	}
 
 	if cmd.Use != "auth" {
@@ -40,6 +41,7 @@ func TestNewAuthStatusCmd(t *testing.T) {
 
 	if cmd == nil {
 		t.Fatal("NewAuthStatusCmd() returned nil")
+		return
 	}
 
 	if cmd.Use != "status" {
@@ -62,6 +64,7 @@ func TestNewAuthLoginCmd(t *testing.T) {
 
 	if cmd == nil {
 		t.Fatal("NewAuthLoginCmd() returned nil")
+		return
 	}
 
 	if cmd.Use != "login" {

@@ -18,6 +18,7 @@ air = "1.62.0"
 "go:google.golang.org/protobuf/cmd/protoc-gen-go" = "v1.36.5"
 "go:storj.io/drpc/cmd/protoc-gen-go-drpc" = "v0.0.34"
 "go:github.com/swaggo/swag/cmd/swag" = "latest"
+"github:tursodatabase/turso" = "0.5.1"
 bun = "1.3.5"
 
 [tasks.test]

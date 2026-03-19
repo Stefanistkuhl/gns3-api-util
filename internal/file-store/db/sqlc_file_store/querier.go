@@ -11,7 +11,10 @@ import (
 type Querier interface {
 	CreateBucket(ctx context.Context, arg CreateBucketParams) (Bucket, error)
 	CreatePublicFileToken(ctx context.Context, arg CreatePublicFileTokenParams) (PublicFileToken, error)
+	DecrementBlobRefCount(ctx context.Context, sha256 string) error
 	DeleteBackup(ctx context.Context, fileUuid string) error
+	DeleteBlob(ctx context.Context, sha256 string) error
+	DeleteBlobIfUnreferenced(ctx context.Context, sha256 string) error
 	DeleteBucket(ctx context.Context, bucketID string) error
 	DeleteExpiredPublicTokens(ctx context.Context) error
 	DeleteFile(ctx context.Context, fileUuid string) error
@@ -20,14 +23,21 @@ type Querier interface {
 	DeleteVMImage(ctx context.Context, fileUuid string) error
 	FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error)
 	GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error)
+	GetBlobByFileUUID(ctx context.Context, fileUuid string) (GetBlobByFileUUIDRow, error)
+	GetBlobBySHA256(ctx context.Context, sha256 string) (Blob, error)
 	GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error)
 	GetDefaultBucketForOwner(ctx context.Context, ownerID string) (GetDefaultBucketForOwnerRow, error)
 	GetFileByUUID(ctx context.Context, fileUuid string) (File, error)
+	GetFileWithBlobByUUID(ctx context.Context, fileUuid string) (GetFileWithBlobByUUIDRow, error)
+	GetFilesWithPassedRetention(ctx context.Context) ([]string, error)
+	GetFilesWithStatus(ctx context.Context, status string) ([]File, error)
 	GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error)
 	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error)
 	GetPublicFileToken(ctx context.Context, token string) (PublicFileToken, error)
 	GetPublicFileTokens(ctx context.Context, fileUuid string) ([]PublicFileToken, error)
+	GetUnreferencedBlobs(ctx context.Context) ([]GetUnreferencedBlobsRow, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
+	IncrementBlobRefCount(ctx context.Context, sha256 string) error
 	IncrementTokenAccessCount(ctx context.Context, token string) error
 	InitFile(ctx context.Context, arg InitFileParams) (File, error)
 	InsertBackup(ctx context.Context, arg InsertBackupParams) error
@@ -37,14 +47,15 @@ type Querier interface {
 	ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error)
 	ListFiles(ctx context.Context) ([]File, error)
 	ListFilesByBucket(ctx context.Context, bucketID string) ([]File, error)
+	ListFilesByBucketWithBlob(ctx context.Context, bucketID string) ([]ListFilesByBucketWithBlobRow, error)
 	ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error)
-	ListFilesByScope(ctx context.Context, scopeLabel string) ([]File, error)
 	MarkFileTombstoned(ctx context.Context, fileUuid string) error
 	UpdateBucket(ctx context.Context, arg UpdateBucketParams) error
 	UpdateFileBucket(ctx context.Context, arg UpdateFileBucketParams) error
 	UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error
 	UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error
 	UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error
+	UpsertBlob(ctx context.Context, arg UpsertBlobParams) error
 }
 
 var _ Querier = (*Queries)(nil)

@@ -1,7 +1,6 @@
 package objstorecmd
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -13,6 +12,26 @@ import (
 	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 )
+
+type FileRow struct {
+	FilestoreID string `json:"filestore_id"`
+	BucketUUID  string `json:"bucket_uuid"`
+	models.FileInfo
+}
+
+func (f *FileRow) GetHeaders() []string {
+	return []string{"FILESTORE ID", "BUCKET UUID", "FILENAME", "FILE UUID", "SIZE (BYTES)"}
+}
+
+func (f *FileRow) GetRow() []string {
+	return []string{
+		f.FilestoreID,
+		f.BucketUUID,
+		f.Filename,
+		f.FileUUID,
+		fmt.Sprintf("%d", f.SizeBytes),
+	}
+}
 
 func NewListBucketFilesCmd() *cobra.Command {
 	var fileStoreName string
@@ -75,27 +94,21 @@ func NewListBucketFilesCmd() *cobra.Command {
 				return err
 			}
 
-			var body []byte
+			var records []utils.TableRecord
+			for _, f := range files.Files {
+				records = append(records, &FileRow{
+					FilestoreID: filestore.ID,
+					BucketUUID:  files.BucketUUID,
+					FileInfo:    f,
+				})
+			}
 
-			// Determine if we need the Flattened Row view (for Table/KV)
-			// or the Full Nested view (for JSON/YAML/TOML)
-			if cfg.OutputFormat == globals.OutputTable || cfg.OutputFormat == globals.OutputKV {
-				type fileRow struct {
-					FilestoreID string `json:"filestore_id"`
-					BucketUUID  string `json:"bucket_uuid"`
-					models.FileInfo
-				}
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return fmt.Errorf("printer setup failed (use --output=table or json): %w", err)
+			}
 
-				rows := make([]fileRow, 0, len(files.Files))
-				for _, f := range files.Files {
-					rows = append(rows, fileRow{
-						FilestoreID: filestore.ID,
-						BucketUUID:  files.BucketUUID,
-						FileInfo:    f,
-					})
-				}
-				body, err = json.Marshal(rows)
-			} else {
+			if cfg.OutputFormat == globals.OutputJSON {
 				wrapped := struct {
 					FilestoreID  string                          `json:"filestore_id"`
 					FilestoreURL string                          `json:"filestore_url"`
@@ -105,24 +118,13 @@ func NewListBucketFilesCmd() *cobra.Command {
 					FilestoreURL: filestore.URL,
 					Response:     files,
 				}
-				body, err = json.Marshal(wrapped)
+				return printer.PrintObj(wrapped, cmd.OutOrStdout())
 			}
 
-			if err != nil {
-				return fmt.Errorf("failed to marshal output: %w", err)
-			}
-
-			utils.PrintOutput(body, cfg)
-			return nil
+			return printer.PrintObj(records, cmd.OutOrStdout())
 		},
 	}
 
-	cmd.Flags().StringVar(
-		&fileStoreName,
-		"filestore-id",
-		"",
-		"Specific filestore node ID",
-	)
-
+	cmd.Flags().StringVar(&fileStoreName, "filestore-id", "", "Specific filestore node ID")
 	return cmd
 }

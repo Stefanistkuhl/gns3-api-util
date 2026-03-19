@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/tidwall/gjson"
 )
@@ -48,17 +47,8 @@ func FuzzyInfo(params *FuzzyInfoParams) error {
 
 	toPrint := buf.Bytes()
 
-	if params.Cfg.OutputFormat != globals.OutputKV {
-		utils.PrintOutput(toPrint, params.Cfg)
-		return nil
-	} else {
-		if params.ExtraInfo && params.ContextType != "" && params.ContextLabel != "" {
-			utils.PrintKVWithResourceContext(toPrint, params.ContextType, params.ContextLabel)
-		} else {
-			utils.PrintKV(toPrint)
-		}
-		return nil
-	}
+	utils.PrintOutput(toPrint, params.Cfg)
+	return nil
 }
 
 func FuzzyInfoIDs(params *FuzzyInfoParams) ([]string, error) {

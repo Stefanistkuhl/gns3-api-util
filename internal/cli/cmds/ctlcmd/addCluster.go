@@ -15,6 +15,28 @@ import (
 
 var clusterName string
 
+type ClusterAddResult struct {
+	Name        string `json:"name"`
+	URL         string `json:"url"`
+	User        string `json:"user"`
+	Fingerprint string `json:"fingerprint"`
+	Status      string `json:"status"`
+}
+
+func (c *ClusterAddResult) GetHeaders() []string {
+	return []string{"CLUSTER NAME", "URL", "USER", "FINGERPRINT", "STATUS"}
+}
+
+func (c *ClusterAddResult) GetRow() []string {
+	return []string{
+		c.Name,
+		c.URL,
+		c.User,
+		c.Fingerprint,
+		c.Status,
+	}
+}
+
 func NewAddClusterCMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-cluster",
@@ -39,14 +61,18 @@ func NewAddClusterCMD() *cobra.Command {
 			)
 			client := api.NewClientV2(&settings)
 
+			fmt.Fprintf(cmd.ErrOrStderr(), "Bootstrapping trust with master...\n")
+
 			fingerprint, caCertPEM, err := client.BootstrapConnect(cmd.Context())
 			if err != nil {
 				return fmt.Errorf("failed to bootstrap trust with master: %w", err)
 			}
 
-			fmt.Printf("Trusting new cluster: %s\n", clusterName)
-			fmt.Printf("Master Root CA Fingerprint: %s\n", fingerprint)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Trusting new cluster: %s\n", clusterName)
+			fmt.Fprintf(cmd.ErrOrStderr(), "Master Root CA Fingerprint: %s\n", fingerprint)
+
 			if !cfg.Insecure {
+				// Ensure utils.ConfirmPrompt writes to stderr natively if possible
 				if !utils.ConfirmPrompt("Do you trust this fingerprint?", false) {
 					return fmt.Errorf("connection aborted by user: untrusted fingerprint")
 				}
@@ -80,19 +106,30 @@ func NewAddClusterCMD() *cobra.Command {
 			}
 
 			kf.Clusters = append(kf.Clusters, newCluster)
-			if err := pathutils.SaveKeysFile(keyFilePath, kf); err != nil {
-				return fmt.Errorf("failed to save key file: %w", err)
+			if saveErr := pathutils.SaveKeysFile(keyFilePath, kf); saveErr != nil {
+				return fmt.Errorf("failed to save key file: %w", saveErr)
 			}
-			fmt.Printf("Cluster %q master added successfully\n", clusterName)
 
-			fmt.Println("Discovering cluster nodes...")
+			fmt.Fprintf(cmd.ErrOrStderr(), "Discovering cluster nodes...\n")
 			cfg.ClusterEntry = &newCluster
-			if err := ctlhelpers.DiscoverAndSyncNodes(cmd.Context(), cfg); err != nil {
-				return fmt.Errorf("cluster added, but node discovery failed: %w", err)
+			if syncErr := ctlhelpers.DiscoverAndSyncNodes(cmd.Context(), cfg); syncErr != nil {
+				return fmt.Errorf("cluster added, but node discovery failed: %w", syncErr)
 			}
 
-			fmt.Printf("Successfully initialized cluster %q with all nodes.\n", clusterName)
-			return nil
+			result := ClusterAddResult{
+				Name:        clusterName,
+				URL:         cfg.Server,
+				User:        resp.User,
+				Fingerprint: fingerprint,
+				Status:      "Discovered & Synced",
+			}
+
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(&result, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().StringVarP(&clusterName, "name", "n", "", "Name of the cluster to add")

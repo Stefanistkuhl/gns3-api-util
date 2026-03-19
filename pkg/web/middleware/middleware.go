@@ -46,11 +46,20 @@ type PermissionChecker interface {
 func AuthMiddleware(
 	mgr *auth.IdentityManager,
 ) func(http.Handler) http.Handler {
+	publicPaths := map[string]struct{}{
+		"/api/v1/public/files": {},
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(
 			w http.ResponseWriter,
 			r *http.Request,
 		) {
+			for prefix := range publicPaths {
+				if strings.HasPrefix(r.URL.Path, prefix) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			rawHeader := r.Header.Get("Authorization")
 			if rawHeader == "" ||
 				!strings.HasPrefix(rawHeader, "Bearer ") {
@@ -214,6 +223,7 @@ func RequireScopeRemote(
 				r.Context(),
 				claims.UserID,
 				claims.ID,
+				claims.Role,
 				requiredScope,
 			)
 			if err != nil {
@@ -367,11 +377,6 @@ func FileAccessMiddleware(
 			if !isSuperuser {
 				if file.OwnerID != claims.UserID {
 					helpers.WriteAPIError(w, "Forbidden: Insufficient permissions", helpers.ErrCodeForbidden, "", http.StatusForbidden)
-					return
-				}
-
-				if file.ScopeLabel != "" && !slices.Contains(claims.Scopes, file.ScopeLabel) {
-					helpers.WriteAPIError(w, "Forbidden: Missing required scope", helpers.ErrCodeForbidden, "", http.StatusForbidden)
 					return
 				}
 			}

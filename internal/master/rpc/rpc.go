@@ -3,10 +3,11 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 	"github.com/0xveya/gns3util/pkg/state"
+	statepb "github.com/0xveya/gns3util/pkg/state/pb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SyncService struct {
@@ -19,34 +20,39 @@ func NewSyncService(store *state.StateManager) *SyncService {
 
 func (s *SyncService) CheckPermission(
 	ctx context.Context,
-	req *pb.PermissionCheckRequest,
-) (*pb.PermissionCheckResponse, error) {
-	revokedKey := "/auth/revoked/" + req.Jti
-	resp, err := s.Store.MasterClient.Get(ctx, revokedKey)
+	req *pb.CheckPermissionRequest,
+) (*pb.CheckPermissionResponse, error) {
+	revoked, err := s.Store.IsTokenRevoked(ctx, req.Jti)
 	if err != nil {
 		return nil, fmt.Errorf("check revoked token: %w", err)
 	}
-	if len(resp.Kvs) > 0 {
-		return &pb.PermissionCheckResponse{Allowed: false}, nil
+	if revoked {
+		return &pb.CheckPermissionResponse{Allowed: false}, nil
 	}
 
-	scopeKey := "/auth/scopes/" + req.UserId
-	scopeResp, err := s.Store.MasterClient.Get(ctx, scopeKey)
+	allowed, err := s.Store.CheckPermission(ctx, req.UserId, req.Scope)
 	if err != nil {
-		return nil, fmt.Errorf("get user scopes: %w", err)
+		return nil, fmt.Errorf("check permission: %w", err)
 	}
 
-	if len(scopeResp.Kvs) == 0 {
-		return &pb.PermissionCheckResponse{Allowed: false}, nil
+	return &pb.CheckPermissionResponse{Allowed: allowed}, nil
+}
+
+func (s *SyncService) RegisterJob(
+	ctx context.Context,
+	req *pb.RegisterJobRequest,
+) (*pb.RegisterJobResponse, error) {
+	jobDef := &statepb.JobDefinition{
+		Name:         req.JobName,
+		NodeId:       req.NodeId,
+		Interval:     req.Interval,
+		Description:  req.Description,
+		RegisteredAt: timestamppb.Now(),
 	}
 
-	scopesCSV := string(scopeResp.Kvs[0].Value)
-	for scope := range strings.SplitSeq(scopesCSV, ",") {
-		scope = strings.TrimSpace(scope)
-		if scope == req.Scope {
-			return &pb.PermissionCheckResponse{Allowed: true}, nil
-		}
+	if err := s.Store.RegisterJob(ctx, jobDef); err != nil {
+		return nil, fmt.Errorf("register job: %w", err)
 	}
 
-	return &pb.PermissionCheckResponse{Allowed: false}, nil
+	return &pb.RegisterJobResponse{Success: true}, nil
 }

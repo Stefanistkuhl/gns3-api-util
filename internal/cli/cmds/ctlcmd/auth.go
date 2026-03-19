@@ -7,10 +7,30 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
-	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/messageUtils"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
 	"github.com/0xveya/gns3util/pkg/api"
 )
+
+type AuthStatusResult struct {
+	Server string `json:"server"`
+	User   string `json:"user"`
+	Scopes string `json:"scopes"`
+	Status string `json:"status"`
+}
+
+func (a AuthStatusResult) GetHeaders() []string {
+	return []string{"SERVER", "USER", "SCOPES", "STATUS"}
+}
+
+func (a AuthStatusResult) GetRow() []string {
+	return []string{
+		a.Server,
+		a.User,
+		a.Scopes,
+		a.Status,
+	}
+}
 
 func NewAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -81,11 +101,16 @@ If GNS3_TOKEN environment variable isn't set, the token from the keyfile will be
 				}
 			}
 
+			var caCert []byte
+			if cfg.ClusterEntry != nil {
+				caCert = []byte(cfg.ClusterEntry.CaCert)
+			}
+
 			settings := api.NewSettings(
 				api.WithBaseURLV2(serverURL+"/api/v1"),
 				api.WithToken(token),
 				api.WithVerify(!cfg.Insecure),
-				api.WithCA([]byte(cfg.ClusterEntry.CaCert)),
+				api.WithCA(caCert),
 			)
 			client := api.NewClientV2(&settings)
 
@@ -94,12 +119,19 @@ If GNS3_TOKEN environment variable isn't set, the token from the keyfile will be
 				return fmt.Errorf("failed to get auth status: %w", err)
 			}
 
-			fmt.Printf("%s authenticated as user: %s with scopes: %s\n",
-				messageUtils.SuccessMsg("Success:"),
-				messageUtils.Bold(resp.User),
-				messageUtils.Bold(resp.Scopes))
+			result := AuthStatusResult{
+				Server: serverURL,
+				User:   resp.User,
+				Scopes: resp.Scopes,
+				Status: "Authenticated",
+			}
 
-			return nil
+			printer, err := utils.GetPrinter(cfg.OutputFormat.String())
+			if err != nil {
+				return err
+			}
+
+			return printer.PrintObj(result, cmd.OutOrStdout())
 		},
 	}
 

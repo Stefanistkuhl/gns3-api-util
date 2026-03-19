@@ -6,8 +6,6 @@ package sqlc_file_store
 
 import (
 	"database/sql"
-
-	"github.com/0xveya/gns3util/pkg/models"
 )
 
 type Backup struct {
@@ -19,6 +17,16 @@ type Backup struct {
 	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
 }
 
+type Blob struct {
+	Sha256         string         `json:"sha256"`
+	FilePath       string         `json:"file_path"`
+	SizeBytes      int64          `json:"size_bytes"`
+	RefCount       int64          `json:"ref_count"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
+	LastVerifiedAt sql.NullString `json:"last_verified_at"`
+}
+
 type Bucket struct {
 	BucketID       string         `json:"bucket_id"`
 	Name           string         `json:"name"`
@@ -26,25 +34,22 @@ type Bucket struct {
 	BucketType     string         `json:"bucket_type"`
 	IsPublic       sql.NullBool   `json:"is_public"`
 	RequiredScopes sql.NullString `json:"required_scopes"`
-	CreatedAt      sql.NullTime   `json:"created_at"`
-	UpdatedAt      sql.NullTime   `json:"updated_at"`
+	CreatedAt      string         `json:"created_at"`
+	UpdatedAt      string         `json:"updated_at"`
 }
 
 type File struct {
-	FileUuid        string            `json:"file_uuid"`
-	FilePath        string            `json:"file_path"`
-	Filename        string            `json:"filename"`
-	SizeBytes       int64             `json:"size_bytes"`
-	ChecksumSha256  string            `json:"checksum_sha256"`
-	ContentType     string            `json:"content_type"`
-	ScopeLabel      string            `json:"scope_label"`
-	OwnerID         string            `json:"owner_id"`
-	BucketID        string            `json:"bucket_id"`
-	CreatedAt       sql.NullTime      `json:"created_at"`
-	UpdatedAt       sql.NullTime      `json:"updated_at"`
-	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
-	Status          models.FileStatus `json:"status"`
-	RetentionPeriod sql.NullInt64     `json:"retention_period"`
+	FileUuid        string         `json:"file_uuid"`
+	BlobSha256      sql.NullString `json:"blob_sha256"`
+	Filename        string         `json:"filename"`
+	ContentType     string         `json:"content_type"`
+	OwnerID         string         `json:"owner_id"`
+	BucketID        string         `json:"bucket_id"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	LastAccessedAt  string         `json:"last_accessed_at"`
+	Status          string         `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
 }
 
 type ProjectFile struct {
@@ -55,12 +60,12 @@ type ProjectFile struct {
 }
 
 type PublicFileToken struct {
-	Token       string        `json:"token"`
-	FileUuid    string        `json:"file_uuid"`
-	BucketID    string        `json:"bucket_id"`
-	CreatedAt   sql.NullTime  `json:"created_at"`
-	ExpiresAt   sql.NullTime  `json:"expires_at"`
-	AccessCount sql.NullInt64 `json:"access_count"`
+	Token       string `json:"token"`
+	FileUuid    string `json:"file_uuid"`
+	BucketID    string `json:"bucket_id"`
+	CreatedAt   string `json:"created_at"`
+	ExpiresAt   string `json:"expires_at"`
+	AccessCount int64  `json:"access_count"`
 }
 
 type VmImage struct {

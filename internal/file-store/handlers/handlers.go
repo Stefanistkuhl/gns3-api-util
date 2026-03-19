@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -19,19 +20,24 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	backgroundjobs "github.com/0xveya/gns3util/internal/file-store/backroundjobs"
 	"github.com/0xveya/gns3util/internal/file-store/db"
 	"github.com/0xveya/gns3util/internal/file-store/db/sqlc_file_store"
 	"github.com/0xveya/gns3util/internal/file-store/fs"
 	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/utils/dbutils"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 	"github.com/0xveya/gns3util/pkg/web/middleware"
 )
 
+type JobRunnerFunc func(ctx context.Context, invokedBy backgroundjobs.Invocator) (any, error)
+
 type FilestoreHandlers struct {
-	Store  *db.Store
-	Logger *slog.Logger
-	Dirs   *fs.Dirs
+	Store      *db.Store
+	Logger     *slog.Logger
+	Dirs       *fs.Dirs
+	JobRunners map[string]JobRunnerFunc
 }
 
 func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Request) {
@@ -77,13 +83,11 @@ func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Requ
 	params := sqlc_file_store.InitFileParams{
 		FileUuid:        fileUUID.String(),
 		Filename:        req.Filename,
-		SizeBytes:       req.SizeBytes,
 		ContentType:     req.ContentType,
-		ScopeLabel:      req.ScopeLabel,
 		OwnerID:         userID,
 		BucketID:        bucketID,
-		LastAccessedAt:  sql.NullTime{Time: time.Now(), Valid: true},
-		RetentionPeriod: dbutils.NullInt64(&req.RetentionPeriod),
+		LastAccessedAt:  dbutils.FormatDBTime(time.Now()),
+		RetentionPeriod: dbutils.NullInt64(req.RetentionPeriod),
 	}
 
 	file, insertErr := f.Store.InitFile(r.Context(), params)
@@ -97,7 +101,6 @@ func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Requ
 		"file_uuid", file.FileUuid,
 		"filename", file.Filename,
 		"user_id", userID,
-		"size_bytes", file.SizeBytes,
 	)
 
 	expiresAt := time.Now().Add(24 * time.Hour)
@@ -105,9 +108,10 @@ func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Requ
 		expiresAt = time.Now().Add(time.Duration(file.RetentionPeriod.Int64) * time.Hour)
 	}
 
+	status := models.FileStatusPending
 	writeErr := helpers.WriteJSON(w, models.InitUploadResponse{
 		FileUUID:  file.FileUuid,
-		Status:    file.Status,
+		Status:    status,
 		UploadURL: fmt.Sprintf("/api/v1/files/%s/content", file.FileUuid),
 		ExpiresAt: expiresAt,
 	})
@@ -127,7 +131,6 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
 		helpers.WriteAPIError(w, "failed to get claims from jwt", helpers.ErrCodeGetClaims, "failed to get claims from jwt even though this is past middleware and shouldn't happen", http.StatusInternalServerError)
-		http.Error(w, "Failed to get claims from JWT", http.StatusInternalServerError)
 		return
 	}
 	userID := claims.UserID
@@ -164,6 +167,18 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 				}
 			}
 		}
+	}
+	statusErr := f.Store.UpdateFileStatus(
+		r.Context(),
+		sqlc_file_store.UpdateFileStatusParams{
+			Status:   string(models.FileStatusUploading),
+			FileUuid: fileUUID,
+		},
+	)
+	if statusErr != nil {
+		f.Logger.Error("Failed to update file status", "err", statusErr, "file_uuid", fileUUID)
+		helpers.WriteAPIError(w, "failed to update file status", helpers.ErrCodeInternal, "failed to update file status", http.StatusInternalServerError)
+		return
 	}
 	hasher := sha256.New()
 	if offset > 0 {
@@ -244,23 +259,37 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	params := sqlc_file_store.FinalizeFileParams{
-		ChecksumSha256: finalHash,
-		FileUuid:       fileUUID,
-		SizeBytes:      totalSize,
-		FilePath:       finalPath,
-	}
-	_, finalizeErr := f.Store.FinalizeFile(r.Context(), params)
+	finalizeErr := f.Store.WithTx(r.Context(), func(q *sqlc_file_store.Queries) error {
+		upsertErr := q.UpsertBlob(r.Context(), sqlc_file_store.UpsertBlobParams{
+			Sha256:    finalHash,
+			FilePath:  finalPath,
+			SizeBytes: totalSize,
+		})
+		if upsertErr != nil {
+			return fmt.Errorf("failed to upsert blob: %w", upsertErr)
+		}
+
+		_, fErr := q.FinalizeFile(r.Context(), sqlc_file_store.FinalizeFileParams{
+			BlobSha256: dbutils.NullString(&finalHash),
+			FileUuid:   fileUUID,
+		})
+		if fErr != nil {
+			return fmt.Errorf("failed to finalize file: %w", fErr)
+		}
+		return nil
+	})
+
 	if finalizeErr != nil {
-		f.Logger.Error("Failed to finalize file in database", "err", finalizeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to finalize file in database", helpers.ErrCodeDBErr, finalizeErr.Error(), http.StatusInternalServerError)
+		f.Logger.Error("Failed to finalize upload in database", "err", finalizeErr, "file_uuid", fileUUID)
+		helpers.WriteAPIError(w, "failed to finalize upload in database", helpers.ErrCodeDBErr, finalizeErr.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	ret := models.FinalizeUploadResponse{
-		FileUUID:       fileUUID,
-		Status:         models.FileStatusAvailable,
-		ChecksumSHA256: finalHash,
-		SizeBytes:      totalSize,
+		FileUUID:   fileUUID,
+		Status:     models.FileStatusAvailable,
+		BlobSHA256: finalHash,
+		SizeBytes:  totalSize,
 	}
 	writeErr := helpers.WriteJSON(w, ret)
 	if writeErr != nil {
@@ -326,7 +355,7 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	file, fileErr := f.Store.GetFileByUUID(r.Context(), fileUUID)
+	file, fileErr := f.Store.GetFileWithBlobByUUID(r.Context(), fileUUID)
 	if fileErr != nil {
 		if errors.Is(fileErr, sql.ErrNoRows) {
 			helpers.WriteAPIError(w, "file not found", helpers.ErrCodeFileNotFound, "no file found with the provided uuid", http.StatusNotFound)
@@ -342,19 +371,12 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	fileInfo, statErr := os.Stat(file.FilePath)
-	if statErr != nil {
-		f.Logger.Error("Failed to stat file", "err", statErr, "file_uuid", fileUUID, "path", file.FilePath)
-		helpers.WriteAPIError(w, "file not found on disk", helpers.ErrCodeInternal, statErr.Error(), http.StatusNotFound)
-		return
-	}
-
-	fileSize := fileInfo.Size()
+	fileSize := file.SizeBytes
 
 	w.Header().Set("Content-Type", file.ContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.Filename))
 	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("ETag", fmt.Sprintf(`"%q"`, file.ChecksumSha256))
+	w.Header().Set("ETag", fmt.Sprintf("%q", file.BlobSha256.String))
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	rangeHeader := r.Header.Get("Range")
@@ -371,21 +393,20 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 			w.Header().Set("Content-Length", fmt.Sprintf("%d", ra.length))
 			w.WriteHeader(http.StatusPartialContent)
 
-			file, openErr := os.Open(file.FilePath) // #nosec G304
+			srcFile, openErr := os.Open(file.FilePath) // #nosec G304
 			if openErr != nil {
 				f.Logger.Error("Failed to open file", "err", openErr, "file_uuid", fileUUID)
-				http.Error(w, "Failed to open file", http.StatusInternalServerError)
 				return
 			}
-			defer file.Close()
+			defer srcFile.Close()
 
-			if _, seekErr := file.Seek(ra.start, io.SeekStart); seekErr != nil {
+			if _, seekErr := srcFile.Seek(ra.start, io.SeekStart); seekErr != nil {
 				f.Logger.Error("Failed to seek file", "err", seekErr, "file_uuid", fileUUID)
-				http.Error(w, "Failed to seek file", http.StatusInternalServerError)
+				helpers.WriteAPIError(w, "Failed to seek file", helpers.ErrCodeInternal, seekErr.Error(), http.StatusBadRequest)
 				return
 			}
 
-			if _, copyErr := io.CopyN(w, file, ra.length); copyErr != nil && !errors.Is(copyErr, io.EOF) {
+			if _, copyErr := io.CopyN(w, srcFile, ra.length); copyErr != nil && !errors.Is(copyErr, io.EOF) {
 				f.Logger.Error("Failed to copy file", "err", copyErr, "file_uuid", fileUUID)
 				return
 			}
@@ -399,7 +420,7 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 		}
 
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-		http.Error(w, "Multiple ranges not supported", http.StatusRequestedRangeNotSatisfiable)
+		helpers.WriteAPIError(w, "Multiple ranges not supported", helpers.ErrCodeInternal, "Multiple range not supported", http.StatusRequestedRangeNotSatisfiable)
 		return
 	}
 
@@ -446,7 +467,7 @@ func (f *FilestoreHandlers) CreateBucket(w http.ResponseWriter, r *http.Request)
 		Name:           req.Name,
 		OwnerID:        userID,
 		IsPublic:       dbutils.NullBool(&req.IsPublic),
-		RequiredScopes: dbutils.NullString(&req.RequiredScopes),
+		RequiredScopes: dbutils.NullString(req.RequiredScopes),
 	}
 
 	bucket, insertErr := f.Store.CreateBucket(r.Context(), params)
@@ -467,7 +488,7 @@ func (f *FilestoreHandlers) CreateBucket(w http.ResponseWriter, r *http.Request)
 		Name:           bucket.Name,
 		IsPublic:       bucket.IsPublic.Bool,
 		RequiredScopes: bucket.RequiredScopes.String,
-		CreatedAt:      bucket.CreatedAt.Time,
+		CreatedAt:      dbutils.ParseDBTime(bucket.CreatedAt),
 	})
 	if writeErr != nil {
 		f.Logger.Error("Failed to write response", "err", writeErr, "bucket_id", bucket.BucketID)
@@ -489,7 +510,7 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	files, queryErr := f.Store.ListFilesByBucket(r.Context(), bucketID)
+	files, queryErr := f.Store.ListFilesByBucketWithBlob(r.Context(), bucketID)
 	if queryErr != nil {
 		f.Logger.Error("Failed to list bucket files", "err", queryErr, "bucket_id", bucketID, "user_id", claims.UserID)
 		helpers.WriteAPIError(w, "failed to query bucket files", helpers.ErrCodeDBErr, queryErr.Error(), http.StatusInternalServerError)
@@ -504,8 +525,9 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 			Filename:    file.Filename,
 			SizeBytes:   file.SizeBytes,
 			ContentType: file.ContentType,
-			Status:      file.Status.String(),
-			CreatedAt:   file.CreatedAt.Time,
+			BlobSHA256:  file.BlobSha256.String,
+			Status:      models.FileStatus(file.Status),
+			CreatedAt:   dbutils.ParseDBTime(file.CreatedAt),
 		})
 	}
 
@@ -518,47 +540,103 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 }
 
 func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Request) {
+	bucketID := chi.URLParam(r, "bucket_id")
 	token := chi.URLParam(r, "token")
+
+	if bucketID == "" {
+		helpers.WriteAPIError(
+			w,
+			"bucket_id is required",
+			helpers.ErrCodeInvalidInput,
+			"missing bucket_id in URL path",
+			http.StatusBadRequest,
+		)
+		return
+	}
+
 	if token == "" {
-		helpers.WriteAPIError(w, "token is required", helpers.ErrCodeInvalidInput, "missing token in URL path", http.StatusBadRequest)
+		helpers.WriteAPIError(
+			w,
+			"token is required",
+			helpers.ErrCodeInvalidInput,
+			"missing token in URL path",
+			http.StatusBadRequest,
+		)
 		return
 	}
 
 	publicToken, queryErr := f.Store.GetPublicFileToken(r.Context(), token)
 	if queryErr != nil {
 		if errors.Is(queryErr, sql.ErrNoRows) {
-			helpers.WriteAPIError(w, "token not found", helpers.ErrCodeFileNotFound, "invalid or expired token", http.StatusNotFound)
+			helpers.WriteAPIError(
+				w,
+				"token not found",
+				helpers.ErrCodeFileNotFound,
+				"invalid or expired token",
+				http.StatusNotFound,
+			)
 			return
 		}
 		f.Logger.Error("Failed to get public token", "err", queryErr, "token", token)
-		helpers.WriteAPIError(w, "failed to query db for token", helpers.ErrCodeDBErr, queryErr.Error(), http.StatusInternalServerError)
+		helpers.WriteAPIError(
+			w,
+			"failed to query db for token",
+			helpers.ErrCodeDBErr,
+			queryErr.Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
-	if publicToken.ExpiresAt.Valid && publicToken.ExpiresAt.Time.Before(time.Now()) {
-		helpers.WriteAPIError(w, "token expired", helpers.ErrCodeFileNotFound, "token has expired", http.StatusNotFound)
+	if publicToken.BucketID != bucketID {
+		helpers.WriteAPIError(
+			w,
+			"token not found",
+			helpers.ErrCodeFileNotFound,
+			"invalid or expired token",
+			http.StatusNotFound,
+		)
 		return
 	}
 
-	file, fileErr := f.Store.GetFileByUUID(r.Context(), publicToken.FileUuid)
+	if publicToken.ExpiresAt != "" {
+		expiresAt := dbutils.ParseDBTime(publicToken.ExpiresAt)
+		if !expiresAt.IsZero() && expiresAt.Before(time.Now()) {
+			helpers.WriteAPIError(
+				w,
+				"token expired",
+				helpers.ErrCodeFileNotFound,
+				"token has expired",
+				http.StatusNotFound,
+			)
+			return
+		}
+	}
+
+	file, fileErr := f.Store.GetFileWithBlobByUUID(r.Context(), publicToken.FileUuid)
 	if fileErr != nil {
 		if errors.Is(fileErr, sql.ErrNoRows) {
-			helpers.WriteAPIError(w, "file not found", helpers.ErrCodeFileNotFound, "file associated with token not found", http.StatusNotFound)
+			helpers.WriteAPIError(
+				w,
+				"file not found",
+				helpers.ErrCodeFileNotFound,
+				"file associated with token not found",
+				http.StatusNotFound,
+			)
 			return
 		}
 		f.Logger.Error("Failed to get file", "err", fileErr, "file_uuid", publicToken.FileUuid)
-		helpers.WriteAPIError(w, "failed to query db for file", helpers.ErrCodeDBErr, fileErr.Error(), http.StatusInternalServerError)
+		helpers.WriteAPIError(
+			w,
+			"failed to query db for file",
+			helpers.ErrCodeDBErr,
+			fileErr.Error(),
+			http.StatusInternalServerError,
+		)
 		return
 	}
 
-	fileInfo, statErr := os.Stat(file.FilePath)
-	if statErr != nil {
-		f.Logger.Error("Failed to stat file", "err", statErr, "file_uuid", publicToken.FileUuid, "path", file.FilePath)
-		helpers.WriteAPIError(w, "file not found on disk", helpers.ErrCodeInternal, statErr.Error(), http.StatusNotFound)
-		return
-	}
-
-	fileSize := fileInfo.Size()
+	fileSize := file.SizeBytes
 
 	incrementErr := f.Store.IncrementTokenAccessCount(r.Context(), token)
 	if incrementErr != nil {
@@ -568,34 +646,55 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", file.ContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.Filename))
 	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("ETag", fmt.Sprintf(`"%q"`, file.ChecksumSha256))
+	w.Header().Set("ETag", fmt.Sprintf("%q", file.BlobSha256.String))
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 
 	rangeHeader := r.Header.Get("Range")
 	if rangeHeader != "" {
 		ranges, err := parseRange(rangeHeader, fileSize)
 		if err != nil {
-			helpers.WriteAPIError(w, "invalid range header", helpers.ErrCodeInvalidInput, err.Error(), http.StatusBadRequest)
+			helpers.WriteAPIError(
+				w,
+				"invalid range header",
+				helpers.ErrCodeInvalidInput,
+				err.Error(),
+				http.StatusBadRequest,
+			)
 			return
 		}
 
 		if len(ranges) == 1 {
 			ra := ranges[0]
-			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, fileSize))
+			w.Header().Set(
+				"Content-Range",
+				fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, fileSize),
+			)
 			w.Header().Set("Content-Length", fmt.Sprintf("%d", ra.length))
 			w.WriteHeader(http.StatusPartialContent)
 
 			srcFile, openErr := os.Open(file.FilePath) // #nosec G304
 			if openErr != nil {
 				f.Logger.Error("Failed to open file", "err", openErr, "file_uuid", publicToken.FileUuid)
-				http.Error(w, "Failed to open file", http.StatusInternalServerError)
+				helpers.WriteAPIError(
+					w,
+					"Failed to open file",
+					helpers.ErrCodeInternal,
+					openErr.Error(),
+					http.StatusBadRequest,
+				)
 				return
 			}
 			defer srcFile.Close()
 
 			if _, seekErr := srcFile.Seek(ra.start, io.SeekStart); seekErr != nil {
 				f.Logger.Error("Failed to seek file", "err", seekErr, "file_uuid", publicToken.FileUuid)
-				http.Error(w, "Failed to seek file", http.StatusInternalServerError)
+				helpers.WriteAPIError(
+					w,
+					"Failed to seek file",
+					helpers.ErrCodeInternal,
+					seekErr.Error(),
+					http.StatusBadRequest,
+				)
 				return
 			}
 
@@ -604,25 +703,39 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 				return
 			}
 
-			f.Logger.Info("Partial public file downloaded",
-				"file_uuid", publicToken.FileUuid,
-				"token", token,
-				"range", fmt.Sprintf("%d-%d", ra.start, ra.start+ra.length-1),
+			f.Logger.Info(
+				"Partial public file downloaded",
+				"file_uuid",
+				publicToken.FileUuid,
+				"token",
+				token,
+				"range",
+				fmt.Sprintf("%d-%d", ra.start, ra.start+ra.length-1),
 			)
 			return
 		}
 
 		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-		http.Error(w, "Multiple ranges not supported", http.StatusRequestedRangeNotSatisfiable)
+		helpers.WriteAPIError(
+			w,
+			"Multiple ranges not supported",
+			helpers.ErrCodeInternal,
+			"Multiple range not supported",
+			http.StatusRequestedRangeNotSatisfiable,
+		)
 		return
 	}
 
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileSize))
 
-	f.Logger.Info("Public file accessed",
-		"file_uuid", file.FileUuid,
-		"filename", file.Filename,
-		"token", token,
+	f.Logger.Info(
+		"Public file accessed",
+		"file_uuid",
+		file.FileUuid,
+		"filename",
+		file.Filename,
+		"token",
+		token,
 	)
 
 	http.ServeFile(w, r, file.FilePath)
@@ -686,49 +799,68 @@ func (f *FilestoreHandlers) GeneratePublicToken(w http.ResponseWriter, r *http.R
 		helpers.WriteAPIError(w, "failed to get claims from jwt", helpers.ErrCodeGetClaims, "failed to get claims from jwt", http.StatusInternalServerError)
 		return
 	}
+	var req models.PublicTokenRequest
 
-	var req struct {
-		ExpiresInHours int `json:"expires_in_hours"`
-	}
 	if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
 		f.Logger.Warn("Failed to decode request body", "err", decodeErr, "user_id", claims.UserID)
 		helpers.WriteAPIError(w, "Invalid request body", helpers.ErrCodeInvalidJSON, decodeErr.Error(), http.StatusBadRequest)
 		return
 	}
 
-	if req.ExpiresInHours <= 0 {
-		req.ExpiresInHours = 24
-	}
-
-	dbID, getOwnerErr := f.Store.GetOwnerOfFileByUUID(r.Context(), fileUUID)
-	if getOwnerErr != nil {
-		if errors.Is(getOwnerErr, sql.ErrNoRows) {
+	file, getFileErr := f.Store.GetFileByUUID(r.Context(), fileUUID)
+	if getFileErr != nil {
+		if errors.Is(getFileErr, sql.ErrNoRows) {
 			helpers.WriteAPIError(w, "file not found", helpers.ErrCodeFileNotFound, "no file found with the provided uuid", http.StatusNotFound)
 			return
 		}
-		f.Logger.Error("Failed to get owner of file by UUID", "err", getOwnerErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to query db for file info", helpers.ErrCodeDBErr, getOwnerErr.Error(), http.StatusInternalServerError)
+		f.Logger.Error("Failed to get file by UUID", "err", getFileErr, "file_uuid", fileUUID)
+		helpers.WriteAPIError(w, "failed to query db for file info", helpers.ErrCodeDBErr, getFileErr.Error(), http.StatusInternalServerError)
+		return
+	}
+	bucket, getBucketErr := f.Store.GetBucketByID(r.Context(), req.BucketUUID)
+	if getBucketErr != nil {
+		if errors.Is(getBucketErr, sql.ErrNoRows) {
+			helpers.WriteAPIError(w, "bucket not found", helpers.ErrCodeFileNotFound, "no bucket found with the provided uuid", http.StatusNotFound)
+			return
+		}
+		f.Logger.Error("Failed to get bucket by UUID", "err", getBucketErr, "bucket_uuid", req.BucketUUID)
+		helpers.WriteAPIError(w, "failed to query db for bucket info", helpers.ErrCodeDBErr, getBucketErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	if dbID != claims.UserID {
+	isFileOwner := file.OwnerID == claims.UserID
+	isBucketOwner := bucket.OwnerID == claims.UserID
+	isGlobalBucket := bucket.BucketID == models.GlobalBucketID
+
+	if !isFileOwner && !isBucketOwner && !isGlobalBucket {
 		helpers.WriteAPIError(w, "forbidden", helpers.ErrCodeForbidden, "you do not have permission to generate token for this file", http.StatusForbidden)
 		return
 	}
 
+	if file.Status != string(models.FileStatusAvailable) {
+		helpers.WriteAPIError(w, "file not available", helpers.ErrCodeInvalidInput, "cannot generate public token for file that is not available", http.StatusBadRequest)
+		return
+	}
+
 	tokenStr, uuidErr := uuid.NewV7()
+
 	if uuidErr != nil {
 		f.Logger.Error("Failed to generate token UUID", "err", uuidErr, "user_id", claims.UserID)
 		helpers.WriteAPIError(w, "failed to generate token", helpers.ErrCodeFailedToGenerateUUID, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	expiresAt := time.Now().Add(time.Duration(req.ExpiresInHours) * time.Hour)
+	expiresAt := ""
+
+	if req.ExpiresAt != nil {
+		expiresAt = dbutils.FormatDBTime(*req.ExpiresAt)
+	}
 
 	params := sqlc_file_store.CreatePublicFileTokenParams{
 		Token:     tokenStr.String(),
 		FileUuid:  fileUUID,
-		ExpiresAt: sql.NullTime{Time: expiresAt, Valid: true},
+		BucketID:  file.BucketID,
+		ExpiresAt: expiresAt,
 	}
 
 	token, insertErr := f.Store.CreatePublicFileToken(r.Context(), params)
@@ -746,10 +878,11 @@ func (f *FilestoreHandlers) GeneratePublicToken(w http.ResponseWriter, r *http.R
 	)
 
 	writeErr := helpers.WriteJSON(w, models.PublicTokenResponse{
-		Token:     token.Token,
-		FileUUID:  fileUUID,
-		ExpiresAt: expiresAt,
-		URL:       fmt.Sprintf("/api/v1/public/files/%s", token.Token),
+		Token:      token.Token,
+		BucketUUID: req.BucketUUID,
+		FileUUID:   fileUUID,
+		ExpiresAt:  expiresAt,
+		URL:        fmt.Sprintf("https://%s/api/v1/public/files/%s/%s", nwutils.GetFirstNonLoopbackIP(), req.BucketUUID, token.Token),
 	})
 	if writeErr != nil {
 		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
@@ -788,21 +921,64 @@ func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deleteErr := f.Store.DeleteFile(r.Context(), fileUUID)
-	if deleteErr != nil {
-		f.Logger.Error("Failed to delete file", "err", deleteErr, "file_uuid", fileUUID, "user_id", userID)
-		helpers.WriteAPIError(w, "failed to delete file", helpers.ErrCodeDBErr, deleteErr.Error(), http.StatusInternalServerError)
+	var blobDeleted bool
+	var blobPath string
+	txErr := f.Store.WithTx(r.Context(), func(q *sqlc_file_store.Queries) error {
+		blobInfo, getBlobErr := q.GetBlobByFileUUID(r.Context(), fileUUID)
+		if getBlobErr != nil {
+			// Pending file (no blob yet) or already deleted by a concurrent request.
+			if errors.Is(getBlobErr, sql.ErrNoRows) {
+				return q.DeleteFile(r.Context(), fileUUID)
+			}
+			return fmt.Errorf("failed to get blob info for file deletion: %w", getBlobErr)
+		}
+
+		blobPath = blobInfo.FilePath
+
+		// Decrement blob refcount first; only delete blob row when it reaches 0.
+		if drefErr := q.DecrementBlobRefCount(r.Context(), blobInfo.BlobSha256.String); drefErr != nil {
+			return fmt.Errorf("failed to decrement blob refcount: %w", drefErr)
+		}
+
+		updatedBlob, gErr := q.GetBlobBySHA256(r.Context(), blobInfo.BlobSha256.String)
+		if gErr != nil {
+			return fmt.Errorf("failed to get updated blob info: %w", gErr)
+		}
+
+		if updatedBlob.RefCount <= 0 {
+			if bDelErr := q.DeleteBlob(r.Context(), blobInfo.BlobSha256.String); bDelErr != nil {
+				return fmt.Errorf("failed to delete unreferenced blob: %w", bDelErr)
+			}
+			blobDeleted = true
+		}
+
+		// Finally delete the file row.
+		if dErr := q.DeleteFile(r.Context(), fileUUID); dErr != nil {
+			return fmt.Errorf("failed to delete file row: %w", dErr)
+		}
+		return nil
+	})
+	if txErr != nil {
+		f.Logger.Error("Failed to delete file in database", "err", txErr, "file_uuid", fileUUID)
+		helpers.WriteAPIError(w, "failed to delete file in database", helpers.ErrCodeDBErr, txErr.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if blobDeleted && blobPath != "" {
+		if rmErr := os.Remove(blobPath); rmErr != nil {
+			f.Logger.Warn("Failed to remove blob file from disk", "err", rmErr, "path", blobPath)
+		}
 	}
 
 	f.Logger.Info("File deleted",
 		"file_uuid", fileUUID,
 		"user_id", userID,
+		"blob_deleted", blobDeleted,
 	)
 
 	writeErr := helpers.WriteJSON(w, models.DeleteFileResponse{
 		FileUUID: fileUUID,
-		Status:   "deleted",
+		Status:   models.FileStatusDeleted, // Hard delete semantics
 	})
 	if writeErr != nil {
 		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
@@ -829,16 +1005,71 @@ func (f *FilestoreHandlers) DeleteBucket(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err := f.Store.DeleteBucket(r.Context(), bucketID)
+	bucket, err := f.Store.GetBucketByID(r.Context(), bucketID)
 	if err != nil {
-		f.Logger.Error("Failed to delete bucket", "bucket_id", bucketID, "err", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			helpers.WriteAPIError(w, "Bucket not found", helpers.ErrCodeFileNotFound, "no bucket found with provided id", http.StatusNotFound)
+			return
+		}
+		f.Logger.Error("Failed to get bucket", "bucket_id", bucketID, "err", err)
 		helpers.WriteAPIError(w, "Internal error", helpers.ErrCodeDBErr, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if bucket.OwnerID != claims.UserID {
+		helpers.WriteAPIError(w, "Forbidden", helpers.ErrCodeForbidden, "you do not have permission to delete this bucket", http.StatusForbidden)
+		return
+	}
+
+	files, err := f.Store.ListFilesByBucketWithBlob(r.Context(), bucketID)
+	if err != nil {
+		f.Logger.Error("Failed to list bucket files for deletion", "bucket_id", bucketID, "err", err)
+		helpers.WriteAPIError(w, "Internal error", helpers.ErrCodeDBErr, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var blobsToRemove []string
+	txErr := f.Store.WithTx(r.Context(), func(q *sqlc_file_store.Queries) error {
+		for i := range files {
+			if drefErr := q.DecrementBlobRefCount(r.Context(), files[i].BlobSha256.String); drefErr != nil {
+				return fmt.Errorf("failed to decrement blob refcount for file %s: %w", files[i].FileUuid, drefErr)
+			}
+
+			updatedBlob, gErr := q.GetBlobBySHA256(r.Context(), files[i].BlobSha256.String)
+			if gErr != nil {
+				return fmt.Errorf("failed to get updated blob info for %s: %w", files[i].BlobSha256.String, gErr)
+			}
+
+			if updatedBlob.RefCount <= 0 {
+				if bDelErr := q.DeleteBlob(r.Context(), files[i].BlobSha256.String); bDelErr != nil {
+					return fmt.Errorf("failed to delete unreferenced blob %s: %w", files[i].BlobSha256.String, bDelErr)
+				}
+				blobsToRemove = append(blobsToRemove, updatedBlob.FilePath)
+			}
+		}
+
+		if dErr := q.DeleteBucket(r.Context(), bucketID); dErr != nil {
+			return fmt.Errorf("failed to delete bucket: %w", dErr)
+		}
+		return nil
+	})
+
+	if txErr != nil {
+		f.Logger.Error("Failed to delete bucket in database", "bucket_id", bucketID, "err", txErr)
+		helpers.WriteAPIError(w, "Internal error", helpers.ErrCodeDBErr, txErr.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for _, path := range blobsToRemove {
+		if rmErr := os.Remove(path); rmErr != nil {
+			f.Logger.Warn("Failed to remove blob file from disk", "err", rmErr, "path", path)
+		}
 	}
 
 	f.Logger.Info("Bucket deleted", "bucket_id", bucketID, "user_id", claims.UserID)
 
 	writeErr := helpers.WriteJSON(w, models.DeleteBucketResponse{BucketUUID: bucketID, Status: "deleted"})
+
 	if writeErr != nil {
 		f.Logger.Error("Failed to write response", "err", writeErr, "bucket_uuid", bucketID)
 		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
@@ -870,7 +1101,7 @@ func (f *FilestoreHandlers) ListBuckets(w http.ResponseWriter, r *http.Request) 
 			Name:           globalBucket.Name,
 			IsPublic:       globalBucket.IsPublic.Bool,
 			RequiredScopes: globalBucket.RequiredScopes.String,
-			CreatedAt:      globalBucket.CreatedAt.Time,
+			CreatedAt:      dbutils.ParseDBTime(globalBucket.CreatedAt),
 		})
 	}
 
@@ -884,7 +1115,7 @@ func (f *FilestoreHandlers) ListBuckets(w http.ResponseWriter, r *http.Request) 
 			Name:           b.Name,
 			IsPublic:       b.IsPublic.Bool,
 			RequiredScopes: b.RequiredScopes.String,
-			CreatedAt:      b.CreatedAt.Time,
+			CreatedAt:      dbutils.ParseDBTime(b.CreatedAt),
 		})
 	}
 

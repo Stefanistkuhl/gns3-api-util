@@ -3,6 +3,7 @@ package helpers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/pkg/api"
@@ -77,7 +78,7 @@ func RunCreateBucket(
 	req := models.CreateBucketRequest{
 		Name:           bucketName,
 		IsPublic:       isPublic,
-		RequiredScopes: requiredScopes,
+		RequiredScopes: &requiredScopes,
 	}
 
 	resp, err := client.CreateBucket(ctx, req)
@@ -149,17 +150,22 @@ func RunUploadToBucket(
 func RunGeneratePublicToken(
 	serverURL,
 	token,
-	fileUUID string,
-	expiresInHours int,
+	fileUUID,
+	bucketID string,
+	expiresAt *time.Time,
 	cfg *config.GlobalOptions,
 ) (*models.PublicTokenResponse, error) {
 	client := newFilestoreClient(serverURL, token, cfg)
 	ctx := context.Background()
+	req := &models.PublicTokenRequest{
+		FileUUID:   fileUUID,
+		BucketUUID: bucketID,
+		ExpiresAt:  expiresAt,
+	}
 
 	resp, err := client.GeneratePublicToken(
 		ctx,
-		fileUUID,
-		expiresInHours,
+		req,
 	)
 	if err != nil {
 		return nil, fmt.Errorf(

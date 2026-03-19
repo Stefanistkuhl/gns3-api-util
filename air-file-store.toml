@@ -2,6 +2,36 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-bin = "./tmp/filestore"
-cmd = "go build -o ./tmp/filestore ./cmd/file-store"
-include_ext = ["go"]
+cmd = "go build -o ./tmp/master ./cmd/file-store"
+bin = "./tmp/master"
+include_ext = ["go", "tpl", "tmpl", "html", "toml"]
+
+include_dir = ["cmd", "internal", "pkg"]
+
+exclude_dir = [
+  "tmp",
+  "vendor",
+  "data",
+  "old_code",
+  "onboarding",
+  "docs",
+  "scripts",
+  ".github",
+  "tls-master",
+  "tls-file-store",
+  ".jj"
+]
+
+exclude_file = [
+  "api.json",
+  "test_class.json",
+  "go.work",
+  ".env",
+  "*.gns3project",
+  "gns3util"
+]
+
+stop_on_error = false
+send_interrupt = true
+kill_delay = "500ms"
+poll = false

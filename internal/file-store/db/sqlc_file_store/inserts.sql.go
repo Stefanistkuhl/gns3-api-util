@@ -8,8 +8,6 @@ package sqlc_file_store
 import (
 	"context"
 	"database/sql"
-
-	"github.com/0xveya/gns3util/pkg/models"
 )
 
 const createBucket = `-- name: CreateBucket :one
@@ -76,10 +74,10 @@ RETURNING
 `
 
 type CreatePublicFileTokenParams struct {
-	Token     string       `json:"token"`
-	FileUuid  string       `json:"file_uuid"`
-	BucketID  string       `json:"bucket_id"`
-	ExpiresAt sql.NullTime `json:"expires_at"`
+	Token     string `json:"token"`
+	FileUuid  string `json:"file_uuid"`
+	BucketID  string `json:"bucket_id"`
+	ExpiresAt string `json:"expires_at"`
 }
 
 func (q *Queries) CreatePublicFileToken(ctx context.Context, arg CreatePublicFileTokenParams) (PublicFileToken, error) {
@@ -101,52 +99,31 @@ func (q *Queries) CreatePublicFileToken(ctx context.Context, arg CreatePublicFil
 	return i, err
 }
 
-const incrementTokenAccessCount = `-- name: IncrementTokenAccessCount :exec
-UPDATE
-    public_file_tokens
-SET
-    access_count = access_count + 1,
-    last_accessed_at = CURRENT_TIMESTAMP
-WHERE
-    token = ?
-`
-
-func (q *Queries) IncrementTokenAccessCount(ctx context.Context, token string) error {
-	_, err := q.db.ExecContext(ctx, incrementTokenAccessCount, token)
-	return err
-}
-
 const initFile = `-- name: InitFile :one
 INSERT INTO
     files (
         file_uuid,
         filename,
-        size_bytes,
         content_type,
-        scope_label,
         owner_id,
         bucket_id,
         last_accessed_at,
         STATUS,
-        retention_period,
-        file_path,
-        checksum_sha256
+        retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?, '', '')
+    (?, ?, ?, ?, ?, ?, 'pending', ?)
 RETURNING
-    file_uuid, file_path, filename, size_bytes, checksum_sha256, content_type, scope_label, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
+    file_uuid, blob_sha256, filename, content_type, owner_id, bucket_id, created_at, updated_at, last_accessed_at, status, retention_period
 `
 
 type InitFileParams struct {
 	FileUuid        string        `json:"file_uuid"`
 	Filename        string        `json:"filename"`
-	SizeBytes       int64         `json:"size_bytes"`
 	ContentType     string        `json:"content_type"`
-	ScopeLabel      string        `json:"scope_label"`
 	OwnerID         string        `json:"owner_id"`
 	BucketID        string        `json:"bucket_id"`
-	LastAccessedAt  sql.NullTime  `json:"last_accessed_at"`
+	LastAccessedAt  string        `json:"last_accessed_at"`
 	RetentionPeriod sql.NullInt64 `json:"retention_period"`
 }
 
@@ -154,9 +131,7 @@ func (q *Queries) InitFile(ctx context.Context, arg InitFileParams) (File, error
 	row := q.db.QueryRowContext(ctx, initFile,
 		arg.FileUuid,
 		arg.Filename,
-		arg.SizeBytes,
 		arg.ContentType,
-		arg.ScopeLabel,
 		arg.OwnerID,
 		arg.BucketID,
 		arg.LastAccessedAt,
@@ -165,12 +140,9 @@ func (q *Queries) InitFile(ctx context.Context, arg InitFileParams) (File, error
 	var i File
 	err := row.Scan(
 		&i.FileUuid,
-		&i.FilePath,
+		&i.BlobSha256,
 		&i.Filename,
-		&i.SizeBytes,
-		&i.ChecksumSha256,
 		&i.ContentType,
-		&i.ScopeLabel,
 		&i.OwnerID,
 		&i.BucketID,
 		&i.CreatedAt,
@@ -221,12 +193,9 @@ const insertFile = `-- name: InsertFile :exec
 INSERT INTO
     files (
         file_uuid,
-        file_path,
+        blob_sha256,
         filename,
-        size_bytes,
-        checksum_sha256,
         content_type,
-        scope_label,
         owner_id,
         bucket_id,
         last_accessed_at,
@@ -234,33 +203,27 @@ INSERT INTO
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertFileParams struct {
-	FileUuid        string            `json:"file_uuid"`
-	FilePath        string            `json:"file_path"`
-	Filename        string            `json:"filename"`
-	SizeBytes       int64             `json:"size_bytes"`
-	ChecksumSha256  string            `json:"checksum_sha256"`
-	ContentType     string            `json:"content_type"`
-	ScopeLabel      string            `json:"scope_label"`
-	OwnerID         string            `json:"owner_id"`
-	BucketID        string            `json:"bucket_id"`
-	LastAccessedAt  sql.NullTime      `json:"last_accessed_at"`
-	Status          models.FileStatus `json:"status"`
-	RetentionPeriod sql.NullInt64     `json:"retention_period"`
+	FileUuid        string         `json:"file_uuid"`
+	BlobSha256      sql.NullString `json:"blob_sha256"`
+	Filename        string         `json:"filename"`
+	ContentType     string         `json:"content_type"`
+	OwnerID         string         `json:"owner_id"`
+	BucketID        string         `json:"bucket_id"`
+	LastAccessedAt  string         `json:"last_accessed_at"`
+	Status          string         `json:"status"`
+	RetentionPeriod sql.NullInt64  `json:"retention_period"`
 }
 
 func (q *Queries) InsertFile(ctx context.Context, arg InsertFileParams) error {
 	_, err := q.db.ExecContext(ctx, insertFile,
 		arg.FileUuid,
-		arg.FilePath,
+		arg.BlobSha256,
 		arg.Filename,
-		arg.SizeBytes,
-		arg.ChecksumSha256,
 		arg.ContentType,
-		arg.ScopeLabel,
 		arg.OwnerID,
 		arg.BucketID,
 		arg.LastAccessedAt,
@@ -331,5 +294,32 @@ func (q *Queries) InsertVMImage(ctx context.Context, arg InsertVMImageParams) er
 		arg.RamMb,
 		arg.ExtraAttributesJson,
 	)
+	return err
+}
+
+const upsertBlob = `-- name: UpsertBlob :exec
+INSERT INTO
+    blobs (
+        sha256,
+        file_path,
+        size_bytes,
+        ref_count
+    )
+VALUES
+    (?, ?, ?, 1) ON CONFLICT(sha256) DO
+UPDATE
+SET
+    ref_count = ref_count + 1,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertBlobParams struct {
+	Sha256    string `json:"sha256"`
+	FilePath  string `json:"file_path"`
+	SizeBytes int64  `json:"size_bytes"`
+}
+
+func (q *Queries) UpsertBlob(ctx context.Context, arg UpsertBlobParams) error {
+	_, err := q.db.ExecContext(ctx, upsertBlob, arg.Sha256, arg.FilePath, arg.SizeBytes)
 	return err
 }

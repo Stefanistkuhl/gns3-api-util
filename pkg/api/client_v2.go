@@ -408,14 +408,10 @@ func (c *ClientV2) initUploadToBucket(ctx context.Context, bucketID string, req 
 	return &resp, nil
 }
 
-func (c *ClientV2) GeneratePublicToken(ctx context.Context, fileUUID string, expiresInHours int) (*models.PublicTokenResponse, error) {
-	req := map[string]any{
-		"file_uuid":        fileUUID,
-		"expires_in_hours": expiresInHours,
-	}
+func (c *ClientV2) GeneratePublicToken(ctx context.Context, req *models.PublicTokenRequest) (*models.PublicTokenResponse, error) {
 	data, _ := json.Marshal(req)
 	opts := NewRequestOptions(&c.base.settings).
-		WithURL(fmt.Sprintf("/files/%s/public-token", fileUUID)).
+		WithURL(fmt.Sprintf("/files/%s/public-token", req.FileUUID)).
 		WithMethod(POST).
 		WithData(string(data))
 
@@ -462,6 +458,82 @@ func (c *ClientV2) ListBuckets(ctx context.Context) (*models.ListBucketResponse,
 	var resp models.ListBucketResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("failed to decode buckets: %w", err)
+	}
+
+	return &resp, nil
+}
+
+// ========JOB-ENDPOINTS=========
+
+func (c *ClientV2) ListJobs(ctx context.Context) (*models.ListJobsResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/jobs").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListJobsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode jobs: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func (c *ClientV2) RunJob(ctx context.Context, jobName string, req *models.RunJobRequest) (*models.RunJobResponse, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/jobs/%s/run", jobName)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RunJobResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode run job response: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func (c *ClientV2) GetJobRun(ctx context.Context, runID string) (*models.JobRunStatus, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/jobs/runs/%s", runID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.JobRunStatus
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode job run: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func (c *ClientV2) ListJobRuns(ctx context.Context) (*models.ListJobRunsResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/jobs/runs").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListJobRunsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode job runs: %w", err)
 	}
 
 	return &resp, nil

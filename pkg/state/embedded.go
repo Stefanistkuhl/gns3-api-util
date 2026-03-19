@@ -300,3 +300,23 @@ func BootstrapMasterAuth(ctx context.Context, client *clientv3.Client) error {
 
 	return nil
 }
+
+func (s *InternalState) Close() error {
+	if s == nil {
+		return nil
+	}
+
+	if s.Client != nil {
+		_ = s.Client.Close()
+	}
+
+	if s.Server != nil {
+		s.Server.Server.Stop()
+	}
+
+	if s.SocketPath != "" {
+		_ = os.RemoveAll(s.SocketPath)
+	}
+
+	return nil
+}

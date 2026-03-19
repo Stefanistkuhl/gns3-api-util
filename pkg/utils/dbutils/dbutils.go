@@ -60,3 +60,28 @@ func TimePtr(n sql.NullTime) *time.Time {
 	}
 	return &n.Time
 }
+
+func ParseDBTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+
+	t, err := time.Parse(time.RFC3339Nano, s)
+	if err == nil {
+		return t
+	}
+
+	t, err = time.Parse("2006-01-02 15:04:05", s)
+	if err == nil {
+		return t
+	}
+
+	return time.Time{}
+}
+
+func FormatDBTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339Nano)
+}

@@ -156,8 +156,8 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false,
 		"Ignore unsigned SSL-Certificates. Can be set via GNS3_INSECURE")
 
-	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "kv",
-		"Output format: [kv, json, json-colorless, collapsed, yaml, toml]. Can be set via GNS3_OUTPUT")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table",
+		"Output format: [json, json-colorless, collapsed, yaml, toml, table, table-ascii]. Can be set via GNS3_OUTPUT")
 	rootCmd.PersistentFlags().StringVarP(&cluster, "cluster", "c", "",
 		"Cluster name from keyfile. Mutually exclusive with --server")
 
@@ -197,12 +197,13 @@ func init() {
 	})
 	carapace.Gen(rootCmd).FlagCompletion(carapace.ActionMap{
 		"output": carapace.ActionValuesDescribed(
-			"kv", "Classic Key-Value pairs (default)",
-			"json", "Pretty-printed JSON with colors",
+			"json", "Pretty-printed JSON with colors (default)",
 			"json-colorless", "Pretty-printed JSON without colors",
 			"collapsed", "Minified JSON (really ugly)",
 			"yaml", "YAML format",
 			"toml", "TOML format",
+			"table", "Fancy terminal table",
+			"table-ascii", "Plain text table for bad terminals",
 		),
 	})
 	gns3Dir, err := pathutils.GetGNS3Dir()
@@ -243,12 +244,13 @@ func Execute() {
 
 func validateGlobalFlags() error {
 	validFormats := map[string]bool{
-		"kv": true, "json": true, "json-colorless": true,
+		"json": true, "json-colorless": true,
 		"collapsed": true, "yaml": true, "toml": true, "table": true,
+		"table-ascii": true, "plain": true,
 	}
 
 	if !validFormats[outputFormat] {
-		return fmt.Errorf("invalid output format %q: choose from kv, json, json-colorless, collapsed, yaml, toml, table", outputFormat)
+		return fmt.Errorf("invalid output format %q: choose from json, json-colorless, collapsed, yaml, toml, table, table-ascii", outputFormat)
 	}
 	return nil
 }

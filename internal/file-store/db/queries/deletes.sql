@@ -40,3 +40,16 @@ DELETE FROM
     project_files
 WHERE
     file_uuid = ?;
+
+-- name: DeleteBlob :exec
+DELETE FROM
+    blobs
+WHERE
+    sha256 = ?;
+
+-- name: DeleteBlobIfUnreferenced :exec
+DELETE FROM
+    blobs
+WHERE
+    sha256 = ?
+    AND ref_count <= 0;

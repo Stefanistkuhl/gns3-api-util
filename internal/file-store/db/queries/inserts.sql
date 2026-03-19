@@ -3,32 +3,7 @@ INSERT INTO
     files (
         file_uuid,
         filename,
-        size_bytes,
         content_type,
-        scope_label,
-        owner_id,
-        bucket_id,
-        last_accessed_at,
-        STATUS,
-        retention_period,
-        file_path,
-        checksum_sha256
-    )
-VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, 'uploading', ?, '', '')
-RETURNING
-    *;
-
--- name: InsertFile :exec
-INSERT INTO
-    files (
-        file_uuid,
-        file_path,
-        filename,
-        size_bytes,
-        checksum_sha256,
-        content_type,
-        scope_label,
         owner_id,
         bucket_id,
         last_accessed_at,
@@ -36,7 +11,25 @@ INSERT INTO
         retention_period
     )
 VALUES
-    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    (?, ?, ?, ?, ?, ?, 'pending', ?)
+RETURNING
+    *;
+
+-- name: InsertFile :exec
+INSERT INTO
+    files (
+        file_uuid,
+        blob_sha256,
+        filename,
+        content_type,
+        owner_id,
+        bucket_id,
+        last_accessed_at,
+        STATUS,
+        retention_period
+    )
+VALUES
+    (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: InsertVMImage :exec
 INSERT INTO
@@ -89,15 +82,6 @@ VALUES
 RETURNING
     *;
 
--- name: IncrementTokenAccessCount :exec
-UPDATE
-    public_file_tokens
-SET
-    access_count = access_count + 1,
-    last_accessed_at = CURRENT_TIMESTAMP
-WHERE
-    token = ?;
-
 -- name: CreateBucket :one
 INSERT INTO
     buckets (
@@ -112,3 +96,18 @@ VALUES
     (?, ?, ?, ?, ?, ?)
 RETURNING
     *;
+
+-- name: UpsertBlob :exec
+INSERT INTO
+    blobs (
+        sha256,
+        file_path,
+        size_bytes,
+        ref_count
+    )
+VALUES
+    (?, ?, ?, 1) ON CONFLICT(sha256) DO
+UPDATE
+SET
+    ref_count = ref_count + 1,
+    updated_at = CURRENT_TIMESTAMP;
