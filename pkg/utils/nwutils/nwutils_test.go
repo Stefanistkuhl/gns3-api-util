@@ -2,6 +2,7 @@ package nwutils
 
 import (
 	"net"
+	"strings"
 	"testing"
 )
 
@@ -200,6 +201,117 @@ func TestNormalizeURL(t *testing.T) {
 			got := NormalizeURL(tt.input)
 			if got != tt.expected {
 				t.Errorf("normalizeURL(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPortBoundaries(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected int
+		wantOK   bool
+	}{
+		{"min valid port", "0", 0, true},
+		{"max valid port", "65535", 65535, true},
+		{"just above max", "65536", 0, false},
+		{"negative", "-1", 0, false},
+		{"very large number", "999999", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ParsePort(tt.input)
+			if ok != tt.wantOK {
+				t.Errorf("ParsePort(%q) ok = %v, want %v", tt.input, ok, tt.wantOK)
+			}
+			if ok && got != tt.expected {
+				t.Errorf("ParsePort(%q) = %v, want %v", tt.input, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseURLPaths(t *testing.T) {
+	tests := []struct {
+		name       string
+		urlStr     string
+		wantOK     bool
+		wantHost   string
+		wantScheme string
+	}{
+		{"with path", "http://example.com/api/v1", true, "example.com", "http"},
+		{"with query", "https://example.com/path?key=value", true, "example.com", "https"},
+		{"with fragment", "http://example.com/path#section", true, "example.com", "http"},
+		{"localhost", "http://localhost", true, "localhost", "http"},
+		{"with userinfo", "http://user:pass@example.com", true, "example.com", "http"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ParseURL(tt.urlStr)
+			if ok != tt.wantOK {
+				t.Errorf("ParseURL(%q) ok = %v, want %v", tt.urlStr, ok, tt.wantOK)
+				return
+			}
+			if ok {
+				if got.Host != tt.wantHost {
+					t.Errorf("ParseURL(%q) host = %v, want %v", tt.urlStr, got.Host, tt.wantHost)
+				}
+				if got.Scheme != tt.wantScheme {
+					t.Errorf("ParseURL(%q) scheme = %v, want %v", tt.urlStr, got.Scheme, tt.wantScheme)
+				}
+			}
+		})
+	}
+}
+
+func TestConvertMasterAPIURLEdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+	}{
+		{"no port specified", "http://example.com"},
+		{"with path", "http://example.com:8080/some/path"},
+		{"already etcd port", "http://example.com:2379"},
+		{"multiple colons IPv6", "http://[::1]:8080"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ConvertMasterAPIURL(tt.input)
+			if got == "" {
+				t.Errorf("ConvertMasterAPIURL(%q) returned empty string", tt.input)
+			}
+			if !strings.Contains(got, "2379") {
+				t.Errorf("ConvertMasterAPIURL(%q) should contain port 2379, got %q", tt.input, got)
+			}
+		})
+	}
+}
+
+func TestIsValidListenAddrComplexCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		addr     string
+		expected bool
+	}{
+		{"valid hostname with dot", "gns3.example.com", true},
+		{"valid subdomain", "api.server.example.com", true},
+		{"simple hostname no dot", "myserver", false},
+		{"ipv4 with port", "192.168.1.1:8080", true},
+		{"wildcard address", "0.0.0.0", true},
+		{"localhost", "127.0.0.1", true},
+		{"ipv6", "::1", true},
+		{"hostname with port", "example.com:8080", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsValidListenAddr(tt.addr)
+			if got != tt.expected {
+				t.Errorf("IsValidListenAddr(%q) = %v, want %v", tt.addr, got, tt.expected)
 			}
 		})
 	}

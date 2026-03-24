@@ -1,15 +1,18 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "linden",
+  "theme": "mint",
   "name": "gns3util",
+  "primaryTab": {
+    "name": "Documentation"
+  },
   "modeToggle": {
     "default": "dark",
     "isHidden": false
   },
   "colors": {
-    "primary": "#FF4F2A",
-    "light": "#FF4F2A",
-    "dark": "#FF5C35"
+    "dark": "#c4a7e7",
+    "light": "#ea9a97",
+    "primary": "#eb6f92"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -47,52 +50,399 @@
         "tab": "CLI Reference",
         "groups": [
           {
-            "group": "Core Commands",
+            "group": "CLI Overview",
             "pages": [
-              "cli/gns3util",
-              "cli/gns3util_ctl"
+              "cli/gns3util"
             ]
           },
           {
-            "group": "Project Management",
+            "group": "Orchestration (New) / Add Cluster",
             "pages": [
-              "cli/gns3util_project",
-              "cli/gns3util_project_new",
-              "cli/gns3util_project_ls",
-              "cli/gns3util_project_delete"
+              "cli/gns3util_cluster-control_add-cluster"
             ]
           },
           {
-            "group": "Cluster Management",
+            "group": "Orchestration (New) / Authentication",
             "pages": [
-              "cli/gns3util_cluster",
-              "cli/gns3util_cluster_create",
+              "cli/gns3util_cluster-control_auth",
+              "cli/gns3util_cluster-control_auth_status"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Cluster Control",
+            "pages": [
+              "cli/gns3util_cluster-control"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Cluster Creation",
+            "pages": [
+              "cli/gns3util_cluster-control_create",
+              "cli/gns3util_cluster-control_create_token",
+              "cli/gns3util_cluster-control_create_user"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Cluster Discovery",
+            "pages": [
+              "cli/gns3util_cluster-control_discover",
+              "cli/gns3util_cluster-control_discover_cluster",
+              "cli/gns3util_cluster-control_discover_nodes"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Jobs Management",
+            "pages": [
+              "cli/gns3util_cluster-control_jobs",
+              "cli/gns3util_cluster-control_jobs_get-run",
+              "cli/gns3util_cluster-control_jobs_list",
+              "cli/gns3util_cluster-control_jobs_list-runs",
+              "cli/gns3util_cluster-control_jobs_run"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Object Storage",
+            "pages": [
+              "cli/gns3util_cluster-control_object-store",
+              "cli/gns3util_cluster-control_object-store_delete-bucket",
+              "cli/gns3util_cluster-control_object-store_delete-file",
+              "cli/gns3util_cluster-control_object-store_download",
+              "cli/gns3util_cluster-control_object-store_list-buckets",
+              "cli/gns3util_cluster-control_object-store_list-files",
+              "cli/gns3util_cluster-control_object-store_token-gen",
+              "cli/gns3util_cluster-control_object-store_upload",
+              "cli/gns3util_cluster-control_object-store_upload-bucket"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Remove",
+            "pages": [
+              "cli/gns3util_cluster-control_remove",
+              "cli/gns3util_cluster-control_remove_cluster"
+            ]
+          },
+          {
+            "group": "Orchestration (Legacy) / Cluster Configuration",
+            "pages": [
+              "cli/gns3util_cluster_config",
+              "cli/gns3util_cluster_config_apply",
+              "cli/gns3util_cluster_config_edit",
+              "cli/gns3util_cluster_config_purge",
+              "cli/gns3util_cluster_config_sync"
+            ]
+          },
+          {
+            "group": "Orchestration (Legacy) / Cluster Operations",
+            "pages": [
+              "cli/gns3util_cluster_create"
+            ]
+          },
+          {
+            "group": "Orchestration (Legacy) / Node Management",
+            "pages": [
               "cli/gns3util_cluster_add-node",
-              "cli/gns3util_cluster_config"
+              "cli/gns3util_cluster_add-nodes"
             ]
           },
           {
-            "group": "Node Operations",
-            "pages": [
-              "cli/gns3util_node",
-              "cli/gns3util_node_create",
-              "cli/gns3util_node_start-all",
-              "cli/gns3util_node_stop-all"
-            ]
-          },
-          {
-            "group": "Advanced",
+            "group": "GNS3 Operations / Access Control",
             "pages": [
               "cli/gns3util_acl",
+              "cli/gns3util_acl_create",
+              "cli/gns3util_acl_delete",
+              "cli/gns3util_acl_endpoints",
+              "cli/gns3util_acl_info",
+              "cli/gns3util_acl_ls",
+              "cli/gns3util_acl_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Appliances",
+            "pages": [
+              "cli/gns3util_appliance",
+              "cli/gns3util_appliance_info",
+              "cli/gns3util_appliance_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Authentication",
+            "pages": [
+              "cli/gns3util_auth",
+              "cli/gns3util_auth_login",
+              "cli/gns3util_auth_status"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Classes",
+            "pages": [
+              "cli/gns3util_class",
+              "cli/gns3util_class_create",
+              "cli/gns3util_class_delete",
+              "cli/gns3util_class_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Cluster Management",
+            "pages": [
+              "cli/gns3util_cluster"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Cluster Operations",
+            "pages": [
+              "cli/gns3util_cluster_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Compute Resources",
+            "pages": [
+              "cli/gns3util_compute",
+              "cli/gns3util_compute_create",
+              "cli/gns3util_compute_delete",
+              "cli/gns3util_compute_docker-images",
+              "cli/gns3util_compute_info",
+              "cli/gns3util_compute_ls",
+              "cli/gns3util_compute_update",
+              "cli/gns3util_compute_virtualbox-vms",
+              "cli/gns3util_compute_vmware-vms"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Drawings",
+            "pages": [
+              "cli/gns3util_drawing",
+              "cli/gns3util_drawing_create",
+              "cli/gns3util_drawing_delete",
+              "cli/gns3util_drawing_info",
+              "cli/gns3util_drawing_ls",
+              "cli/gns3util_drawing_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Exercises",
+            "pages": [
+              "cli/gns3util_exercise",
+              "cli/gns3util_exercise_create",
+              "cli/gns3util_exercise_delete",
+              "cli/gns3util_exercise_info",
+              "cli/gns3util_exercise_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Group Management",
+            "pages": [
               "cli/gns3util_group",
-              "cli/gns3util_role"
+              "cli/gns3util_group_add-member",
+              "cli/gns3util_group_create",
+              "cli/gns3util_group_delete",
+              "cli/gns3util_group_info",
+              "cli/gns3util_group_ls",
+              "cli/gns3util_group_members",
+              "cli/gns3util_group_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Images",
+            "pages": [
+              "cli/gns3util_image",
+              "cli/gns3util_image_create",
+              "cli/gns3util_image_delete",
+              "cli/gns3util_image_info",
+              "cli/gns3util_image_ls",
+              "cli/gns3util_image_prune"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Links",
+            "pages": [
+              "cli/gns3util_link",
+              "cli/gns3util_link_create",
+              "cli/gns3util_link_delete",
+              "cli/gns3util_link_filters",
+              "cli/gns3util_link_iface",
+              "cli/gns3util_link_info",
+              "cli/gns3util_link_ls",
+              "cli/gns3util_link_reset",
+              "cli/gns3util_link_start-capture",
+              "cli/gns3util_link_stop-capture",
+              "cli/gns3util_link_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Node Operations",
+            "pages": [
+              "cli/gns3util_node",
+              "cli/gns3util_node_auto-idle-pc",
+              "cli/gns3util_node_auto-idle-pc-proposals",
+              "cli/gns3util_node_console-reset",
+              "cli/gns3util_node_create",
+              "cli/gns3util_node_delete",
+              "cli/gns3util_node_duplicate",
+              "cli/gns3util_node_from-template",
+              "cli/gns3util_node_info",
+              "cli/gns3util_node_links",
+              "cli/gns3util_node_ls",
+              "cli/gns3util_node_node-file",
+              "cli/gns3util_node_node-isolate",
+              "cli/gns3util_node_node-unisolate",
+              "cli/gns3util_node_reload-all",
+              "cli/gns3util_node_start-all",
+              "cli/gns3util_node_stop-all",
+              "cli/gns3util_node_suspend-all",
+              "cli/gns3util_node_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Project Management",
+            "pages": [
+              "cli/gns3util_project",
+              "cli/gns3util_project_close",
+              "cli/gns3util_project_delete",
+              "cli/gns3util_project_duplicate",
+              "cli/gns3util_project_export",
+              "cli/gns3util_project_file",
+              "cli/gns3util_project_import",
+              "cli/gns3util_project_info",
+              "cli/gns3util_project_load",
+              "cli/gns3util_project_lock",
+              "cli/gns3util_project_locked",
+              "cli/gns3util_project_ls",
+              "cli/gns3util_project_new",
+              "cli/gns3util_project_open",
+              "cli/gns3util_project_start-capture",
+              "cli/gns3util_project_stats",
+              "cli/gns3util_project_unlock",
+              "cli/gns3util_project_update",
+              "cli/gns3util_project_write-file"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Remote Operations",
+            "pages": [
+              "cli/gns3util_remote",
+              "cli/gns3util_remote_install",
+              "cli/gns3util_remote_install_gns3",
+              "cli/gns3util_remote_install_https",
+              "cli/gns3util_remote_uninstall",
+              "cli/gns3util_remote_uninstall_gns3",
+              "cli/gns3util_remote_uninstall_https"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Resource Pools",
+            "pages": [
+              "cli/gns3util_pool",
+              "cli/gns3util_pool_delete",
+              "cli/gns3util_pool_info",
+              "cli/gns3util_pool_ls",
+              "cli/gns3util_pool_new",
+              "cli/gns3util_pool_resource",
+              "cli/gns3util_pool_resources",
+              "cli/gns3util_pool_to-pool",
+              "cli/gns3util_pool_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Role Management",
+            "pages": [
+              "cli/gns3util_role",
+              "cli/gns3util_role_delete",
+              "cli/gns3util_role_info",
+              "cli/gns3util_role_ls",
+              "cli/gns3util_role_privilege",
+              "cli/gns3util_role_privileges",
+              "cli/gns3util_role_privileges-all",
+              "cli/gns3util_role_role",
+              "cli/gns3util_role_role-privilege",
+              "cli/gns3util_role_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Root Command",
+            "pages": [
+              "cli/gns3util"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Sharing",
+            "pages": [
+              "cli/gns3util_share",
+              "cli/gns3util_share_receive",
+              "cli/gns3util_share_send"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Snapshots",
+            "pages": [
+              "cli/gns3util_snapshot",
+              "cli/gns3util_snapshot_create",
+              "cli/gns3util_snapshot_delete",
+              "cli/gns3util_snapshot_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Symbols",
+            "pages": [
+              "cli/gns3util_symbol",
+              "cli/gns3util_symbol_defaults",
+              "cli/gns3util_symbol_dimensions",
+              "cli/gns3util_symbol_info",
+              "cli/gns3util_symbol_ls"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / System",
+            "pages": [
+              "cli/gns3util_system",
+              "cli/gns3util_system_check-version",
+              "cli/gns3util_system_controller",
+              "cli/gns3util_system_controller_reload",
+              "cli/gns3util_system_controller_shutdown",
+              "cli/gns3util_system_iou-license",
+              "cli/gns3util_system_notifications",
+              "cli/gns3util_system_statistics",
+              "cli/gns3util_system_update-iou-license",
+              "cli/gns3util_system_version"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / Templates",
+            "pages": [
+              "cli/gns3util_template",
+              "cli/gns3util_template_delete",
+              "cli/gns3util_template_duplicate",
+              "cli/gns3util_template_info",
+              "cli/gns3util_template_ls",
+              "cli/gns3util_template_new",
+              "cli/gns3util_template_update"
+            ]
+          },
+          {
+            "group": "GNS3 Operations / User Management",
+            "pages": [
+              "cli/gns3util_user",
+              "cli/gns3util_user_change-password",
+              "cli/gns3util_user_delete",
+              "cli/gns3util_user_group-membership",
+              "cli/gns3util_user_info",
+              "cli/gns3util_user_ls",
+              "cli/gns3util_user_me",
+              "cli/gns3util_user_new",
+              "cli/gns3util_user_update",
+              "cli/gns3util_user_update-current-user",
+              "cli/gns3util_user_user-authenticate"
             ]
           }
-        ]
+        ],
+        "href": "cli/gns3util"
       },
       {
-        "tab": "API Reference",
+        "tab": "Master API",
         "openapi": "api-reference/gns3util-master-api-docs.json"
+      },
+      {
+        "tab": "Filestore API",
+        "openapi": "api-reference/gns3util-filestore-api-docs.json"
       }
     ],
     "global": {
@@ -106,14 +456,14 @@
     }
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
   },
   "navbar": {
     "links": [
       {
-        "label": "GitHub",
-        "href": "https://github.com/0xveya/gns3util"
+        "href": "https://github.com/0xveya/gns3util",
+        "label": "GitHub"
       }
     ]
   }

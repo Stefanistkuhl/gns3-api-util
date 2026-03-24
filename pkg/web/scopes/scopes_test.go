@@ -160,3 +160,62 @@ func TestEdgeCases(t *testing.T) {
 		}
 	})
 }
+
+func TestCombinationValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		action   Action
+		resource Resource
+		valid    bool
+	}{
+		{"read vms valid", Read, VMs, true},
+		{"write configs valid", Write, Configs, true},
+		{"delete backups valid", Delete, Backups, true},
+		{"admin system valid", Admin, System, true},
+		{"all actions with vms", "", VMs, false},
+		{"all resources with read", Read, "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scope := New(tt.action, tt.resource)
+			got := IsValid(scope)
+			if got != tt.valid {
+				t.Errorf("IsValid(%q) = %v, want %v", scope, got, tt.valid)
+			}
+		})
+	}
+}
+
+func TestAllWithEachResource(t *testing.T) {
+	resources := []Resource{VMs, Backups, Configs, System}
+
+	for _, resource := range resources {
+		t.Run(string(resource), func(t *testing.T) {
+			scope := All(resource)
+			if !IsValid(scope) {
+				t.Errorf("All(%q) returned invalid scope: %q", resource, scope)
+			}
+			if !slices.Contains([]string{scope}, scope) {
+				t.Errorf("Scope %q not found", scope)
+			}
+		})
+	}
+}
+
+func TestNewWithEachAction(t *testing.T) {
+	actions := []Action{Read, Write, Delete, Admin}
+
+	for _, action := range actions {
+		t.Run(string(action), func(t *testing.T) {
+			scope := New(action, VMs)
+			if !IsValid(scope) {
+				t.Errorf("New(%q, VMs) returned invalid scope: %q", action, scope)
+			}
+			expected := string(action) + ":vms"
+			if scope != expected {
+				t.Errorf("New(%q, VMs) = %q, want %q", action, scope, expected)
+			}
+		})
+	}
+}

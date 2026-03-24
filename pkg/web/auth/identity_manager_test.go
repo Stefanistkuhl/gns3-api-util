@@ -326,3 +326,133 @@ func TestIdentityManagerMintErrors(t *testing.T) {
 		t.Error("Mint() should panic with public key only manager")
 	}
 }
+
+func TestIdentityManagerExpiredToken(t *testing.T) {
+	_, privKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	mgr, err := NewIdentityManager(privKey)
+	if err != nil {
+		t.Fatalf("NewIdentityManager() error = %v", err)
+	}
+
+	claims := NewClaims("user123", RoleWorker, []string{"read:vms"}, -time.Hour)
+	token, err := mgr.Mint(claims)
+	if err != nil {
+		t.Fatalf("Mint() error = %v", err)
+	}
+
+	_, err = mgr.Validate(token)
+	if err == nil {
+		t.Error("Validate() should return error for expired token")
+	}
+}
+
+func TestIdentityManagerMultipleScopes(t *testing.T) {
+	_, privKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	mgr, err := NewIdentityManager(privKey)
+	if err != nil {
+		t.Fatalf("NewIdentityManager() error = %v", err)
+	}
+
+	scopes := []string{"read:vms", "write:backups", "delete:configs", "admin:system"}
+	claims := NewClaims("user123", RoleWorker, scopes, time.Hour)
+	token, err := mgr.Mint(claims)
+	if err != nil {
+		t.Fatalf("Mint() error = %v", err)
+	}
+
+	validatedClaims, err := mgr.Validate(token)
+	if err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+
+	if len(validatedClaims.Scopes) != len(scopes) {
+		t.Errorf("Scopes length = %d, want %d", len(validatedClaims.Scopes), len(scopes))
+	}
+
+	for i, scope := range validatedClaims.Scopes {
+		if scope != scopes[i] {
+			t.Errorf("Scope[%d] = %q, want %q", i, scope, scopes[i])
+		}
+	}
+}
+
+func TestIdentityManagerDifferentRoles(t *testing.T) {
+	_, privKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	mgr, err := NewIdentityManager(privKey)
+	if err != nil {
+		t.Fatalf("NewIdentityManager() error = %v", err)
+	}
+
+	roles := []string{RoleAdmin, RoleWorker, RolePublic}
+	for _, role := range roles {
+		t.Run(role, func(t *testing.T) {
+			claims := NewClaims("user123", role, []string{}, time.Hour)
+			token, err := mgr.Mint(claims)
+			if err != nil {
+				t.Fatalf("Mint() error = %v", err)
+			}
+
+			validatedClaims, err := mgr.Validate(token)
+			if err != nil {
+				t.Fatalf("Validate() error = %v", err)
+			}
+
+			if validatedClaims.Role != role {
+				t.Errorf("Role = %q, want %q", validatedClaims.Role, role)
+			}
+		})
+	}
+}
+
+func TestIdentityManagerTokenIntegrity(t *testing.T) {
+	_, privKey, err := GenerateKeyPair()
+	if err != nil {
+		t.Fatalf("GenerateKeyPair() error = %v", err)
+	}
+
+	mgr, err := NewIdentityManager(privKey)
+	if err != nil {
+		t.Fatalf("NewIdentityManager() error = %v", err)
+	}
+
+	claims := NewClaims("user123", RoleWorker, []string{"read:vms"}, time.Hour)
+	token, err := mgr.Mint(claims)
+	if err != nil {
+		t.Fatalf("Mint() error = %v", err)
+	}
+
+	if len(token) == 0 {
+		t.Error("Token should not be empty")
+	}
+
+	tokenParts := strings.Split(token, ".")
+	if len(tokenParts) != 3 {
+		t.Errorf("JWT should have 3 parts separated by dots, got %d", len(tokenParts))
+	}
+}
+
+func TestNewClaimsWithEmptyScopes(t *testing.T) {
+	claims := NewClaims("user123", RolePublic, []string{}, time.Hour)
+
+	if claims.UserID != "user123" {
+		t.Errorf("UserID = %q, want %q", claims.UserID, "user123")
+	}
+	if claims.Role != RolePublic {
+		t.Errorf("Role = %q, want %q", claims.Role, RolePublic)
+	}
+	if len(claims.Scopes) != 0 {
+		t.Errorf("Scopes length = %d, want 0", len(claims.Scopes))
+	}
+}

@@ -40,6 +40,20 @@ type FilestoreHandlers struct {
 	JobRunners map[string]JobRunnerFunc
 }
 
+// HandleInitUpload initializes a new file upload session
+//
+//	@Summary		Initialize file upload
+//	@Description	Creates a new upload session and returns a file UUID and upload URL
+//	@Tags			files
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.InitUploadRequest	true	"Upload initialization request"
+//	@Success		200		{object}	models.InitUploadResponse
+//	@Failure		400		{object}	helpers.APIErrorResponse
+//	@Failure		401		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files [post]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Alt-Svc", `h3=":443"; ma=2592000`)
 
@@ -122,6 +136,24 @@ func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// HandleStreamUpload streams file content to the filestore
+//
+//	@Summary		Stream file upload
+//	@Description	Uploads file content with resumable upload support via Content-Range header
+//	@Tags			files
+//	@Accept			octet-stream
+//	@Produce		json
+//	@Param			file_uuid	path		string						true	"File UUID from initialization"
+//	@Param			Content-Range	header		string						false	"byte range for resumable upload"
+//	@Success		200			{object}	models.FinalizeUploadResponse
+//	@Failure		400			{object}	helpers.APIErrorResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		409			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files/{file_uuid}/content [put]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Request) {
 	fileUUID := chi.URLParam(r, "file_uuid")
 	if fileUUID == "" {
@@ -299,6 +331,20 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// GetUploadStatus retrieves the current upload progress
+//
+//	@Summary		Get upload status
+//	@Description	Returns the current byte offset for an in-progress upload (for resumable uploads)
+//	@Tags			files
+//	@Produce		json
+//	@Param			file_uuid	path		string							true	"File UUID"
+//	@Success		200			{object}	models.GetUploadStatusResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files/{file_uuid}/status [get]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) GetUploadStatus(w http.ResponseWriter, r *http.Request) {
 	fileUUID := chi.URLParam(r, "file_uuid")
 	if fileUUID == "" {
@@ -342,6 +388,22 @@ func (f *FilestoreHandlers) GetUploadStatus(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// DownloadFileHandler downloads a file from the filestore
+//
+//	@Summary		Download file
+//	@Description	Downloads a file with support for range requests (byte-range downloads)
+//	@Tags			files
+//	@Produce		application/octet-stream
+//	@Param			file_uuid	path		string						true	"File UUID"
+//	@Param			Range		header		string						false	"byte range request"
+//	@Success		200			{file}		binary
+//	@Success		206			{file}		binary
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files/{file_uuid} [get]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.Request) {
 	fileUUID := chi.URLParam(r, "file_uuid")
 	if fileUUID == "" {
@@ -397,6 +459,7 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 			if openErr != nil {
 				f.Logger.Error("Failed to open file", "err", openErr, "file_uuid", fileUUID)
 				return
+
 			}
 			defer srcFile.Close()
 
@@ -435,6 +498,20 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 	http.ServeFile(w, r, file.FilePath)
 }
 
+// CreateBucket creates a new storage bucket
+//
+//	@Summary		Create bucket
+//	@Description	Creates a new bucket for organizing files
+//	@Tags			buckets
+//	@Accept			json
+//	@Produce		json
+//	@Param			request	body		models.CreateBucketRequest	true	"Bucket creation request"
+//	@Success		200		{object}	models.CreateBucketResponse
+//	@Failure		400		{object}	helpers.APIErrorResponse
+//	@Failure		401		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/buckets [post]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) CreateBucket(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.GetClaims(r)
 	if !ok {
@@ -497,6 +574,20 @@ func (f *FilestoreHandlers) CreateBucket(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// ListBucketFiles lists all files in a bucket
+//
+//	@Summary		List bucket files
+//	@Description	Returns all files in a specific bucket
+//	@Tags			buckets
+//	@Produce		json
+//	@Param			bucket_id	path		string						true	"Bucket ID"
+//	@Success		200			{object}	models.ListBucketFilesResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/buckets/{bucket_id}/files [get]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Request) {
 	bucketID := chi.URLParam(r, "bucket_id")
 	if bucketID == "" {
@@ -539,6 +630,21 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// PublicFileHandler downloads a file using a public access token
+//
+//	@Summary		Download file with public token
+//	@Description	Downloads a file using a public access token (no authentication required)
+//	@Tags			public
+//	@Produce		application/octet-stream
+//	@Param			bucket_id		path		string						true	"Public access token"
+//	@Param			token	path		string						true	"File UUID"
+//	@Success		200			{file}		binary
+//	@Success		206			{file}		binary
+//	@Failure		400			{object}	helpers.APIErrorResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/public/{token}/{file_uuid} [get]
 func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Request) {
 	bucketID := chi.URLParam(r, "bucket_id")
 	token := chi.URLParam(r, "token")
@@ -787,6 +893,23 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	return ranges, nil
 }
 
+// GeneratePublicToken creates a public access token for a file
+//
+//	@Summary		Generate public token
+//	@Description	Creates a temporary public access token for sharing a file without authentication
+//	@Tags			public
+//	@Accept			json
+//	@Produce		json
+//	@Param			file_uuid	path		string						true	"File UUID"
+//	@Param			request		body		models.PublicTokenRequest	true	"Token generation request"
+//	@Success		200			{object}	models.PublicTokenResponse
+//	@Failure		400			{object}	helpers.APIErrorResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files/{file_uuid}/public-token [post]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) GeneratePublicToken(w http.ResponseWriter, r *http.Request) {
 	fileUUID := chi.URLParam(r, "file_uuid")
 	if fileUUID == "" {
@@ -891,6 +1014,20 @@ func (f *FilestoreHandlers) GeneratePublicToken(w http.ResponseWriter, r *http.R
 	}
 }
 
+// DeleteFile deletes a file from the filestore
+//
+//	@Summary		Delete file
+//	@Description	Deletes a file and marks blob as deleted
+//	@Tags			files
+//	@Produce		json
+//	@Param			file_uuid	path		string						true	"File UUID"
+//	@Success		200			{object}	models.DeleteFileResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/files/{file_uuid} [delete]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	fileUUID := chi.URLParam(r, "file_uuid")
 	if fileUUID == "" {
@@ -987,6 +1124,21 @@ func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteBucket deletes a bucket and all its files
+//
+//	@Summary		Delete bucket
+//	@Description	Deletes a bucket and all files contained within it
+//	@Tags			buckets
+//	@Produce		json
+//	@Param			bucket_id	path		string						true	"Bucket ID"
+//	@Success		200			{object}	models.DeleteBucketResponse
+//	@Failure		400			{object}	helpers.APIErrorResponse
+//	@Failure		401			{object}	helpers.APIErrorResponse
+//	@Failure		403			{object}	helpers.APIErrorResponse
+//	@Failure		404			{object}	helpers.APIErrorResponse
+//	@Failure		500			{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/buckets/{bucket_id} [delete]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 	bucketID := chi.URLParam(r, "bucket_id")
 	if bucketID == "" {
@@ -1077,6 +1229,17 @@ func (f *FilestoreHandlers) DeleteBucket(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// ListBuckets lists all buckets owned by the user
+//
+//	@Summary		List buckets
+//	@Description	Returns all buckets accessible to the authenticated user
+//	@Tags			buckets
+//	@Produce		json
+//	@Success		200		{object}	models.ListBucketResponse
+//	@Failure		401		{object}	helpers.APIErrorResponse
+//	@Failure		500		{object}	helpers.APIErrorResponse
+//	@Router			/api/v1/buckets [get]
+//	@Security		BearerAuth
 func (f *FilestoreHandlers) ListBuckets(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.GetClaims(r)
 	if !ok {

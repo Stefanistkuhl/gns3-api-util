@@ -152,7 +152,9 @@ func TestCertManagerConcurrentAccess(t *testing.T) {
 	}
 
 	for range numGoroutines {
-		wg.Go(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
 			for range numOperations {
 				hello := &tls.ClientHelloInfo{}
 				_, err := cm.GetCertificate(hello)
@@ -160,7 +162,7 @@ func TestCertManagerConcurrentAccess(t *testing.T) {
 					t.Errorf("GetCertificate() in goroutine error = %v", err)
 				}
 			}
-		})
+		}()
 	}
 
 	wg.Wait()

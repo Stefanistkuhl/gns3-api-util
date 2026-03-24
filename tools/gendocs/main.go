@@ -17,4 +17,13 @@ func main() {
 	cli.GenrateDocs(path)
 
 	log.Println("CLI docs generated in ", path)
+
+	// Auto-generate docs.json with complete CLI reference hierarchy
+	docsJsonPath := filepath.Join("documentation", "docs.json")
+	err = GenerateDocsJSON(path, docsJsonPath)
+	if err != nil {
+		log.Fatal("Failed to generate docs.json:", err)
+	}
+
+	log.Println("docs.json updated with complete CLI reference (hierarchical organization)")
 }

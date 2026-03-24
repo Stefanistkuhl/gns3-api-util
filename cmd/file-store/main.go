@@ -20,6 +20,10 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	_ "github.com/0xveya/gns3util/docs/filestore"
+	"github.com/mvrilo/go-redoc"
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	backgroundjobs "github.com/0xveya/gns3util/internal/file-store/backroundjobs"
 	dbpkg "github.com/0xveya/gns3util/internal/file-store/db"
 	"github.com/0xveya/gns3util/internal/file-store/fs"
@@ -76,6 +80,13 @@ func init() {
 	}
 }
 
+// @title						gns3util cluster filestore API
+// @version					1.0
+// @description				API for gns3util distributed file storage
+// @securityDefinitions.apikey	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Type "Bearer" followed by a space and JWT token.
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -324,6 +335,18 @@ func setupRouter(
 	r.NotFound(commonhandlers.Handle404)
 	r.MethodNotAllowed(commonhandlers.Handle405)
 	r.Get("/healthz", commonhandlers.HandleHealthz)
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL("/swagger/doc.json"),
+	))
+	doc := redoc.Redoc{
+		Title:       "gns3util Cluster Filestore API Documentation",
+		Description: "gns3util cluster filestore API documentation generated from OpenAPI spec",
+		SpecFile:    "./docs/filestore/swagger.json",
+		SpecPath:    "/swagger/doc.json",
+		DocsPath:    "/redoc",
+	}
+
+	r.Handle("/redoc", doc.Handler())
 
 	jobRunners := map[string]handlers.JobRunnerFunc{
 		"db-vacuum": func(ctx context.Context, invokedBy backgroundjobs.Invocator) (any, error) {

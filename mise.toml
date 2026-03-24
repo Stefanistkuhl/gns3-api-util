@@ -109,9 +109,17 @@ run = "air -c air-file-store.toml"
 description = "Generate SQL files"
 run = "sqlc generate"
 
-[tasks.swag]
-description = "Generate swagger api docs"
-run = "swag init -g main.go -d ./cmd/master,./internal/master/handlers,./pkg/models,./pkg/web/helpers"
+[tasks."swag-master"]
+description = "Generate swagger api docs for master"
+run = "swag init -g main.go -o docs/master -d ./cmd/master,./internal/master/handlers,./pkg/models,./pkg/web/helpers"
+
+[tasks."swag-filestore"]
+description = "Generate swagger api docs for filestore"
+run = "swag init -g main.go -o docs/filestore -d ./cmd/file-store,./internal/file-store/handlers,./pkg/models,./pkg/web/helpers"
+
+[tasks."swag-all"]
+description = "Generate swagger api docs for all services"
+depends = ["swag-master", "swag-filestore"]
 
 [tasks.proto]
 description = "Generate all protobuf and dRPC files"
@@ -119,7 +127,7 @@ run = "buf generate internal/shared/proto --template internal/shared/proto/buf.g
 
 [tasks.generate]
 description = "Generate all files"
-depends = ["sqlc", "proto", "swag"]
+depends = ["sqlc", "proto", "swag-all"]
 
 [tasks.release]
 description = "Create a production release"
@@ -128,18 +136,22 @@ run = "goreleaser release --clean"
 [tasks."docs:gen-cli"]
 description = "Generate CLI documentation from Cobra"
 run = "go run ./tools/gendocs"
-dir = "."
+
+[tasks."docs:openapi"]
+description = "Convert Swagger to OpenAPI and copy to documentation"
+run = [
+  "bunx swagger2openapi docs/master/swagger.json -o docs/master/openapi.json",
+  "bunx swagger2openapi docs/filestore/swagger.json -o docs/filestore/openapi.json",
+  "mkdir -p documentation/api-reference",
+  "cp docs/master/openapi.json documentation/api-reference/gns3util-master-api-docs.json",
+  "cp docs/filestore/openapi.json documentation/api-reference/gns3util-filestore-api-docs.json"
+]
+depends = ["swag-all"]
 
 [tasks.docs]
 description = "Generate all documentation (CLI + OpenAPI)"
-run = [
-  "bunx swagger2openapi docs/swagger.json -o docs/openapi.json",
-  "mkdir -p documentation/api-reference",
-  "cp docs/openapi.json documentation/api-reference/gns3util-master-api-docs.json",
-  "go run ./tools/gendocs",
-  "echo 'Docs generated successfully'"
-]
-depends = ["swag", "docs:gen-cli"]
+run = "echo 'Docs generated successfully'"
+depends = ["docs:openapi", "docs:gen-cli"]
 
 [tasks."docs-serve"]
 description = "Serve docs locally"

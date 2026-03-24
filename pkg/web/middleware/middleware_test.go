@@ -226,3 +226,57 @@ func TestGetClaimsModifiedContext(t *testing.T) {
 		t.Errorf("Modified UserID = %v, want %v", claims2.UserID, "modified-user")
 	}
 }
+
+func TestGetClaimsWithDifferentRoles(t *testing.T) {
+	roles := []string{"admin", "worker", "public"}
+
+	for _, role := range roles {
+		t.Run(role, func(t *testing.T) {
+			claims := &auth.Claims{
+				UserID: "testuser",
+				Role:   role,
+				Scopes: []string{},
+			}
+
+			ctx := context.WithValue(context.Background(), ClaimsKey, claims)
+			req := httptest.NewRequestWithContext(context.Background(), "GET", "/", http.NoBody)
+			req = req.WithContext(ctx)
+
+			retrievedClaims, ok := GetClaims(req)
+			if !ok {
+				t.Error("GetClaims() should return true")
+			}
+			if retrievedClaims.Role != role {
+				t.Errorf("Role = %q, want %q", retrievedClaims.Role, role)
+			}
+		})
+	}
+}
+
+func TestGetClaimsWithMultipleScopes(t *testing.T) {
+	scopes := []string{"read:vms", "write:backups", "delete:configs", "admin:system"}
+	claims := &auth.Claims{
+		UserID: "testuser",
+		Role:   "admin",
+		Scopes: scopes,
+	}
+
+	ctx := context.WithValue(context.Background(), ClaimsKey, claims)
+	req := httptest.NewRequestWithContext(context.Background(), "GET", "/", http.NoBody)
+	req = req.WithContext(ctx)
+
+	retrievedClaims, ok := GetClaims(req)
+	if !ok {
+		t.Error("GetClaims() should return true")
+	}
+
+	if len(retrievedClaims.Scopes) != len(scopes) {
+		t.Errorf("Scopes length = %d, want %d", len(retrievedClaims.Scopes), len(scopes))
+	}
+
+	for i, scope := range retrievedClaims.Scopes {
+		if scope != scopes[i] {
+			t.Errorf("Scope[%d] = %q, want %q", i, scope, scopes[i])
+		}
+	}
+}
