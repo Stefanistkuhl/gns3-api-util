@@ -11,7 +11,6 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/lipgloss/table"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/tidwall/pretty"
 	"gopkg.in/yaml.v3"
@@ -146,8 +145,8 @@ func (p *ASCIITablePrinter) PrintObj(obj any, w io.Writer) error {
 type LipglossTablePrinter struct{}
 
 func (p *LipglossTablePrinter) PrintObj(obj any, w io.Writer) error {
-	var headers []string
-	var rows [][]string
+	var originalHeaders []string
+	var originalRows [][]string
 
 	switch items := obj.(type) {
 	case []TableRecord:
@@ -155,35 +154,84 @@ func (p *LipglossTablePrinter) PrintObj(obj any, w io.Writer) error {
 			_, _ = fmt.Fprintln(w, "No resources found.")
 			return nil
 		}
-		headers = items[0].GetHeaders()
+		originalHeaders = items[0].GetHeaders()
 		for _, item := range items {
-			rows = append(rows, item.GetRow())
+			originalRows = append(originalRows, item.GetRow())
 		}
 	case TableRecord:
-		headers = items.GetHeaders()
-		rows = append(rows, items.GetRow())
+		originalHeaders = items.GetHeaders()
+		originalRows = append(originalRows, items.GetRow())
 	default:
 		return fmt.Errorf("object does not implement TableRecord")
 	}
 
-	t := table.New().
-		Border(lipgloss.RoundedBorder()).
-		BorderStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("240"))).
-		Headers(headers...).
-		Rows(rows...).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			if row == -1 {
-				return lipgloss.NewStyle().
-					Foreground(lipgloss.Color("12")).
-					Bold(true).
-					Align(lipgloss.Center).
-					Padding(0, 1)
-			}
-			return lipgloss.NewStyle().
-				Foreground(lipgloss.Color("15")).
-				Padding(0, 1)
-		})
+	headers := append([]string{"#"}, originalHeaders...)
+	var rows [][]string
+	for i, row := range originalRows {
+		indexedRow := append([]string{fmt.Sprintf("%d", i)}, row...)
+		rows = append(rows, indexedRow)
+	}
 
-	_, err := fmt.Fprintln(w, t.Render())
+	colWidths := make([]int, len(headers))
+	for i, h := range headers {
+		colWidths[i] = lipgloss.Width(h)
+	}
+	for _, row := range rows {
+		for i, col := range row {
+			if width := lipgloss.Width(col); width > colWidths[i] {
+				colWidths[i] = width
+			}
+		}
+	}
+
+	headerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Bold(true).Padding(0, 1)
+	rowStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Padding(0, 1)
+	indexStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Padding(0, 1)
+	borderStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+	drawDivider := func(left, mid, right string) string {
+		parts := make([]string, 0, len(colWidths))
+		for _, w := range colWidths {
+			// w + 2 accounts for the left and right padding inside the cell
+			parts = append(parts, strings.Repeat("─", w+2))
+		}
+		return borderStyle.Render(left + strings.Join(parts, mid) + right)
+	}
+
+	drawRow := func(rowData []string, isHeader bool) string {
+		parts := make([]string, 0, len(rowData))
+		for i, colText := range rowData {
+			style := rowStyle
+			align := lipgloss.Left
+
+			if isHeader {
+				style = headerStyle
+				align = lipgloss.Center
+				if i == 0 {
+					align = lipgloss.Right
+				}
+			} else if i == 0 {
+				style = indexStyle
+				align = lipgloss.Right
+			}
+
+			cell := style.Width(colWidths[i] + 2).Align(align).Render(colText)
+			parts = append(parts, cell)
+		}
+		sep := borderStyle.Render("│")
+		return sep + strings.Join(parts, sep) + sep
+	}
+
+	var out []string
+
+	out = append(out, drawDivider("╭", "┬", "╮"), drawRow(headers, true), drawDivider("├", "┼", "┤"))
+
+	for _, row := range rows {
+		out = append(out, drawRow(row, false))
+	}
+
+	out = append(out, drawDivider("├", "┼", "┤"), drawRow(headers, true), drawDivider("╰", "┴", "╯"))
+
+	_, err := fmt.Fprintln(w, strings.Join(out, "\n"))
 	return err
 }

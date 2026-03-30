@@ -6,6 +6,9 @@ import (
 	"os"
 	"sort"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type DocsConfig struct {
@@ -46,7 +49,7 @@ type CommandInfo struct {
 }
 
 // GenerateDocsJSON scans CLI docs and updates docs.json with complete hierarchy
-func GenerateDocsJSON(cliDir string, docsJsonPath string) error {
+func GenerateDocsJSON(cliDir, docsJsonPath string) error {
 	// Parse all CLI markdown files
 	commands, err := parseCLIFiles(cliDir)
 	if err != nil {
@@ -77,6 +80,7 @@ func GenerateDocsJSON(cliDir string, docsJsonPath string) error {
 		return fmt.Errorf("failed to marshal docs.json: %w", err)
 	}
 
+	// #nosec G306
 	return os.WriteFile(docsJsonPath, append(data, '\n'), 0o644)
 }
 
@@ -90,37 +94,39 @@ func parseCLIFiles(cliDir string) ([]CommandInfo, error) {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
-			// Extract command structure from filename
-			// e.g., gns3util_cluster_config_apply.md -> ["cluster", "config", "apply"]
-			// or gns3util.md -> ["gns3util"]
-			parts := strings.Split(strings.TrimSuffix(entry.Name(), ".md"), "_")
-			if len(parts) < 1 {
-				continue // Skip invalid files
-			}
-
-			var cmdParts []string
-			if len(parts) == 1 && parts[0] == "gns3util" {
-				// Root command case
-				cmdParts = []string{"gns3util"}
-			} else if len(parts) >= 2 {
-				// Skip the "gns3util" prefix for subcommands
-				cmdParts = parts[1:]
-
-				// Normalize underscores to hyphens for consistency
-				for i := range cmdParts {
-					cmdParts[i] = strings.ReplaceAll(cmdParts[i], "_", "-")
-				}
-			} else {
-				continue // Skip invalid files
-			}
-
-			commands = append(commands, CommandInfo{
-				Name:     cmdParts[0],
-				Path:     cmdParts,
-				FilePath: fmt.Sprintf("cli/%s", strings.TrimSuffix(entry.Name(), ".md")),
-			})
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
 		}
+		// Extract command structure from filename
+		// e.g., gns3util_cluster_config_apply.md -> ["cluster", "config", "apply"]
+		// or gns3util.md -> ["gns3util"]
+		parts := strings.Split(strings.TrimSuffix(entry.Name(), ".md"), "_")
+		if len(parts) < 1 {
+			continue // Skip invalid files
+		}
+
+		var cmdParts []string
+		switch {
+		case len(parts) == 1 && parts[0] == "gns3util":
+			// Root command case
+			cmdParts = []string{"gns3util"}
+		case len(parts) >= 2:
+			// Skip the "gns3util" prefix for subcommands
+			cmdParts = parts[1:]
+
+			// Normalize underscores to hyphens for consistency
+			for i := range cmdParts {
+				cmdParts[i] = strings.ReplaceAll(cmdParts[i], "_", "-")
+			}
+		default:
+			continue // Skip invalid files
+		}
+
+		commands = append(commands, CommandInfo{
+			Name:     cmdParts[0],
+			Path:     cmdParts,
+			FilePath: fmt.Sprintf("cli/%s", strings.TrimSuffix(entry.Name(), ".md")),
+		})
 	}
 
 	return commands, nil
@@ -260,7 +266,7 @@ func getGroupName(path []string) string {
 			case "discover":
 				return "Cluster Discovery"
 			default:
-				return strings.Title(strings.ReplaceAll(path[1], "-", " "))
+				return cases.Title(language.English).String(strings.ReplaceAll(path[1], "-", " "))
 			}
 		}
 		return "Cluster Control"
@@ -319,16 +325,16 @@ func getGroupName(path []string) string {
 	case "system":
 		return "System"
 	default:
-		return strings.Title(strings.ReplaceAll(rootCmd, "-", " "))
+		return cases.Title(language.English).String(strings.ReplaceAll(rootCmd, "-", " "))
 	}
 }
 
 // buildGroupsFromMap converts a map of groupName -> pages into sorted Group slices
 func buildGroupsFromMap(m map[string][]string) []Group {
-	var groups []Group
+	groups := make([]Group, 0, len(m))
 
 	// Sort group names for consistent ordering
-	var groupNames []string
+	groupNames := make([]string, 0, len(m))
 	for name := range m {
 		groupNames = append(groupNames, name)
 	}
@@ -346,6 +352,7 @@ func buildGroupsFromMap(m map[string][]string) []Group {
 
 // readDocsJSON reads and parses the existing docs.json
 func readDocsJSON(path string) (*DocsConfig, error) {
+	// #nosec G304
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err

@@ -361,8 +361,8 @@ func TestIdentityManagerMultipleScopes(t *testing.T) {
 		t.Fatalf("NewIdentityManager() error = %v", err)
 	}
 
-	scopes := []string{"read:vms", "write:backups", "delete:configs", "admin:system"}
-	claims := NewClaims("user123", RoleWorker, scopes, time.Hour)
+	testScopes := []string{"read:vms", "write:backups", "delete:configs", "admin:system"}
+	claims := NewClaims("user123", RoleWorker, testScopes, time.Hour)
 	token, err := mgr.Mint(claims)
 	if err != nil {
 		t.Fatalf("Mint() error = %v", err)
@@ -373,13 +373,13 @@ func TestIdentityManagerMultipleScopes(t *testing.T) {
 		t.Fatalf("Validate() error = %v", err)
 	}
 
-	if len(validatedClaims.Scopes) != len(scopes) {
-		t.Errorf("Scopes length = %d, want %d", len(validatedClaims.Scopes), len(scopes))
+	if len(validatedClaims.Scopes) != len(testScopes) {
+		t.Errorf("Scopes length = %d, want %d", len(validatedClaims.Scopes), len(testScopes))
 	}
 
 	for i, scope := range validatedClaims.Scopes {
-		if scope != scopes[i] {
-			t.Errorf("Scope[%d] = %q, want %q", i, scope, scopes[i])
+		if scope != testScopes[i] {
+			t.Errorf("Scope[%d] = %q, want %q", i, scope, testScopes[i])
 		}
 	}
 }
@@ -433,7 +433,7 @@ func TestIdentityManagerTokenIntegrity(t *testing.T) {
 		t.Fatalf("Mint() error = %v", err)
 	}
 
-	if len(token) == 0 {
+	if token == "" {
 		t.Error("Token should not be empty")
 	}
 

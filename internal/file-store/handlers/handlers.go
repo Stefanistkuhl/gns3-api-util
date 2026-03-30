@@ -644,7 +644,7 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 //	@Failure		401			{object}	helpers.APIErrorResponse
 //	@Failure		404			{object}	helpers.APIErrorResponse
 //	@Failure		500			{object}	helpers.APIErrorResponse
-//	@Router			/public/{token}/{file_uuid} [get]
+//	@Router			/public/{bucket_id}/{token} [get]
 func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Request) {
 	bucketID := chi.URLParam(r, "bucket_id")
 	token := chi.URLParam(r, "token")
