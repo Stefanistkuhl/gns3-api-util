@@ -1,523 +1,283 @@
 # GNS3UTIL
 
+> **UNDER DEVELOPMENT** - This project is in active development. APIs and CLI commands are subject to change.
+
 <p align="center">
   <img width=256 src="https://i.imgur.com/t1PNyl4.gif" alt="surely a temporary logo" />
 </p>
 
-A powerful command-line utility for managing GNS3v3 servers, with advanced template-based exercise creation for educational environments.
+A toolkit for GNS3 lab management with two main components:
 
-## Features
+1. **Cluster Orchestration** (New) - Distributed system for managing labs at scale with a master control plane and distributed file storage
+2. **GNS3 API Wrapper** (Maintained) - Command-line interface for direct GNS3v3 server management
 
-### **Template-Based Exercise Creation**
-- **Server-based templates**: Use existing projects on the server as templates
-- **File-based templates**: Import `.gns3project` files as templates
-- **Interactive selection**: Fuzzy picker for choosing templates
-- **Automatic duplication**: Templates are duplicated for each student group
-- **Smart fallback**: Prioritizes server templates over file imports
+## Architecture
 
-### **Educational Workflow**
-- **Class management**: Create classes with multiple student groups
-- **Exercise deployment**: Deploy identical lab environments for all groups
-- **Access control**: Automatic ACL setup for student access
-- **Resource management**: Efficient project and node management
+GNS3UTIL is built as a distributed cluster system with two main components:
 
-### **Remote Server Management**
-- **HTTPS setup**: Install Caddy reverse proxy with SSL certificates
-- **GNS3 server installation**: Remote installation and configuration of GNS3 servers
-- **Firewall management**: Configure security rules and access restrictions
-- **SSH operations**: Direct server administration via SSH
-- **State file support**: Automatic configuration tracking for easy cleanup
+### **Cluster Master** (`cmd/master/`)
+Central control plane managing the cluster:
+- Authentication and authorization (RBAC)
+- Cluster node management and health monitoring
+- Distributed state via ETCD
+- Job orchestration and scheduling
+- mDNS service discovery
 
-### **Cluster Management**
-- **Cluster creation**: Provision logical clusters that coordinate multiple GNS3 servers
-- **Node enrollment**: Add single or multiple nodes to scaling clusters on demand
-- **Configuration tooling**: Manage cluster configuration through `cluster config`
-- **Topology visibility**: List clusters and view class/exercise distribution across nodes
+### **File Store Nodes** (`cmd/file-store/`)
+Distributed storage nodes for lab files:
+- Multi-protocol support (HTTP/TLS, HTTP/3)
+- File and bucket management with permissions
+- Metadata via Turso (SQLite edge database)
+- Automatic storage optimization and cleanup
+- Public token-based file sharing
 
-### **Developer Tools**
-- **Example scripts**: Ready-to-use bash scripts for common workflows
-- **Educational examples**: Step-by-step tutorials and use cases
+## Core Features
 
-## Quick Start
+### **Cluster Orchestration**
+- **Master-based coordination**: Central control of distributed cluster
+- **Node management**: Register, monitor, and manage file store nodes
+- **Health checks**: Automatic node status monitoring
+- **Job scheduling**: Distributed job execution across nodes
 
-### Installation
+### **Distributed File Storage**
+- **Bucket organization**: Organize files into logical buckets
+- **Access control**: Fine-grained permissions for files and buckets
+- **Multi-protocol**: HTTP/TLS and HTTP/3 (QUIC) support
+- **Public sharing**: Generate public tokens for temporary file access
+- **Storage optimization**: Automatic cleanup of expired and orphaned files
 
-#### Package Managers (Recommended)
+### **Identity & Security**
+- **JWT-based authentication**: Token generation and validation
+- **Role-based access control**: Manage users and roles
+- **Certificate management**: Automatic TLS certificate generation and management
+- **Cluster authentication**: Secure inter-node communication
+
+### **Observability**
+- **OpenTelemetry integration**: Distributed tracing and metrics
+- **Prometheus metrics**: Storage, upload, and API performance metrics
+- **Health endpoints**: Built-in health check endpoints
+
+## Getting Started
+
+### Build from Source
 ```bash
-# Arch Linux (AUR)
-paru -S gns3util
+# Build the CLI
+cd cmd/master && go build -o gns3util-master
+cd cmd/file-store && go build -o gns3util-filestore
 
-# macOS (Homebrew)
-brew tap stefanistkuhl/tap
-brew install gns3util
-
-# Windows (Scoop)
-scoop bucket add stefanistkuhl https://github.com/stefanistkuhl/bucket
-scoop install gns3util
+# Or build all components
+go build ./cmd/...
 ```
 
-#### Pre-built Binaries
-Download pre-built binaries from the [Releases page](https://github.com/stefanistkuhl/gns3-api-util/releases) for your platform.
+### Running Components
 
-#### Build from Source
+**Master Node**:
 ```bash
-# Build from source
-go build -o gns3util
+./gns3util-master
 ```
 
-### Quick Start Update
-
-```md
-## Quick Start
-
-### **Authentication & Sticky Settings**
+**File Store Node**:
 ```bash
-# 1. Login to your GNS3 server
-gns3util -s https://your-server:3080 auth login
-
-# 2. Enable Auto-Save to remember your server and format
-# Add this to your shell profile (~/.config/fish/config.fish or ~/.bashrc)
-export GNS3_STORE_LAST_SETTINGS=true
-
-# 3. Use a flag once, and it will be remembered for next time
-gns3util user ls -o json
+./gns3util-filestore
 ```
 
-### Basic Usage
+### Environment Configuration
 
-#### Create a Class
+Both components support configuration via environment variables. See:
+- [`cmd/master/README.md`](cmd/master/README.md) for master configuration
+- [`cmd/file-store/README.md`](cmd/file-store/README.md) for file store configuration
+
+## CLI Tools
+
+GNS3UTIL includes both a legacy GNS3 API wrapper and the new cluster orchestration CLI.
+
+### Cluster Orchestration CLI (New)
+
+The `cluster-control` (alias: `ctl`) tool manages cluster orchestration. Current commands:
+
+**Cluster Management**:
 ```bash
-# Create class from JSON file
-gns3util -s https://server:3080 class create --file class.json
-
-# Interactive class creation
-gns3util -s https://server:3080 class create --interactive
-
-# Launch interactive class builder on a custom address
-gns3util -s https://server:3080 class create --interactive  --port 9090
-
-# Create a class and register it with a cluster
-gns3util class create --cluster production-cluster --file class.json
+# Create and manage clusters
+gns3util ctl create <command>
+gns3util ctl auth <command>
+gns3util ctl add-cluster <command>
+gns3util ctl add-discover <command>
+gns3util ctl remove <command>
 ```
 
-#### Create an Exercise with Template
+**Storage**:
 ```bash
-# Interactive template selection (recommended)
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --select-template
-
-# Using existing project as template
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "NetworkTemplate" \
-  --confirm=false
-
-# Using template file
-gns3util -s https://server:3080 exercise create \
-  --class "CS101" \
-  --exercise "Lab1" \
-  --template "/path/to/template.gns3project"
+# Manage object storage buckets and files
+gns3util ctl obj <command>
 ```
 
-#### Exercise Management with Fuzzy Selection
+**Operations**:
 ```bash
-# Interactive class selection for exercise deletion
-gns3util -s https://server:3080 exercise delete --select-class
-
-# Interactive class and group selection
-gns3util -s https://server:3080 exercise delete --select-class --select-group
-
-# Multi-select exercises for deletion
-gns3util -s https://server:3080 exercise delete --select-exercise --multi
-
-# Delete exercises from specific cluster (no server flag needed)
-gns3util exercise delete --cluster production-cluster --select-exercise
+# Manage distributed jobs
+gns3util ctl jobs <command>
 ```
 
-#### Class Operations
+**RBAC & Identity**:
 ```bash
-# List classes and show node distribution
-gns3util class ls --cluster production-cluster
-
-# Delete a single class non-interactively without confirmation
-gns3util -s https://server:3080 class delete --name "CS101" --no-confirm
-
-# Delete classes via fuzzy finder (multi-select)
-gns3util -s https://server:3080 class delete --multi
-
-# Remove a class and its exercises from a cluster definition
-gns3util class delete --cluster production-cluster --name "CS101" --delete-exercises --no-confirm
+# Manage users and roles
+gns3util ctl users <command>
+gns3util ctl roles <command>
 ```
 
-#### Exercise Operations
+For complete reference:
 ```bash
-# List exercises across the cluster
-gns3util exercise ls --cluster production-cluster
-
-# Filter exercise list by class 
-gns3util -s https://server:3080 exercise ls --class "CS101"
-
-# Delete all exercises for a class from the controller
-gns3util -s https://server:3080 exercise delete --class "CS101" --no-confirm
-
-# Delete multiple exercises interactively with multi-select
-gns3util -s https://server:3080 exercise delete --select-exercise --multi
+gns3util ctl --help
 ```
 
-#### Cluster Operations
+### Legacy GNS3 API Wrapper (Maintained)
+
+The original GNS3 API wrapper commands are still available:
 ```bash
-# Create a new cluster definition
-gns3util cluster create --name production-cluster
+# Project management
+gns3util project <command>
 
-# Add nodes to a cluster (repeat --server for each node)
-gns3util cluster add-nodes production-cluster \
-  --server https://cluster-node-01:3080 \
-  --server https://cluster-node-02:3080 \
-  --user admin --password "$GNS3_PASSWORD"
+# Node management  
+gns3util node <command>
 
-# Review cluster configuration and membership
-gns3util cluster ls
+# Class and exercise management
+gns3util class <command>
+gns3util exercise <command>
 
-# Edit cluster defaults (opens file in $EDITOR)
-gns3util cluster config edit
+# User and authentication
+gns3util user <command>
+gns3util auth <command>
 
-# Apply an updated cluster configuration file
-gns3util cluster config apply cluster.yaml
+# Cluster configuration (legacy)
+gns3util cluster <command>
+
+# Server operations
+gns3util remote <command>
 ```
 
-#### Remote Server Management
-
-**GNS3 Server Installation**:
-```bash
-# Install GNS3 server with default options
-gns3util -s https://server:3080 remote install gns3 admin
-
-# Install with Docker and VirtualBox support
-gns3util -s https://server:3080 remote install gns3 admin \
-  --install-docker \
-  --install-virtualbox \
-  --gns3-port 3080 \
-  --home-dir /opt/gns3
-
-# Install with IOU support
-gns3util -s https://server:3080 remote install gns3 admin \
-  --use-iou \
-  --enable-i386 \
-  --username gns3-server
-
-# Interactive installation (recommended for first-time setup)
-gns3util -s https://server:3080 remote install gns3 admin --interactive
-```
-
-**GNS3 Server Uninstallation**:
-```bash
-# Uninstall GNS3 server (preserves user data)
-gns3util -s https://server:3080 remote uninstall gns3 admin \
-  --preserve-data
-
-# Complete uninstall (removes everything)
-gns3util -s https://server:3080 remote uninstall gns3 admin
-
-# Interactive uninstallation
-gns3util -s https://server:3080 remote uninstall gns3 admin --interactive
-```
-
-**HTTPS Reverse Proxy Setup**:
-```bash
-# Install HTTPS reverse proxy with firewall rules
-gns3util -s https://server:3080 remote install https admin \
-  --domain gns3.yourdomain.com \
-  --firewall-allow 10.0.0.0/24
-
-# Install with custom SSL certificate subject
-gns3util -s https://server:3080 remote install https admin \
-  --domain gns3.yourdomain.com \
-  --subject "/CN=gns3.yourdomain.com" \
-  --firewall-block
-
-# Interactive HTTPS setup
-gns3util -s https://server:3080 remote install https admin --interactive
-```
-
-**HTTPS Reverse Proxy Removal**:
-```bash
-# Remove HTTPS configuration (uses state file automatically)
-gns3util -s https://server:3080 remote uninstall https admin
-
-# Interactive HTTPS removal
-gns3util -s https://server:3080 remote uninstall https admin --interactive
-```
-
-#### Remote Server Management Features
-
-**State Management**: The remote installation system automatically saves installation state for easy cleanup and configuration tracking.
-
-**GNS3 Server Installation Options**:
-- **Docker Support**: Install Docker for containerized appliances
-- **VirtualBox Support**: Enable VirtualBox integration
-- **VMware Support**: Install VMware integration packages
-- **IOU Support**: Configure IOU (IOS on Unix) support (requires valid license)
-- **KVM Acceleration**: Hardware acceleration for QEMU (enabled by default)
-- **Custom Configuration**: Specify custom ports, directories, and usernames
-
-**HTTPS Reverse Proxy Options**:
-- **SSL Certificates**: Automatic certificate generation and management
-- **Firewall Rules**: Configure security rules and access restrictions
-- **Custom Domains**: Support for custom domain names and subjects
-- **Port Configuration**: Configurable reverse proxy and GNS3 server ports
-
-**Uninstallation Options**:
-- **Data Preservation**: Keep GNS3 home directory and user projects
-- **Complete Removal**: Remove all GNS3 components and configurations
-- **State Cleanup**: Automatic removal of installation state files
-- **Selective Cleanup**: Remove only specific components (HTTPS, GNS3, etc.)
-
-## Example Scripts
-
-The `scripts/examples/` directory contains ready-to-use bash scripts for common workflows:
-
-### **Template-Based Exercise Deployment**
-```bash
-# Deploy exercise using existing template
-./scripts/examples/deploy-template-exercise.sh \
-  http://gns3-server:3080 \
-  "CS101" \
-  "Lab1" \
-  "NetworkTemplate"
-```
-
-### **Interactive Template Selection**
-```bash
-# Create exercise with interactive template selection
-./scripts/examples/create-exercise-interactive.sh \
-  http://gns3-server:3080 \
-  "CS101" \
-  "Lab1"
-```
-
-### **File-Based Template Import**
-```bash
-# Create exercise from template file
-./scripts/examples/import-template-and-create-exercise.sh \
-  http://gns3-server:3080 \
-  "CS101" \
-  "Lab1" \
-  "template.gns3project"
-```
-
-### **Individual Lab Setup**
-```bash
-# Create individual lab projects for students
-./scripts/examples/setup-class-lab.sh \
-  http://gns3-server:3080 \
-  5  # Number of students
-```
-
-### **Cleanup**
-```bash
-# Clean up projects with specific prefix
-./scripts/examples/cleanup-class.sh \
-  http://gns3-server:3080 \
-  "Student-"  # Project name prefix
-```
-
-### **Test All Scripts**
-```bash
-# Run comprehensive test suite
-./scripts/examples/test-all-scripts.sh http://gns3-server:3080
-```
-
-## Template System
-
-### How Templates Work
-
-1. **Template Selection**: Choose from existing projects or import files
-2. **Automatic Duplication**: Template is duplicated for each student group
-3. **Project Naming**: Uses format `{{class}}-{{exercise}}-{{group}}-{{uuid}}`
-4. **Access Control**: Students only see their assigned projects
-
-### Template Types
-
-#### Server-Based Templates (Recommended)
-- Use existing projects already on the server
-- Fastest deployment
-- No file upload required
-- Interactive selection available
-
-#### File-Based Templates
-- Import `.gns3project` files
-- Useful for sharing templates
-- Automatic cleanup after import
-- Fallback when server templates unavailable
-
-### Example Class JSON
-```json
-{
-  "name": "CS101",
-  "groups": [
-    {
-      "name": "Group1",
-      "students": [
-        {"username": "student1", "password": "password123"},
-        {"username": "student2", "password": "password123"}
-      ]
-    },
-    {
-      "name": "Group2", 
-      "students": [
-        {"username": "student3", "password": "password123"},
-        {"username": "student4", "password": "password123"}
-      ]
-    }
-  ]
-}
-```
-
-## Advanced Features
-
-### Project Management
-```bash
-# List all projects
-gns3util -s https://server:3080 project ls
-
-# Create new project
-gns3util -s https://server:3080 project new --name "MyProject" --auto-close true
-
-# Duplicate project
-gns3util -s https://server:3080 project duplicate "MyProject" --name "MyProjectCopy"
-```
-
-### Node Management
-```bash
-# List nodes in project
-gns3util -s https://server:3080 node ls "MyProject"
-
-# Create nodes
-gns3util -s https://server:3080 node create "MyProject" \
-  --name "Router1" \
-  --node-type "qemu" \
-  --compute-id "local"
-```
-
-### Class Management
-```bash
-# List classes
-gns3util -s https://server:3080 class ls
-
-# Delete class
-gns3util -s https://server:3080 class delete --name "CS101" --confirm=false
-```
-
-### Cluster Management Commands
-```bash
-# Add a single node to an existing cluster
-gns3util cluster add-node production-cluster \
-  --server https://edge-01:3080 \
-  --user admin --password "$GNS3_PASSWORD" \
-  --weight 6
-
-# Add multiple nodes from a configuration file
-gns3util cluster add-nodes production-cluster \
-  --server https://edge-02:3080 \
-  --server https://edge-03:3080
-
-# Edit stored cluster configuration values
-gns3util cluster config edit
-
-# Synchronize the edited config back to the database
-gns3util cluster config sync
-```
-
-## Configuration
-
-### **Global Flags**
-The utility supports several global flags to control behavior across all subcommands:
-
-- `-s, --server`: GNS3v3 Server URL (e.g., `http://10.0.0.12:3080`).
-- `-k, --key-file`: Path to authentication keyfile. Defaults to `~/.gns3/keys.json`.
-- `-i, --insecure`: Ignore unsigned SSL certificates.
-- `-o, --output`: Set the preferred output format.
-    - `kv`: Classic Key-Value pairs (Default).
-    - `json`: Pretty-printed JSON with colors.
-    - `json-colorless`: Pretty-printed JSON without colors.
-    - `collapsed`: Minified JSON.
-    - `yaml`: YAML format.
-    - `toml`: TOML format.
-
-### **Persistent Settings (TOML)**
-The tool automatically manages its state in `~/.gns3/config.toml`. It follows a specific priority logic:
-1. **Explicit Flags**: Command-line flags (e.g., `-s` or `-o`) always take highest priority.
-2. **Environment Variables**: Overrides file settings. Supported variables include:
-    - `GNS3_SERVER`: Maps to `--server`
-    - `GNS3_OUTPUT`: Maps to `--output`
-    - `GNS3_KEY_FILE`: Maps to `--key-file`
-    - `GNS3_INSECURE`: Maps to `--insecure`
-    - `GNS3_STORE_LAST_SETTINGS`: Enables the "sticky" auto-save feature.
-3. **Config File**: Settings loaded from `~/.gns3/config.toml`.
-4. **Defaults**: Hardcoded fallbacks (e.g., `kv` format).
-**Auto-Save Feature**:
-If the environment variable `GNS3_STORE_LAST_SETTINGS=true` is set, the tool will automatically update your `config.toml` with the flags used in your last successful command, making your preferred server and format "sticky."
-
-**Example `~/.gns3/config.toml`**:
-```toml
-server = "http://10.0.0.12:3080"
-output = "toml"
-key-file = "/home/user/.gns3/keys.json"
-insecure = false
-```
-
-### Authentication
-The tool supports multiple authentication methods:
-- Interactive login: `auth login`
-- Keyfile: `-k ~/.gns3/gns3key`
-- Environment variables: `GNS3_SERVER`, `GNS3_KEYFILE`
+Run `gns3util --help` for the complete command tree.
 
 ## Development
 
+### Prerequisites
+This project uses [mise](https://mise.jdx.dev/) for task management and tool versioning.
+
 ### Building
+
+**Build CLI**:
 ```bash
-go build -o gns3util
+mise run build-cli
+```
+
+**Build Master Node**:
+```bash
+go build ./cmd/master
+```
+
+**Build File Store Node**:
+```bash
+go build ./cmd/file-store
+```
+
+**Build all platforms**:
+```bash
+mise run build-all
+```
+
+### Development Workflow
+
+**Run formatter (required before PR)**:
+```bash
+mise run format
+```
+This runs:
+- `goimports` and `gofumpt` for Go code
+- `sleek` for SQL formatting
+- `buf format` for Protobuf files
+- `swag fmt` for Swagger docs
+
+**Run linter (required before PR)**:
+```bash
+mise run lint
+```
+This runs:
+- `golangci-lint` for Go code
+- `buf lint` for Protobuf files
+
+**Run tests**:
+```bash
+mise run test
+```
+
+**Generate code** (after modifying proto, SQL, or handlers):
+```bash
+mise run generate
+```
+This runs:
+- `sqlc` - Generate SQL query code
+- `buf generate` - Generate Protobuf files
+- `swag init` - Generate Swagger documentation
+
+**Development mode** (with hot reload):
+```bash
+# Run all cluster components
+mise run dev-cluster
+
+# Or run individually
+mise run dev-master
+mise run dev-filestore
 ```
 
 ### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+
+1. Clone the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes in the appropriate directory:
+   - `cmd/master/` - Master control plane
+   - `cmd/file-store/` - File storage node
+   - `cmd/gns3util/` - CLI tool
+   - `internal/` - Core implementation
+   - `pkg/` - Shared packages
+4. Run `mise run format` to format your code
+5. Run `mise run lint` to check for issues
+6. Run `mise run test` to ensure tests pass
+7. If you modified proto files or SQL queries, run `mise run generate`
+8. Commit your changes: `git commit -m "feat: description of changes"`
+9. Push to your fork and submit a pull request
+
+**PR Requirements**:
+- ✅ `mise run format` must pass
+- ✅ `mise run lint` must pass
+- ✅ `mise run test` must pass
+- ✅ All generated code is up-to-date (run `mise run generate` if needed)
 
 ## Roadmap
 
+### **In Progress**
+- **Cluster Master**: Control plane with ETCD state management
+- **File Store Nodes**: Distributed storage with Turso/SQLite
+- **Authentication**: JWT-based token system with RBAC
+- **CLI Orchestration**: Commands for cluster and storage management
+
 ### **Future Features**
-- **Multi-Server Management**
-  - Copy projects between servers
-  - Centralized project management
-  - ~~Remote install/uninstall~~ ✅ **Implemented**
-
-- **Backup & Migration**
-  - Automated project backups
-  - Easy server migrations
-  - Project versioning
-
-- **Custom YAML Scripting**
-  - Similar to GitHub Actions
-  - Define workflows in YAML
-  - Automated task execution
+- **Replication**: Cross-node data replication
+- **Metrics & Monitoring**: Enhanced observability
+- **GNS3 Lab Integration**: Deploy GNS3 labs across cluster
+- **Advanced Scheduling**: Job scheduling and orchestration
+- **Configuration Management**: Cluster-wide configuration sync
 
 ## Documentation
 
-**Comprehensive Documentation Available**
+### Cluster Orchestration (New)
+- **[API Reference](https://gns3util.saygex.xyz/api-reference/)** - Complete cluster API documentation
+- **[Master Node](cmd/master/README.md)** - Cluster control plane configuration and features
+- **[File Store Node](cmd/file-store/README.md)** - Distributed storage node setup and API
 
-- **[Online Documentation](https://stefanistkuhl.github.io/gns3-api-util/)** - Complete guide with examples
-- **[CLI Reference](https://stefanistkuhl.github.io/gns3-api-util/cli-reference/commands/)** - Full command reference
+### GNS3 API Wrapper (Legacy)
+- **[GNS3UTIL Documentation](https://stefanistkuhl.github.io/gns3-api-util/)** - Full GNS3 API wrapper guide
+- **[CLI Reference](https://stefanistkuhl.github.io/gns3-api-util/cli-reference/)** - Complete command reference
 
-### Quick Links
-- [Scripts Walkthrough](https://stefanistkuhl.github.io/gns3-api-util/scripts/overview/) - Detailed script usage guide
-- [Automation Guide](https://stefanistkuhl.github.io/gns3-api-util/automation/walkthrough/) - Comprehensive automation walkthrough
-- [Complete Documentation](https://stefanistkuhl.github.io/gns3-api-util/) - Full documentation structure
+### Generated Documentation
+- **[Auto-generated API Docs](./docs/)** - OpenAPI/Swagger documentation
 
 ## License
 
@@ -527,6 +287,6 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 For issues, questions, or contributions:
 - Open an issue on GitHub
-- Check the [online documentation](https://stefanistkuhl.github.io/gns3-api-util/)
-- Review the [example scripts](scripts/examples/) for usage patterns
-- Review the CLI help: `./gns3util --help`
+- Check component-specific READMEs in `cmd/`
+- Review API documentation in generated `docs/` files
+- Run `./gns3util --help` for CLI usage

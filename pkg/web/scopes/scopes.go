@@ -1,61 +1,72 @@
 package scopes
 
 import (
-	"fmt"
 	"slices"
 	"strings"
 )
 
-type (
-	Resource string
-	Action   string
-)
+type Action = string
+
+type Resource = string
 
 const (
-	Superuser          = "superuser"
-	VMs       Resource = "vms"
-	Backups   Resource = "backups"
-	Configs   Resource = "configs"
-	System    Resource = "system"
-	Metrics   Resource = "metrics"
-	Files     Resource = "files"
-	Jobs      Resource = "jobs"
+	// Superuser is a special scope that grants all permissions.
+	Superuser = "superuser"
 
-	Admin   Action = "admin"
+	// Actions
 	Read    Action = "read"
 	Write   Action = "write"
-	Execute Action = "exceute"
+	Execute Action = "execute"
 	Delete  Action = "delete"
+	Admin   Action = "admin"
+
+	// Resources
+	VMs     Resource = "vms"
+	Backups Resource = "backups"
+	Configs Resource = "configs"
+	System  Resource = "system"
+	Metrics Resource = "metrics"
+	Files   Resource = "files"
+	Jobs    Resource = "jobs"
 )
-
-func New(a Action, r Resource) string {
-	return fmt.Sprintf("%s:%s", a, r)
-}
-
-func All(r Resource) string {
-	return fmt.Sprintf("*:%s", r)
-}
 
 var (
-	validActions   = []Action{Read, Write, Delete, Admin, Execute}
+	validActions   = []Action{Read, Write, Execute, Delete, Admin}
 	validResources = []Resource{VMs, Backups, Configs, System, Metrics, Files, Jobs}
 )
+
+func New(action Action, resource Resource) string {
+	return action + ":" + resource
+}
+
+func All(resource Resource) string {
+	return "*:" + resource
+}
 
 func IsValid(scope string) bool {
 	if scope == Superuser {
 		return true
 	}
 
-	parts := strings.Split(scope, ":")
-	if len(parts) != 2 {
+	before, after, ok := strings.Cut(scope, ":")
+	if !ok {
 		return false
 	}
 
-	act := Action(parts[0])
-	res := Resource(parts[1])
+	action := before
+	resource := after
 
-	isValidAction := string(act) == "*" || slices.Contains(validActions, act)
-	isValidResource := slices.Contains(validResources, res)
+	if action == "" || resource == "" {
+		return false
+	}
 
-	return isValidAction && isValidResource
+	// No additional colons allowed in the resource segment.
+	if strings.Contains(resource, ":") {
+		return false
+	}
+
+	validAction := action == "*" || slices.Contains(validActions, action)
+	validResource := slices.Contains(validResources, resource)
+
+	return validAction && validResource
 }

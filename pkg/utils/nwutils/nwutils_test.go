@@ -269,8 +269,8 @@ func TestParseURLPaths(t *testing.T) {
 
 func TestConvertMasterAPIURLEdgeCases(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    string
+		name  string
+		input string
 	}{
 		{"no port specified", "http://example.com"},
 		{"with path", "http://example.com:8080/some/path"},

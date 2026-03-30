@@ -1,0 +1,24 @@
+syntax = "proto3";
+package shared;
+
+option go_package = "github.com/0xveya/gns3util/internal/shared/pb";
+
+enum Resource {
+  RESOURCE_UNSPECIFIED = 0;
+  RESOURCE_VMS = 1;
+  RESOURCE_BACKUPS = 2;
+  RESOURCE_CONFIGS = 3;
+  RESOURCE_SYSTEM = 4;
+  RESOURCE_METRICS = 5;
+  RESOURCE_FILES = 6;
+  RESOURCE_JOBS = 7;
+}
+
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  ACTION_READ = 1;
+  ACTION_WRITE = 2;
+  ACTION_EXECUTE = 3;
+  ACTION_DELETE = 4;
+  ACTION_ADMIN = 5;
+}

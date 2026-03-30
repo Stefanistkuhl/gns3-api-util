@@ -90,7 +90,7 @@ func NewCreateTokenCmd() *cobra.Command {
 			reqBody := TokenRequest{UserID: targetUser}
 			jsonBody, _ := json.Marshal(reqBody)
 
-			url := fmt.Sprintf("%s/auth/token", accessConfig.ServerURL)
+			url := fmt.Sprintf("%s/api/v1/auth/token", accessConfig.ServerURL)
 
 			req, reqErr := http.NewRequestWithContext(cmd.Context(), http.MethodPost, url, bytes.NewBuffer(jsonBody))
 			if reqErr != nil {

@@ -30,7 +30,7 @@ func (s *SyncService) CheckPermission(
 		return &pb.CheckPermissionResponse{Allowed: false}, nil
 	}
 
-	allowed, err := s.Store.CheckPermission(ctx, req.UserId, req.Scope)
+	allowed, err := s.Store.CheckPermission(ctx, req.UserId, req.RequiredAction, req.RequiredResource)
 	if err != nil {
 		return nil, fmt.Errorf("check permission: %w", err)
 	}

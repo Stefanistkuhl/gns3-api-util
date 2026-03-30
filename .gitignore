@@ -6,9 +6,9 @@
 *.dylib
 bin/
 dist/
-gns3util
-master
-file-store
+/gns3util
+/master
+/file-store
 
 # Test binary, built with `go test -c`
 *.test
@@ -47,6 +47,9 @@ scripts/test.yml
 
 # Documentation
 docs/
+# Allow README files explicitly
+!README.md
+!**/README.md
 
 # Temporary / Cache / unrelated
 tmp/

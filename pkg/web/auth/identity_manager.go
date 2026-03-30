@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/0xveya/gns3util/pkg/web/scopes"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -18,18 +17,20 @@ const (
 )
 
 type Claims struct {
-	UserID string   `json:"user_id"`
-	Role   string   `json:"role"`
+	UserID string `json:"user_id"`
+	// Role is the primary role assigned to this user (e.g. "admin", "worker").
+	Role string `json:"role"`
+	// Scopes is the list of explicit permission scopes (e.g. "read:vms").
 	Scopes []string `json:"scopes"`
 	jwt.RegisteredClaims
 }
 
-func NewClaims(userID, role string, userScopes []string, ttl time.Duration) *Claims {
+func NewClaims(userID, role string, scopes []string, ttl time.Duration) *Claims {
 	now := time.Now()
 	return &Claims{
 		UserID: userID,
 		Role:   role,
-		Scopes: userScopes,
+		Scopes: scopes,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			Issuer:    "gns3util-cluster",
@@ -38,21 +39,6 @@ func NewClaims(userID, role string, userScopes []string, ttl time.Duration) *Cla
 			ID:        fmt.Sprintf("%s-%d", userID, now.UnixNano()),
 		},
 	}
-}
-
-func (c *Claims) HasScope(action scopes.Action, res scopes.Resource) bool {
-	if c.Role == RoleAdmin {
-		return true
-	}
-	target := scopes.New(action, res)
-	wildcard := scopes.All(res)
-
-	for _, s := range c.Scopes {
-		if s == target || s == wildcard || s == "*:*" {
-			return true
-		}
-	}
-	return false
 }
 
 type IdentityManager struct {

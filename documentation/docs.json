@@ -65,6 +65,8 @@
             "group": "Orchestration (New) / Authentication",
             "pages": [
               "cli/gns3util_cluster-control_auth",
+              "cli/gns3util_cluster-control_auth_add-user",
+              "cli/gns3util_cluster-control_auth_set-default-user",
               "cli/gns3util_cluster-control_auth_status"
             ]
           },
@@ -104,9 +106,18 @@
             "group": "Orchestration (New) / Object Storage",
             "pages": [
               "cli/gns3util_cluster-control_object-store",
+              "cli/gns3util_cluster-control_object-store_bucket-permissions",
+              "cli/gns3util_cluster-control_object-store_bucket-permissions_grant",
+              "cli/gns3util_cluster-control_object-store_bucket-permissions_list",
+              "cli/gns3util_cluster-control_object-store_bucket-permissions_revoke",
+              "cli/gns3util_cluster-control_object-store_create-bucket",
               "cli/gns3util_cluster-control_object-store_delete-bucket",
               "cli/gns3util_cluster-control_object-store_delete-file",
               "cli/gns3util_cluster-control_object-store_download",
+              "cli/gns3util_cluster-control_object-store_file-permissions",
+              "cli/gns3util_cluster-control_object-store_file-permissions_grant",
+              "cli/gns3util_cluster-control_object-store_file-permissions_list",
+              "cli/gns3util_cluster-control_object-store_file-permissions_revoke",
               "cli/gns3util_cluster-control_object-store_list-buckets",
               "cli/gns3util_cluster-control_object-store_list-files",
               "cli/gns3util_cluster-control_object-store_token-gen",
@@ -119,6 +130,30 @@
             "pages": [
               "cli/gns3util_cluster-control_remove",
               "cli/gns3util_cluster-control_remove_cluster"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Roles",
+            "pages": [
+              "cli/gns3util_cluster-control_roles",
+              "cli/gns3util_cluster-control_roles_create",
+              "cli/gns3util_cluster-control_roles_delete",
+              "cli/gns3util_cluster-control_roles_get",
+              "cli/gns3util_cluster-control_roles_list",
+              "cli/gns3util_cluster-control_roles_update"
+            ]
+          },
+          {
+            "group": "Orchestration (New) / Users",
+            "pages": [
+              "cli/gns3util_cluster-control_users",
+              "cli/gns3util_cluster-control_users_assign-role",
+              "cli/gns3util_cluster-control_users_create",
+              "cli/gns3util_cluster-control_users_delete",
+              "cli/gns3util_cluster-control_users_gen-token",
+              "cli/gns3util_cluster-control_users_get",
+              "cli/gns3util_cluster-control_users_list",
+              "cli/gns3util_cluster-control_users_revoke-token"
             ]
           },
           {
@@ -169,6 +204,7 @@
             "pages": [
               "cli/gns3util_auth",
               "cli/gns3util_auth_login",
+              "cli/gns3util_auth_set-default-user",
               "cli/gns3util_auth_status"
             ]
           },

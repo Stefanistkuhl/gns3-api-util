@@ -20,24 +20,24 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	clusteraccess "github.com/0xveya/gns3util/internal/shared/cluster_access"
 	"github.com/0xveya/gns3util/pkg/state/pb"
-	scopesPkg "github.com/0xveya/gns3util/pkg/web/scopes"
+	"github.com/0xveya/gns3util/pkg/utils/globals"
 )
 
 type UserCreateResult struct {
 	User    string   `json:"user"`
-	Scopes  []string `json:"scopes"`
+	Roles   []string `json:"roles"`
 	EtcdKey string   `json:"etcd_key"`
 	Status  string   `json:"status"`
 }
 
 func (u UserCreateResult) GetHeaders() []string {
-	return []string{"USER", "SCOPES", "ETCD KEY", "STATUS"}
+	return []string{"USER", "ROLES", "ETCD KEY", "STATUS"}
 }
 
 func (u UserCreateResult) GetRow() []string {
 	return []string{
 		u.User,
-		strings.Join(u.Scopes, ", "),
+		strings.Join(u.Roles, ", "),
 		u.EtcdKey,
 		u.Status,
 	}
@@ -46,13 +46,23 @@ func (u UserCreateResult) GetRow() []string {
 func NewCreateUserCmd() *cobra.Command {
 	var (
 		etcdEndpoint string
-		scopesStr    string
+		rolesStr     string
+		adminFlag    bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "user [username]",
-		Short: "Create or update a user's permissions in etcd",
-		Args:  cobra.ExactArgs(1),
+		Short: "Bootstrap a user's role assignments directly in etcd",
+		Long: `Writes a UserPermissions record directly to etcd to bootstrap access for a user.
+
+Use --admin to grant full admin access. This assigns the built-in "admin" role,
+which is the only role that bypasses role-object lookups in the permission checker
+and is required for commands like add-cluster (which calls /auth/status).
+
+Use --roles for any other role names, but note those roles must already exist as
+Role objects in etcd (created separately) or the permission checks will silently
+fail at runtime.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -102,21 +112,23 @@ func NewCreateUserCmd() *cobra.Command {
 			}
 			defer cli.Close()
 
-			rawScopes := strings.Split(scopesStr, ",")
-			var cleanScopes []string
-			for _, s := range rawScopes {
-				trimmed := strings.TrimSpace(s)
-				if trimmed != "" {
-					if !scopesPkg.IsValid(trimmed) {
-						return fmt.Errorf("invalid scope: %s", trimmed)
+			var cleanRoles []string
+			if adminFlag {
+				cleanRoles = []string{globals.RoleAdmin}
+			} else {
+				if rolesStr == "" {
+					return fmt.Errorf("specify --roles <role,...> or use --admin to grant the built-in admin role")
+				}
+				for s := range strings.SplitSeq(rolesStr, ",") {
+					if trimmed := strings.TrimSpace(s); trimmed != "" {
+						cleanRoles = append(cleanRoles, trimmed)
 					}
-					cleanScopes = append(cleanScopes, trimmed)
 				}
 			}
 
 			userPerms := &pb.UserPermissions{
 				UserId:    targetUser,
-				Scopes:    cleanScopes,
+				RoleNames: cleanRoles,
 				UpdatedAt: timestamppb.Now(),
 			}
 
@@ -136,7 +148,7 @@ func NewCreateUserCmd() *cobra.Command {
 
 			result := UserCreateResult{
 				User:    targetUser,
-				Scopes:  cleanScopes,
+				Roles:   cleanRoles,
 				EtcdKey: key,
 				Status:  "Created/Updated",
 			}
@@ -152,7 +164,8 @@ func NewCreateUserCmd() *cobra.Command {
 
 	cmd.Flags().StringP("config", "", "", "Path to cluster_access.toml (Env: GNS3_CONFIG)")
 	cmd.Flags().StringVar(&etcdEndpoint, "etcd", "localhost:2379", "Etcd endpoint")
-	cmd.Flags().StringVar(&scopesStr, "scopes", "read,write", "Comma-separated list of scopes")
+	cmd.Flags().StringVar(&rolesStr, "roles", "", "Comma-separated list of role names to assign (roles must exist in etcd)")
+	cmd.Flags().BoolVar(&adminFlag, "admin", false, `Grant the built-in "admin" role (bypasses role-object lookup; required for add-cluster and other admin-gated commands)`)
 
 	_ = viper.BindPFlag("config", cmd.Flags().Lookup("config"))
 

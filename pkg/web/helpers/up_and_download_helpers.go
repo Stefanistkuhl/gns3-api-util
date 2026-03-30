@@ -226,3 +226,81 @@ func RunListBuckets(
 
 	return buckets, nil
 }
+
+// ─────────────────────────── Bucket permission helpers ───────────────────────
+
+func RunGrantBucketPermission(
+	serverURL, token, bucketID string,
+	req models.GrantPermissionRequest,
+	cfg *config.GlobalOptions,
+) (*models.PermissionEntry, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.GrantBucketPermission(context.Background(), bucketID, req)
+	if err != nil {
+		return nil, fmt.Errorf("grant bucket permission failed: %w", err)
+	}
+	return resp, nil
+}
+
+func RunRevokeBucketPermission(
+	serverURL, token, bucketID, permID string,
+	cfg *config.GlobalOptions,
+) (*models.RevokePermissionResponse, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.RevokeBucketPermission(context.Background(), bucketID, permID)
+	if err != nil {
+		return nil, fmt.Errorf("revoke bucket permission failed: %w", err)
+	}
+	return resp, nil
+}
+
+func RunListBucketPermissions(
+	serverURL, token, bucketID string,
+	cfg *config.GlobalOptions,
+) (*models.ListPermissionsResponse, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.ListBucketPermissions(context.Background(), bucketID)
+	if err != nil {
+		return nil, fmt.Errorf("list bucket permissions failed: %w", err)
+	}
+	return resp, nil
+}
+
+// ─────────────────────────── File permission helpers ─────────────────────────
+
+func RunGrantFilePermission(
+	serverURL, token, fileUUID string,
+	req models.GrantPermissionRequest,
+	cfg *config.GlobalOptions,
+) (*models.PermissionEntry, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.GrantFilePermission(context.Background(), fileUUID, req)
+	if err != nil {
+		return nil, fmt.Errorf("grant file permission failed: %w", err)
+	}
+	return resp, nil
+}
+
+func RunRevokeFilePermission(
+	serverURL, token, fileUUID, permID string,
+	cfg *config.GlobalOptions,
+) (*models.RevokePermissionResponse, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.RevokeFilePermission(context.Background(), fileUUID, permID)
+	if err != nil {
+		return nil, fmt.Errorf("revoke file permission failed: %w", err)
+	}
+	return resp, nil
+}
+
+func RunListFilePermissions(
+	serverURL, token, fileUUID string,
+	cfg *config.GlobalOptions,
+) (*models.ListPermissionsResponse, error) {
+	client := newFilestoreClient(serverURL, token, cfg)
+	resp, err := client.ListFilePermissions(context.Background(), fileUUID)
+	if err != nil {
+		return nil, fmt.Errorf("list file permissions failed: %w", err)
+	}
+	return resp, nil
+}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	sharedpb "github.com/0xveya/gns3util/internal/shared/pb"
 	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 	"storj.io/drpc/drpcconn"
 )
@@ -83,13 +84,14 @@ func (c *MasterSyncClient) Close() error {
 
 func (c *MasterSyncClient) CheckPermission(
 	ctx context.Context,
-	userID, jti, role, scope string,
+	userID, jti string, roles []string, action sharedpb.Action, resource sharedpb.Resource,
 ) (bool, error) {
 	resp, err := c.client.CheckPermission(ctx, &pb.CheckPermissionRequest{
-		UserId: userID,
-		Jti:    jti,
-		Role:   role,
-		Scope:  scope,
+		UserId:           userID,
+		Jti:              jti,
+		RoleNames:        roles,
+		RequiredResource: resource,
+		RequiredAction:   action,
 	})
 	if err != nil {
 		return false, err

@@ -76,8 +76,14 @@ func TestSaveAuthData(t *testing.T) {
 	if key.TokenType != *token.TokenType {
 		t.Errorf("TokenType = %v, want %v", key.TokenType, *token.TokenType)
 	}
+	// The first entry for a server must be auto-defaulted.
+	if !key.Default {
+		t.Error("First saved user should be marked as default")
+	}
 }
 
+// TestSaveAuthDataUpdateExisting checks that logging in again as the SAME user
+// updates the token in-place rather than creating a second entry.
 func TestSaveAuthDataUpdateExisting(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "gns3_test")
 	if err != nil {
@@ -102,6 +108,7 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 		TokenType:   stringPtr("Bearer"),
 	}
 
+	// First login for user1.
 	err = SaveAuthData(cfg, token1, "user1")
 	if err != nil {
 		t.Fatalf("SaveAuthData() error = %v", err)
@@ -112,7 +119,8 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 		TokenType:   stringPtr("Bearer"),
 	}
 
-	err = SaveAuthData(cfg, token2, "user2")
+	// Second login for the same user1 should update, not append.
+	err = SaveAuthData(cfg, token2, "user1")
 	if err != nil {
 		t.Fatalf("SaveAuthData() error = %v", err)
 	}
@@ -123,15 +131,82 @@ func TestSaveAuthDataUpdateExisting(t *testing.T) {
 	}
 
 	if len(kf.StandaloneGNS3) != 1 {
-		t.Fatalf("Expected 1 key, got %d", len(kf.StandaloneGNS3))
+		t.Fatalf("Expected 1 key after updating same user, got %d", len(kf.StandaloneGNS3))
 	}
 
 	key := kf.StandaloneGNS3[0]
 	if key.AccessToken != "token2" {
-		t.Errorf("AccessToken = %v, want %v", key.AccessToken, "token2")
+		t.Errorf("AccessToken = %v, want token2", key.AccessToken)
 	}
-	if key.User != "user2" {
-		t.Errorf("User = %v, want %v", key.User, "user2")
+	if key.User != "user1" {
+		t.Errorf("User = %v, want user1", key.User)
+	}
+}
+
+// TestSaveAuthDataMultiUser checks that different users on the same server each
+// get their own entry. The first user should be marked as default.
+func TestSaveAuthDataMultiUser(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "gns3_test")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			t.Logf("Failed to remove temp dir: %v", removeErr)
+		}
+	}()
+
+	keyFile := filepath.Join(tempDir, "gns3key")
+	cfg := &config.GlobalOptions{
+		Server:  "http://example.com",
+		KeyFile: keyFile,
+	}
+
+	err = SaveAuthData(cfg, schemas.Token{AccessToken: stringPtr("tok-alice"), TokenType: stringPtr("Bearer")}, "alice")
+	if err != nil {
+		t.Fatalf("SaveAuthData alice: %v", err)
+	}
+	err = SaveAuthData(cfg, schemas.Token{AccessToken: stringPtr("tok-bob"), TokenType: stringPtr("Bearer")}, "bob")
+	if err != nil {
+		t.Fatalf("SaveAuthData bob: %v", err)
+	}
+
+	kf, err := pathutils.LoadGNS3KeysFile(keyFile)
+	if err != nil {
+		t.Fatalf("Failed to load keys: %v", err)
+	}
+
+	if len(kf.StandaloneGNS3) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(kf.StandaloneGNS3))
+	}
+
+	// alice was first — she must be the default.
+	aliceEntry, ok := kf.GetUserForServer("http://example.com", "alice")
+	if !ok {
+		t.Fatal("alice not found")
+	}
+	if !aliceEntry.Default {
+		t.Error("alice should be the default user")
+	}
+	if aliceEntry.AccessToken != "tok-alice" {
+		t.Errorf("alice token = %v, want tok-alice", aliceEntry.AccessToken)
+	}
+
+	bobEntry, ok := kf.GetUserForServer("http://example.com", "bob")
+	if !ok {
+		t.Fatal("bob not found")
+	}
+	if bobEntry.Default {
+		t.Error("bob should not be the default user")
+	}
+
+	// Default lookup (empty name) should return alice.
+	def, ok := kf.GetUserForServer("http://example.com", "")
+	if !ok {
+		t.Fatal("default lookup failed")
+	}
+	if def.User != "alice" {
+		t.Errorf("default user = %v, want alice", def.User)
 	}
 }
 
@@ -186,6 +261,17 @@ func TestSaveAuthDataMultipleServers(t *testing.T) {
 	}
 }
 
+func writeKeyFile(t *testing.T, path string, kf *pathutils.KeyFileV2) {
+	t.Helper()
+	data, err := json.Marshal(kf)
+	if err != nil {
+		t.Fatalf("Failed to marshal keys: %v", err)
+	}
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("Failed to write key file: %v", err)
+	}
+}
+
 func TestGetKeyForServer(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "gns3_test")
 	if err != nil {
@@ -199,13 +285,9 @@ func TestGetKeyForServer(t *testing.T) {
 
 	keyFile := filepath.Join(tempDir, "gns3key")
 
-	cfg := &config.GlobalOptions{
-		Server:   "http://example.com",
-		KeyFile:  keyFile,
-		Insecure: false,
-	}
-
 	t.Run("no keys file", func(t *testing.T) {
+		_ = os.Remove(keyFile)
+		cfg := &config.GlobalOptions{Server: "http://example.com", KeyFile: keyFile}
 		token, err := GetKeyForServer(cfg)
 		if err == nil {
 			t.Error("GetKeyForServer() should return error when no keys file exists")
@@ -215,31 +297,42 @@ func TestGetKeyForServer(t *testing.T) {
 		}
 	})
 
-	t.Run("matching key exists", func(t *testing.T) {
+	t.Run("matching key exists — returns default", func(t *testing.T) {
 		kf := &pathutils.KeyFileV2{Version: 2}
 		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, pathutils.GNS3ServerEntry{
 			URL:         "http://example.com",
 			User:        "testuser",
 			AccessToken: "testtoken",
 			TokenType:   "Bearer",
+			Default:     true,
 		})
+		writeKeyFile(t, keyFile, kf)
 
-		data, err := json.Marshal(kf)
-		if err != nil {
-			t.Fatalf("Failed to marshal keys: %v", err)
-		}
-
-		err = os.WriteFile(keyFile, data, 0o600)
-		if err != nil {
-			t.Fatalf("Failed to write key file: %v", err)
-		}
-
+		cfg := &config.GlobalOptions{Server: "http://example.com", KeyFile: keyFile}
 		token, err := GetKeyForServer(cfg)
 		if err != nil {
 			t.Errorf("GetKeyForServer() error = %v, want nil", err)
 		}
 		if token != "testtoken" {
 			t.Errorf("GetKeyForServer() = %v, want testtoken", token)
+		}
+	})
+
+	t.Run("named user selected", func(t *testing.T) {
+		kf := &pathutils.KeyFileV2{Version: 2}
+		kf.StandaloneGNS3 = []pathutils.GNS3ServerEntry{
+			{URL: "http://example.com", User: "alice", AccessToken: "tok-alice", TokenType: "Bearer", Default: true},
+			{URL: "http://example.com", User: "bob", AccessToken: "tok-bob", TokenType: "Bearer"},
+		}
+		writeKeyFile(t, keyFile, kf)
+
+		cfgBob := &config.GlobalOptions{Server: "http://example.com", KeyFile: keyFile, User: "bob"}
+		token, err := GetKeyForServer(cfgBob)
+		if err != nil {
+			t.Errorf("GetKeyForServer() error = %v, want nil", err)
+		}
+		if token != "tok-bob" {
+			t.Errorf("GetKeyForServer() = %v, want tok-bob", token)
 		}
 	})
 
@@ -251,17 +344,9 @@ func TestGetKeyForServer(t *testing.T) {
 			AccessToken: "testtoken",
 			TokenType:   "Bearer",
 		})
+		writeKeyFile(t, keyFile, kf)
 
-		data, err := json.Marshal(kf)
-		if err != nil {
-			t.Fatalf("Failed to marshal keys: %v", err)
-		}
-
-		err = os.WriteFile(keyFile, data, 0o600)
-		if err != nil {
-			t.Fatalf("Failed to write key file: %v", err)
-		}
-
+		cfg := &config.GlobalOptions{Server: "http://example.com", KeyFile: keyFile}
 		token, err := GetKeyForServer(cfg)
 		if err == nil {
 			t.Error("GetKeyForServer() should return error when no matching key found")

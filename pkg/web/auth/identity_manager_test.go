@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/0xveya/gns3util/pkg/web/scopes"
 )
 
 func TestNewClaims(t *testing.T) {
@@ -49,39 +47,6 @@ func TestNewClaims(t *testing.T) {
 	}
 	if !strings.HasPrefix(claims.ID, userID) {
 		t.Errorf("ID should start with userID, got %v", claims.ID)
-	}
-}
-
-func TestClaimsHasScope(t *testing.T) {
-	tests := []struct {
-		name     string
-		role     string
-		scopes   []string
-		action   scopes.Action
-		resource scopes.Resource
-		expected bool
-	}{
-		{"admin always has scope", RoleAdmin, []string{}, scopes.Read, scopes.VMs, true},
-		{"worker with exact scope", RoleWorker, []string{"read:vms"}, scopes.Read, scopes.VMs, true},
-		{"worker with wildcard resource", RoleWorker, []string{"*:vms"}, scopes.Read, scopes.VMs, true},
-		{"worker with superuser", RoleWorker, []string{"*:*"}, scopes.Read, scopes.VMs, true},
-		{"worker without scope", RoleWorker, []string{"write:backups"}, scopes.Read, scopes.VMs, false},
-		{"worker with different action", RoleWorker, []string{"write:vms"}, scopes.Read, scopes.VMs, false},
-		{"worker with different resource", RoleWorker, []string{"read:backups"}, scopes.Read, scopes.VMs, false},
-		{"public without scope", RolePublic, []string{}, scopes.Read, scopes.VMs, false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			claims := &Claims{
-				Role:   tt.role,
-				Scopes: tt.scopes,
-			}
-			got := claims.HasScope(tt.action, tt.resource)
-			if got != tt.expected {
-				t.Errorf("HasScope(%v, %v) = %v, want %v", tt.action, tt.resource, got, tt.expected)
-			}
-		})
 	}
 }
 

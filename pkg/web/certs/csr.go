@@ -41,7 +41,18 @@ func GenerateNodeKeyAndCSR(tlsDir, nodeName string, domains []string) (csrPEM []
 		Organization: []string{"gns3util-cluster"},
 	}
 
+	// TODO(ingress): accept a stable hostname/domain from config (e.g. a load
+	// balancer VIP, k8s service DNS, or a *.local mDNS name) and include it in
+	// DNSNames so that clients can always connect via that name regardless of
+	// which interface IP the server is currently reachable on.  Right now
+	// IPAddresses is a snapshot of all local IPs at cert-generation time, which
+	// means any IP that wasn't up at that moment (e.g. a second NIC, a new DHCP
+	// lease, a WiFi interface) causes hostname-verification failures on clients
+	// and forces the InsecureSkipVerify workaround in pkg/api/client.go.
 	if len(domains) == 0 {
+		// TODO(ingress): replace this "localhost" fallback with the cluster's
+		// configured ingress hostname so nodes always get a meaningful SAN even
+		// without explicit domain config.
 		domains = []string{"localhost"}
 	}
 

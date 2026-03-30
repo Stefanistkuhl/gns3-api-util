@@ -2,21 +2,34 @@ syntax = "proto3";
 package state;
 
 import "google/protobuf/timestamp.proto";
+import "shared.proto";
 
 option go_package = "github.com/0xveya/gns3util/pkg/state/pb";
 
+message Scope {
+  shared.Action action = 1;
+  shared.Resource resource = 2;
+}
+
+message Role {
+  string name = 1;
+  string description = 2;
+  repeated Scope scopes = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
 message UserPermissions {
   string user_id = 1;
-  repeated string scopes = 2;
-  repeated string roles = 3;
-  google.protobuf.Timestamp updated_at = 4;
+  repeated string role_names = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  repeated Scope deny_scopes = 4;
 }
 
 message UserProfile {
   string id = 1;
-  string email = 2;
-  google.protobuf.Timestamp created_at = 3;
-  UserPermissions permissions = 4;
+  google.protobuf.Timestamp created_at = 2;
+  UserPermissions permissions = 3;
 }
 
 message Node {
@@ -34,7 +47,6 @@ message NodeNetwork {
   string cluster_ip = 1;
   string node_cidr = 2;
   uint32 mtu = 3;
-
   oneof backend {
     WireguardConfig wireguard = 4;
     HostGWConfig host_gw = 5;

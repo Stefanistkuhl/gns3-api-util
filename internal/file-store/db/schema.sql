@@ -95,6 +95,42 @@ CREATE TABLE IF NOT EXISTS public_file_tokens (
     FOREIGN KEY(bucket_id) REFERENCES buckets(bucket_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS bucket_permissions (
+    id TEXT PRIMARY KEY NOT NULL,
+    bucket_id TEXT NOT NULL,
+    principal_type TEXT NOT NULL CHECK(principal_type IN ('user', 'group', 'role')),
+    principal_id TEXT NOT NULL,
+    permission TEXT NOT NULL CHECK(permission IN ('read', 'write', 'admin')),
+    granted_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    expires_at TEXT,
+    FOREIGN KEY(bucket_id) REFERENCES buckets(bucket_id) ON DELETE CASCADE,
+    UNIQUE(
+        bucket_id,
+        principal_type,
+        principal_id,
+        permission
+    )
+);
+
+CREATE TABLE IF NOT EXISTS file_permissions (
+    id TEXT PRIMARY KEY NOT NULL,
+    file_uuid TEXT NOT NULL,
+    principal_type TEXT NOT NULL CHECK(principal_type IN ('user', 'group', 'role')),
+    principal_id TEXT NOT NULL,
+    permission TEXT NOT NULL CHECK(permission IN ('read', 'write', 'admin')),
+    granted_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+    expires_at TEXT,
+    FOREIGN KEY(file_uuid) REFERENCES files(file_uuid) ON DELETE CASCADE,
+    UNIQUE(
+        file_uuid,
+        principal_type,
+        principal_id,
+        permission
+    )
+);
+
 CREATE INDEX IF NOT EXISTS idx_blob_sha256 ON blobs(sha256);
 
 CREATE INDEX IF NOT EXISTS idx_files_blob_sha256 ON files(blob_sha256);
@@ -110,6 +146,14 @@ CREATE INDEX IF NOT EXISTS idx_public_tokens ON public_file_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_public_uuid ON public_file_tokens(file_uuid);
 
 CREATE INDEX IF NOT EXISTS idx_blobs_ref_count ON blobs(ref_count);
+
+CREATE INDEX IF NOT EXISTS idx_bucket_perms_bucket ON bucket_permissions(bucket_id);
+
+CREATE INDEX IF NOT EXISTS idx_bucket_perms_principal ON bucket_permissions(principal_id);
+
+CREATE INDEX IF NOT EXISTS idx_file_perms_file ON file_permissions(file_uuid);
+
+CREATE INDEX IF NOT EXISTS idx_file_perms_principal ON file_permissions(principal_id);
 
 INSERT INTO
     buckets (bucket_id, name, owner_id, is_public)

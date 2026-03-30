@@ -29,6 +29,7 @@ import (
 	"github.com/0xveya/gns3util/internal/file-store/fs"
 	"github.com/0xveya/gns3util/internal/file-store/handlers"
 	filerpc "github.com/0xveya/gns3util/internal/file-store/rpc"
+	sharedpb "github.com/0xveya/gns3util/internal/shared/pb"
 	"github.com/0xveya/gns3util/pkg/env"
 	"github.com/0xveya/gns3util/pkg/metrics"
 	"github.com/0xveya/gns3util/pkg/models"
@@ -365,43 +366,73 @@ func setupRouter(
 		r.Use(middleware.AuthMiddleware(idMgr))
 
 		r.Route("/buckets", func(r chi.Router) {
-			r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_FILES)).
 				Get("/", fileStoreHandlers.ListBuckets)
-			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES)).
 				Post("/", fileStoreHandlers.CreateBucket)
 
 			r.Route("/{bucket_id}", func(r chi.Router) {
 				r.Use(middleware.BucketAccessMiddleware(store, logger))
+				r.Use(middleware.HasBucketPermission(store, "read"))
 
-				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
-					Post("/files", fileStoreHandlers.HandleInitUpload)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasBucketPermission(store, "write"),
+				).Post("/files", fileStoreHandlers.HandleInitUpload)
 
 				r.Get("/files", fileStoreHandlers.ListBucketFiles)
 
-				r.Delete("/files", fileStoreHandlers.DeleteBucket)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasBucketPermission(store, "admin"),
+				).Delete("/", fileStoreHandlers.DeleteBucket)
+
+				r.Route("/permissions", func(r chi.Router) {
+					r.Get("/", fileStoreHandlers.ListBucketPermissions)
+					r.Post("/", fileStoreHandlers.GrantBucketPermission)
+					r.Delete("/{perm_id}", fileStoreHandlers.RevokeBucketPermission)
+				})
 			})
 		})
 
 		r.Route("/files", func(r chi.Router) {
-			r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES)).
 				Post("/", fileStoreHandlers.HandleInitUpload)
 
 			r.Route("/{file_uuid}", func(r chi.Router) {
 				r.Use(middleware.FileAccessMiddleware(store, logger))
 
-				r.With(middleware.RequireScopeRemote(masterClient, "files:read")).
-					Get("/", fileStoreHandlers.DownloadFileHandler)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasFilePermission(store, "write"),
+				).Get("/status", fileStoreHandlers.GetUploadStatus)
 
-				r.Get("/status", fileStoreHandlers.GetUploadStatus)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasFilePermission(store, "read"),
+				).Get("/", fileStoreHandlers.DownloadFileHandler)
 
-				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
-					Put("/content", fileStoreHandlers.HandleStreamUpload)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasFilePermission(store, "write"),
+				).Put("/content", fileStoreHandlers.HandleStreamUpload)
 
-				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
-					Delete("/", fileStoreHandlers.DeleteFile)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasFilePermission(store, "admin"),
+				).Delete("/", fileStoreHandlers.DeleteFile)
 
-				r.With(middleware.RequireScopeRemote(masterClient, "files:write")).
-					Post("/public-token", fileStoreHandlers.GeneratePublicToken)
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_FILES),
+					middleware.HasFilePermission(store, "write"),
+				).Post("/public-token", fileStoreHandlers.GeneratePublicToken)
+
+				r.Route("/permissions", func(r chi.Router) {
+					r.Get("/", fileStoreHandlers.ListFilePermissions)
+					r.Post("/", fileStoreHandlers.GrantFilePermission)
+					r.Delete("/{perm_id}", fileStoreHandlers.RevokeFilePermission)
+				})
 			})
 		})
 
@@ -410,14 +441,14 @@ func setupRouter(
 		})
 
 		r.Route("/jobs", func(r chi.Router) {
-			r.With(middleware.RequireScopeRemote(masterClient, "execute:jobs")).
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_EXECUTE, sharedpb.Resource_RESOURCE_JOBS)).
 				Post("/{job_name}/run", fileStoreHandlers.RunJob)
 		})
 	})
 	if metricsMgr != nil && metricsMgr.Enabled && metricsMgr.Registry != nil {
 		r.With(
 			middleware.AuthMiddleware(idMgr),
-			middleware.RequireScopeRemote(masterClient, "metrics:read"),
+			middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_METRICS),
 		).Get("/metrics", promhttp.HandlerFor(metricsMgr.Registry, promhttp.HandlerOpts{}).ServeHTTP)
 	}
 }

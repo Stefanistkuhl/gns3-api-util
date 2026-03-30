@@ -2,8 +2,8 @@ root = "."
 tmp_dir = "tmp"
 
 [build]
-cmd = "go build -o ./tmp/master ./cmd/file-store"
-bin = "./tmp/master"
+cmd = "go build -o ./tmp/filestore ./cmd/file-store"
+bin = "./tmp/filestore"
 include_ext = ["go", "tpl", "tmpl", "html", "toml"]
 
 include_dir = ["cmd", "internal", "pkg"]

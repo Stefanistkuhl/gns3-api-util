@@ -41,7 +41,7 @@ func NewAddClusterCMD() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-cluster",
 		Short: "Add a cluster and discover its nodes",
-		Long:  `Bootstraps trust with a GNS3 master, adds it to the keyfile, and automatically discovers all associated worker nodes.`,
+		Long:  `Bootstraps trust with a GNS3 master, adds it to the keyfile, and automatically discovers all associated worker nodes. Needs GNS3_TOKEN as env var for the token.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.GetGlobalOptionsFromContext(cmd.Context())
 			if err != nil {
@@ -72,7 +72,6 @@ func NewAddClusterCMD() *cobra.Command {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Master Root CA Fingerprint: %s\n", fingerprint)
 
 			if !cfg.Insecure {
-				// Ensure utils.ConfirmPrompt writes to stderr natively if possible
 				if !utils.ConfirmPrompt("Do you trust this fingerprint?", false) {
 					return fmt.Errorf("connection aborted by user: untrusted fingerprint")
 				}

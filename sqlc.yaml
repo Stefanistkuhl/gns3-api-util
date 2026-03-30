@@ -22,6 +22,7 @@ sql:
       - "./internal/file-store/db/queries/selects.sql"
       - "./internal/file-store/db/queries/updates.sql"
       - "./internal/file-store/db/queries/deletes.sql"
+      - "./internal/file-store/db/queries/permissions.sql"
     schema: "./internal/file-store/db/schema.sql"
     gen:
       go:
@@ -62,5 +63,21 @@ sql:
               type: string
 
           - column: "public_file_tokens.expires_at"
+            go_type:
+              type: string
+
+          - column: "bucket_permissions.created_at"
+            go_type:
+              type: string
+
+          - column: "bucket_permissions.expires_at"
+            go_type:
+              type: string
+
+          - column: "file_permissions.created_at"
+            go_type:
+              type: string
+
+          - column: "file_permissions.expires_at"
             go_type:
               type: string

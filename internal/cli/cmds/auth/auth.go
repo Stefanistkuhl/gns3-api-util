@@ -18,6 +18,7 @@ func NewAuthCmdGroup() *cobra.Command {
 
 	authCmd.AddCommand(NewAuthStatusCmd())
 	authCmd.AddCommand(NewAuthLoginCmd())
+	authCmd.AddCommand(NewSetDefaultUserCmd())
 
 	return authCmd
 }

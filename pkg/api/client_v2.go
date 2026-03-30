@@ -139,6 +139,200 @@ func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, erro
 	return &resp, nil
 }
 
+// ─────────────────────── User management ────────────────────────────────────
+
+func (c *ClientV2) ListUsers(ctx context.Context) (*models.ListUsersResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/auth/users").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListUsersResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) GetUser(ctx context.Context, userID string) (*models.UserInfo, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/users/%s", userID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.UserInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) DeleteUser(ctx context.Context, userID string) error {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/users/%s", userID)).
+		WithMethod(DELETE)
+
+	_, _, err := c.Do(ctx, opts)
+	return err
+}
+
+func (c *ClientV2) GenerateUserToken(ctx context.Context, userID string) (string, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/users/%s/token", userID)).
+		WithMethod(POST)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return "", err
+	}
+
+	var resp map[string]string
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	return resp["token"], nil
+}
+
+func (c *ClientV2) AssignRole(ctx context.Context, userID string, req models.AssignRoleRequest) (*models.UserInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/users/%s/roles", userID)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.UserInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) RevokeToken(ctx context.Context, req models.RevokeTokenRequest) error {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/auth/tokens/revoke").
+		WithMethod(POST).
+		WithData(string(data))
+
+	_, _, err := c.Do(ctx, opts)
+	return err
+}
+
+func (c *ClientV2) CreateUser(ctx context.Context, req models.CreateUserRequest) (*models.UserInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/auth/users").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.UserInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+// ─────────────────────── Role management ────────────────────────────────────
+
+func (c *ClientV2) ListRoles(ctx context.Context) (*models.ListRolesResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/auth/roles").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListRolesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) GetRole(ctx context.Context, roleName string) (*models.RoleInfo, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/roles/%s", roleName)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RoleInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) CreateRole(ctx context.Context, req models.CreateRoleRequest) (*models.RoleInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/auth/roles").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RoleInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) UpdateRole(ctx context.Context, roleName string, req models.UpdateRoleRequest) (*models.RoleInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/roles/%s", roleName)).
+		WithMethod(PUT).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RoleInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) DeleteRole(ctx context.Context, roleName string) error {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/auth/roles/%s", roleName)).
+		WithMethod(DELETE)
+
+	_, _, err := c.Do(ctx, opts)
+	return err
+}
+
 // ========FILESTORE-ENDPOINTS=========
 
 func (c *ClientV2) InitUpload(ctx context.Context, req *models.InitUploadRequest) (*models.InitUploadResponse, error) {
@@ -536,5 +730,115 @@ func (c *ClientV2) ListJobRuns(ctx context.Context) (*models.ListJobRunsResponse
 		return nil, fmt.Errorf("failed to decode job runs: %w", err)
 	}
 
+	return &resp, nil
+}
+
+// ======== BUCKET PERMISSION ENDPOINTS ========
+
+func (c *ClientV2) GrantBucketPermission(ctx context.Context, bucketID string, req models.GrantPermissionRequest) (*models.PermissionEntry, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s/permissions", bucketID)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.PermissionEntry
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode permission response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) RevokeBucketPermission(ctx context.Context, bucketID, permID string) (*models.RevokePermissionResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s/permissions/%s", bucketID, permID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RevokePermissionResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode revoke response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) ListBucketPermissions(ctx context.Context, bucketID string) (*models.ListPermissionsResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/buckets/%s/permissions", bucketID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListPermissionsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode permissions list: %w", err)
+	}
+	return &resp, nil
+}
+
+// ======== FILE PERMISSION ENDPOINTS ========
+
+func (c *ClientV2) GrantFilePermission(ctx context.Context, fileUUID string, req models.GrantPermissionRequest) (*models.PermissionEntry, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/permissions", fileUUID)).
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.PermissionEntry
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode permission response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) RevokeFilePermission(ctx context.Context, fileUUID, permID string) (*models.RevokePermissionResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/permissions/%s", fileUUID, permID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.RevokePermissionResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode revoke response: %w", err)
+	}
+	return &resp, nil
+}
+
+func (c *ClientV2) ListFilePermissions(ctx context.Context, fileUUID string) (*models.ListPermissionsResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s/permissions", fileUUID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListPermissionsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode permissions list: %w", err)
+	}
 	return &resp, nil
 }

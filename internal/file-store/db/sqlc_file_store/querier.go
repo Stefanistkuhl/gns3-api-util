@@ -16,8 +16,10 @@ type Querier interface {
 	DeleteBlob(ctx context.Context, sha256 string) error
 	DeleteBlobIfUnreferenced(ctx context.Context, sha256 string) error
 	DeleteBucket(ctx context.Context, bucketID string) error
+	DeleteBucketPermission(ctx context.Context, arg DeleteBucketPermissionParams) error
 	DeleteExpiredPublicTokens(ctx context.Context) error
 	DeleteFile(ctx context.Context, fileUuid string) error
+	DeleteFilePermission(ctx context.Context, arg DeleteFilePermissionParams) error
 	DeleteProjectFile(ctx context.Context, fileUuid string) error
 	DeletePublicFileToken(ctx context.Context, token string) error
 	DeleteVMImage(ctx context.Context, fileUuid string) error
@@ -26,8 +28,10 @@ type Querier interface {
 	GetBlobByFileUUID(ctx context.Context, fileUuid string) (GetBlobByFileUUIDRow, error)
 	GetBlobBySHA256(ctx context.Context, sha256 string) (Blob, error)
 	GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error)
+	GetBucketPermission(ctx context.Context, id string) (BucketPermission, error)
 	GetDefaultBucketForOwner(ctx context.Context, ownerID string) (GetDefaultBucketForOwnerRow, error)
 	GetFileByUUID(ctx context.Context, fileUuid string) (File, error)
+	GetFilePermission(ctx context.Context, id string) (FilePermission, error)
 	GetFileWithBlobByUUID(ctx context.Context, fileUuid string) (GetFileWithBlobByUUIDRow, error)
 	GetFilesWithPassedRetention(ctx context.Context) ([]string, error)
 	GetFilesWithStatus(ctx context.Context, status string) ([]File, error)
@@ -37,14 +41,20 @@ type Querier interface {
 	GetPublicFileTokens(ctx context.Context, fileUuid string) ([]PublicFileToken, error)
 	GetUnreferencedBlobs(ctx context.Context) ([]GetUnreferencedBlobsRow, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
+	HasBucketPermission(ctx context.Context, arg HasBucketPermissionParams) (bool, error)
+	HasFilePermission(ctx context.Context, arg HasFilePermissionParams) (bool, error)
 	IncrementBlobRefCount(ctx context.Context, sha256 string) error
 	IncrementTokenAccessCount(ctx context.Context, token string) error
 	InitFile(ctx context.Context, arg InitFileParams) (File, error)
 	InsertBackup(ctx context.Context, arg InsertBackupParams) error
+	InsertBucketPermission(ctx context.Context, arg InsertBucketPermissionParams) (BucketPermission, error)
 	InsertFile(ctx context.Context, arg InsertFileParams) error
+	InsertFilePermission(ctx context.Context, arg InsertFilePermissionParams) (FilePermission, error)
 	InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error
 	InsertVMImage(ctx context.Context, arg InsertVMImageParams) error
+	ListBucketPermissions(ctx context.Context, bucketID string) ([]BucketPermission, error)
 	ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error)
+	ListFilePermissions(ctx context.Context, fileUuid string) ([]FilePermission, error)
 	ListFiles(ctx context.Context) ([]File, error)
 	ListFilesByBucket(ctx context.Context, bucketID string) ([]File, error)
 	ListFilesByBucketWithBlob(ctx context.Context, bucketID string) ([]ListFilesByBucketWithBlobRow, error)

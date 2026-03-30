@@ -20,7 +20,6 @@ type JoinClusterResponse struct {
 
 type CreateTokenRequest struct {
 	UserID string `json:"user_id"`
-	Role   string `json:"role"`
 }
 
 type JoinFilestoreRequest struct {
@@ -36,9 +35,11 @@ type JoinFilestoreResponse struct {
 }
 
 type AuthStatusResponse struct {
-	Authenticated bool   `json:"authenticated"`
-	User          string `json:"user"`
-	Scopes        string `json:"scopes"`
+	Authenticated bool        `json:"authenticated"`
+	User          string      `json:"user"`
+	Roles         []string    `json:"roles"`
+	Permissions   []ScopeInfo `json:"permissions,omitempty"`
+	DenyScopes    []ScopeInfo `json:"deny_scopes,omitempty"`
 }
 
 type GetNodesResponse struct {
@@ -50,4 +51,60 @@ type NodeInfo struct {
 	IP      string   `json:"ip"`
 	APIPort uint32   `json:"api_port"`
 	Type    NodeType `json:"type"`
+}
+
+type UserInfo struct {
+	UserID      string      `json:"user_id"`
+	RoleNames   []string    `json:"role_names"`
+	Permissions []ScopeInfo `json:"permissions,omitempty"`
+	DenyScopes  []ScopeInfo `json:"deny_scopes,omitempty"`
+	UpdatedAt   string      `json:"updated_at,omitempty"`
+}
+
+type ListUsersResponse struct {
+	Users []UserInfo `json:"users"`
+	Count int        `json:"count"`
+}
+
+type ScopeInfo struct {
+	Action   string `json:"action"`
+	Resource string `json:"resource"`
+}
+
+type RoleInfo struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Scopes      []ScopeInfo `json:"scopes"`
+	CreatedAt   string      `json:"created_at,omitempty"`
+	UpdatedAt   string      `json:"updated_at,omitempty"`
+}
+
+type ListRolesResponse struct {
+	Roles []RoleInfo `json:"roles"`
+	Count int        `json:"count"`
+}
+
+type CreateRoleRequest struct {
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Scopes      []ScopeInfo `json:"scopes"`
+}
+
+type UpdateRoleRequest struct {
+	Description string      `json:"description"`
+	Scopes      []ScopeInfo `json:"scopes"`
+}
+
+type CreateUserRequest struct {
+	Name       string      `json:"name"`
+	Roles      []string    `json:"roles"`
+	DenyScopes []ScopeInfo `json:"deny_scopes,omitempty"`
+}
+
+type AssignRoleRequest struct {
+	Role string `json:"role"`
+}
+
+type RevokeTokenRequest struct {
+	JTI string `json:"jti"`
 }

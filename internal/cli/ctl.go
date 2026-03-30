@@ -6,6 +6,7 @@ import (
 	"github.com/0xveya/gns3util/internal/cli/cmds/ctlcmd"
 	"github.com/0xveya/gns3util/internal/cli/cmds/ctlcmd/jobscmd"
 	"github.com/0xveya/gns3util/internal/cli/cmds/ctlcmd/objstorecmd"
+	"github.com/0xveya/gns3util/internal/cli/cmds/ctlcmd/rbaccmd"
 )
 
 func NewCtlCmdGroup() *cobra.Command {
@@ -23,8 +24,9 @@ func NewCtlCmdGroup() *cobra.Command {
 	clusterGroup := &cobra.Group{ID: "cluster", Title: "Cluster Management Commands:"}
 	storeGroup := &cobra.Group{ID: "storage", Title: "Storage Commands:"}
 	opsGroup := &cobra.Group{ID: "operations", Title: "Operations Commands:"}
+	rbacGroup := &cobra.Group{ID: "rbac", Title: "RBAC & Identity Commands:"}
 
-	cmd.AddGroup(clusterGroup, storeGroup, opsGroup)
+	cmd.AddGroup(clusterGroup, storeGroup, opsGroup, rbacGroup)
 
 	createCmd := ctlcmd.NewCreateCmd()
 	createCmd.GroupID = "cluster"
@@ -47,7 +49,13 @@ func NewCtlCmdGroup() *cobra.Command {
 	jobsCmd := jobscmd.NewJobsCmd()
 	jobsCmd.GroupID = "operations"
 
-	cmd.AddCommand(createCmd, authCmd, addClusterCmd, addDiscoverCmd, removeCmd, objCmd, jobsCmd)
+	usersCmd := rbaccmd.NewUsersCmd()
+	usersCmd.GroupID = "rbac"
+
+	rolesCmd := rbaccmd.NewRolesCmd()
+	rolesCmd.GroupID = "rbac"
+
+	cmd.AddCommand(createCmd, authCmd, addClusterCmd, addDiscoverCmd, removeCmd, objCmd, jobsCmd, usersCmd, rolesCmd)
 
 	return cmd
 }

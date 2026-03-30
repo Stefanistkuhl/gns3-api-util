@@ -92,6 +92,24 @@ type DeleteFileResponse struct {
 	Status   FileStatus `json:"status"`
 }
 
+type UpdateBucketRequest struct {
+	// Name is the new display name for the bucket. Required.
+	Name string `json:"name"`
+	// IsPublic controls whether the bucket is publicly readable.
+	IsPublic bool `json:"is_public"`
+	// RequiredScopes is an optional comma-separated list of role names a
+	// bearer must hold to access this bucket.
+	RequiredScopes *string `json:"required_scopes,omitempty"`
+}
+
+type UpdateBucketResponse struct {
+	BucketID       string    `json:"bucket_id"`
+	Name           string    `json:"name"`
+	IsPublic       bool      `json:"is_public"`
+	RequiredScopes string    `json:"required_scopes"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
 type DeleteBucketResponse struct {
 	BucketUUID string `json:"bucket_uuid"`
 	Status     string `json:"status"`
@@ -128,4 +146,31 @@ type FileDetailResponse struct {
 	Status      FileStatus `json:"status"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+type GrantPermissionRequest struct {
+	PrincipalType string `json:"principal_type"` // "user", "group", or "role"
+	PrincipalID   string `json:"principal_id"`
+	Permission    string `json:"permission"` // "read", "write", or "admin"
+	ExpiresAt     string `json:"expires_at"` // optional RFC3339 or empty
+}
+
+type PermissionEntry struct {
+	ID            string `json:"id"`
+	PrincipalType string `json:"principal_type"`
+	PrincipalID   string `json:"principal_id"`
+	Permission    string `json:"permission"`
+	GrantedBy     string `json:"granted_by"`
+	CreatedAt     string `json:"created_at"`
+	ExpiresAt     string `json:"expires_at,omitempty"`
+}
+
+type ListPermissionsResponse struct {
+	Permissions []PermissionEntry `json:"permissions"`
+	Count       int               `json:"count"`
+}
+
+type RevokePermissionResponse struct {
+	ID      string `json:"id"`
+	Deleted bool   `json:"deleted"`
 }

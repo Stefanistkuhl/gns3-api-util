@@ -32,6 +32,9 @@ func NewObjCmd() *cobra.Command {
 	deleteFileCmd := NewDeleteFileCmd()
 	deleteFileCmd.GroupID = "object"
 
+	createBucketCmd := NewCreateBucketCmd()
+	createBucketCmd.GroupID = "bucket"
+
 	listBucketsCmd := NewListBucketsCmd()
 	listBucketsCmd.GroupID = "bucket"
 
@@ -44,15 +47,24 @@ func NewObjCmd() *cobra.Command {
 	genTokenCmd := NewGeneratePublicTokenCmd()
 	genTokenCmd.GroupID = "access"
 
+	bucketPermsCmd := NewBucketPermissionsCmd()
+	bucketPermsCmd.GroupID = "access"
+
+	filePermsCmd := NewFilePermissionsCmd()
+	filePermsCmd.GroupID = "access"
+
 	cmd.AddCommand(
 		uploadCmd,
 		uploadToBucketCmd,
 		downloadCmd,
 		deleteFileCmd,
+		createBucketCmd,
 		listBucketsCmd,
 		listBucketFilesCmd,
 		deleteBucketCmd,
 		genTokenCmd,
+		bucketPermsCmd,
+		filePermsCmd,
 	)
 
 	return cmd

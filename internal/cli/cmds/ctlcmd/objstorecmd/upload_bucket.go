@@ -90,6 +90,7 @@ func NewUploadToBucketCmd() *cobra.Command {
 			uploadReq := models.InitUploadRequest{
 				ContentType: contentType,
 				Filename:    filepath.Base(filePath),
+				BucketID:    bucketID,
 			}
 			if cmd.Flags().Changed("retention") {
 				uploadReq.RetentionPeriod = &retention

@@ -38,6 +38,17 @@ type Bucket struct {
 	UpdatedAt      string         `json:"updated_at"`
 }
 
+type BucketPermission struct {
+	ID            string `json:"id"`
+	BucketID      string `json:"bucket_id"`
+	PrincipalType string `json:"principal_type"`
+	PrincipalID   string `json:"principal_id"`
+	Permission    string `json:"permission"`
+	GrantedBy     string `json:"granted_by"`
+	CreatedAt     string `json:"created_at"`
+	ExpiresAt     string `json:"expires_at"`
+}
+
 type File struct {
 	FileUuid        string         `json:"file_uuid"`
 	BlobSha256      sql.NullString `json:"blob_sha256"`
@@ -50,6 +61,17 @@ type File struct {
 	LastAccessedAt  string         `json:"last_accessed_at"`
 	Status          string         `json:"status"`
 	RetentionPeriod sql.NullInt64  `json:"retention_period"`
+}
+
+type FilePermission struct {
+	ID            string `json:"id"`
+	FileUuid      string `json:"file_uuid"`
+	PrincipalType string `json:"principal_type"`
+	PrincipalID   string `json:"principal_id"`
+	Permission    string `json:"permission"`
+	GrantedBy     string `json:"granted_by"`
+	CreatedAt     string `json:"created_at"`
+	ExpiresAt     string `json:"expires_at"`
 }
 
 type ProjectFile struct {

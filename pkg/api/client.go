@@ -154,28 +154,66 @@ func (r *requestOptions) WithStream() *requestOptions {
 	return r
 }
 
+// createTLSConfig builds a TLS config with three behaviours:
+//
+//  1. Pinned CA cert present – skip hostname verification but manually verify
+//     the chain against the pinned CA.  This handles the common case where the
+//     server cert was generated with different IPs/hostnames than the one the
+//     client is connecting through (e.g. WiFi IP vs ethernet IP), yet trust was
+//     already established via interactive fingerprint verification at bootstrap.
+//
+//  2. No CA cert, Verify=true – standard TLS using the system trust store
+//     (hostname + chain both checked by Go's TLS stack).
+//
+//  3. No CA cert, Verify=false – skip everything (used for the initial
+//     bootstrap connection before any cert has been pinned).
+//
+// TODO(ingress): case 1 (the InsecureSkipVerify workaround) exists purely
+// because cert SANs are snapshotted from live IPs at startup and may not
+// include every address a client connects through.  Once nodes get a stable
+// ingress hostname/domain baked into their SANs (see TODO in
+// pkg/web/certs/csr.go), clients can connect via that name and standard TLS
+// verification will pass without needing this workaround.
 func createTLSConfig(settings *Settings) *tls.Config {
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: !settings.Verify, // #nosec G402
-	}
-
-	tlsConfig.VerifyConnection = func(cs tls.ConnectionState) error {
-		if settings.Verify {
-			return nil
-		}
-		return nil
-	}
-
 	if len(settings.CACert) > 0 {
 		caCertPool, err := x509.SystemCertPool()
 		if err != nil || caCertPool == nil {
 			caCertPool = x509.NewCertPool()
 		}
 		caCertPool.AppendCertsFromPEM(settings.CACert)
-		tlsConfig.RootCAs = caCertPool
+
+		return &tls.Config{
+			InsecureSkipVerify: true, // #nosec G402 – chain verified below via VerifyPeerCertificate
+			RootCAs:            caCertPool,
+			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
+				if len(rawCerts) == 0 {
+					return fmt.Errorf("server presented no certificates")
+				}
+				certs := make([]*x509.Certificate, 0, len(rawCerts))
+				for _, raw := range rawCerts {
+					cert, parseErr := x509.ParseCertificate(raw)
+					if parseErr != nil {
+						return fmt.Errorf("failed to parse server certificate: %w", parseErr)
+					}
+					certs = append(certs, cert)
+				}
+				intermediates := x509.NewCertPool()
+				for _, cert := range certs[1:] {
+					intermediates.AddCert(cert)
+				}
+				_, verifyErr := certs[0].Verify(x509.VerifyOptions{
+					Roots:         caCertPool,
+					Intermediates: intermediates,
+				})
+				return verifyErr
+			},
+		}
 	}
 
-	return tlsConfig
+	// No pinned CA – fall back to the simple verify flag.
+	return &tls.Config{
+		InsecureSkipVerify: !settings.Verify, // #nosec G402
+	}
 }
 
 func NewBaseClient(settings *Settings) *BaseClient {

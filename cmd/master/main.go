@@ -51,6 +51,7 @@ import (
 	"storj.io/drpc/drpcmux"
 	"storj.io/drpc/drpcserver"
 
+	sharedpb "github.com/0xveya/gns3util/internal/shared/pb"
 	pb "github.com/0xveya/gns3util/internal/shared/pb/master"
 )
 
@@ -470,14 +471,30 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool, metric
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/token", master.HandleCreateToken)
+			r.With(middleware.AuthMiddleware(master.IDMgr)).
+				Get("/status", master.HandleAuthStatus)
 
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.AuthMiddleware(master.IDMgr))
-				r.Use(middleware.RequireScope(master, "system:admin"))
+				r.Use(middleware.RequireScope(master, sharedpb.Action_ACTION_ADMIN, sharedpb.Resource_RESOURCE_SYSTEM))
 
 				r.Post("/grant", master.HandleGrantAccess)
 				r.Post("/revoke", master.HandleRevokeAccess)
-				r.Get("/status", master.HandleAuthStatus)
+
+				r.Post("/tokens/revoke", master.HandleRevokeToken)
+
+				r.Get("/users", master.ListUsers)
+				r.Post("/users", master.CreateUser)
+				r.Get("/users/{user_id}", master.GetUser)
+				r.Delete("/users/{user_id}", master.DeleteUser)
+				r.Post("/users/{user_id}/roles", master.AssignRole)
+				r.Post("/users/{user_id}/token", master.HandleGenerateUserToken)
+
+				r.Get("/roles", master.ListRoles)
+				r.Post("/roles", master.CreateRole)
+				r.Get("/roles/{role_name}", master.GetRole)
+				r.Put("/roles/{role_name}", master.UpdateRole)
+				r.Delete("/roles/{role_name}", master.DeleteRole)
 			})
 		})
 
@@ -490,23 +507,23 @@ func setupRouter(r chi.Router, master *handlers.Master, otelEnabled bool, metric
 		r.Route("/jobs", func(r chi.Router) {
 			r.Use(middleware.AuthMiddleware(master.IDMgr))
 
-			r.With(middleware.RequireScope(master, "read:jobs")).
+			r.With(middleware.RequireScope(master, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_JOBS)).
 				Get("/", master.ListJobs)
 
-			r.With(middleware.RequireScope(master, "execute:jobs")).
+			r.With(middleware.RequireScope(master, sharedpb.Action_ACTION_EXECUTE, sharedpb.Resource_RESOURCE_JOBS)).
 				Post("/{job_name}/run", master.RunJob)
 
-			r.With(middleware.RequireScope(master, "read:jobs")).
+			r.With(middleware.RequireScope(master, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_JOBS)).
 				Get("/runs", master.ListJobRuns)
 
-			r.With(middleware.RequireScope(master, "read:jobs")).
+			r.With(middleware.RequireScope(master, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_JOBS)).
 				Get("/runs/{run_id}", master.GetJobRun)
 		})
 	})
 	if metricsMgr != nil && metricsMgr.Enabled && metricsMgr.Registry != nil {
 		r.With(
 			middleware.AuthMiddleware(master.IDMgr),
-			middleware.RequireScope(master, "metrics:read"),
+			middleware.RequireScope(master, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_METRICS),
 		).Get("/metrics", promhttp.HandlerFor(metricsMgr.Registry, promhttp.HandlerOpts{}).ServeHTTP)
 	}
 }

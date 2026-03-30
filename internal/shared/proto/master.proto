@@ -1,13 +1,16 @@
 syntax = "proto3";
 package master;
 
+import "shared.proto";
+
 option go_package = "github.com/0xveya/gns3util/internal/shared/pb/master";
 
 message CheckPermissionRequest {
   string user_id = 1;
   string jti = 2;
-  string role = 3;
-  string scope = 4;
+  repeated string role_names = 3;
+  shared.Action required_action = 4;
+  shared.Resource required_resource = 5;
 }
 
 message CheckPermissionResponse {

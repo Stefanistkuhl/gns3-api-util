@@ -22,7 +22,7 @@ func TestNewAuthCmdGroup(t *testing.T) {
 		t.Errorf("Long = %v, want %v", cmd.Long, "Authentication commands")
 	}
 
-	expectedSubcommands := []string{"status", "login"}
+	expectedSubcommands := []string{"status", "login", "set-default-user"}
 	foundSubcommands := make(map[string]bool)
 
 	for _, subcmd := range cmd.Commands() {
@@ -136,5 +136,30 @@ func TestAuthCommandHelp(t *testing.T) {
 	err := cmd.Help()
 	if err != nil {
 		t.Errorf("Help() returned error: %v", err)
+	}
+}
+
+func TestNewSetDefaultUserCmd(t *testing.T) {
+	cmd := NewSetDefaultUserCmd()
+
+	if cmd == nil {
+		t.Fatal("NewSetDefaultUserCmd() returned nil")
+		return
+	}
+	if cmd.Use != "set-default-user [username]" {
+		t.Errorf("Use = %v, want set-default-user [username]", cmd.Use)
+	}
+	if cmd.RunE == nil {
+		t.Error("RunE should not be nil")
+	}
+
+	// The standalone version reads --server from the global flag (cfg.Server),
+	// so no local --server flag should exist on this command.
+	if cmd.Flags().Lookup("server") != nil {
+		t.Error("set-default-user should not have its own --server flag; it uses the global -s")
+	}
+
+	if cmd.Annotations["auth-mode"] != "none" {
+		t.Errorf("auth-mode annotation = %v, want none", cmd.Annotations["auth-mode"])
 	}
 }

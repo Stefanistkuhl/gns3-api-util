@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/fuzzy"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/globals"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils/pathutils"
@@ -27,6 +28,7 @@ var (
 	version      bool
 	outputFormat string
 	cluster      string
+	user         string
 )
 
 var Version = "1.3.1"
@@ -116,6 +118,56 @@ var rootCmd = &cobra.Command{
 		opts.Cluster = cluster
 		opts.ClusterEntry = clusterEntry
 
+		if user != "" || clusterEntry != nil {
+			keyFilePath, kfErr := pathutils.ResolveKeyFilePath(keyFile)
+			if kfErr != nil {
+				return fmt.Errorf("failed to resolve key file: %w", kfErr)
+			}
+			kf, kfErr := pathutils.LoadGNS3KeysFile(keyFilePath)
+			if kfErr != nil {
+				return fmt.Errorf("failed to load key file: %w", kfErr)
+			}
+
+			if user == "~" {
+				var choices []string
+				if clusterEntry != nil {
+					for _, cu := range kf.ListClusterUsers(cluster) {
+						choices = append(choices, cu.User)
+					}
+				} else if server != "" {
+					for _, e := range kf.ListUsersForServer(server) {
+						choices = append(choices, e.User)
+					}
+				}
+				if len(choices) == 0 {
+					target := server
+					if cluster != "" {
+						target = "cluster " + cluster
+					}
+					return fmt.Errorf("no users found in keyfile for %q", target)
+				}
+				picked := fuzzy.NewFuzzyFinderWithTitle(choices, false, "Select user")
+				if len(picked) == 0 {
+					return fmt.Errorf("no user selected")
+				}
+				user = picked[0]
+			}
+
+			if clusterEntry != nil {
+				clusterUsers := kf.ListClusterUsers(cluster)
+				if len(clusterUsers) > 0 {
+					cu, ok := kf.GetClusterUser(cluster, user)
+					if !ok && user != "" {
+						return fmt.Errorf("user %q not found in cluster %q", user, cluster)
+					}
+					if ok {
+						clusterEntry.Master.AccessToken = cu.AccessToken
+					}
+				}
+			}
+		}
+		opts.User = user
+
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -155,6 +207,11 @@ func init() {
 
 	rootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "i", false,
 		"Ignore unsigned SSL-Certificates. Can be set via GNS3_INSECURE")
+	rootCmd.PersistentFlags().StringVar(&user, "user", "",
+		"User to select from the keyfile. Omit the value to open a fuzzy picker (--user), or pass a name (--user alice).")
+	// NoOptDefVal makes --user (bare, no value) produce "~" which triggers the
+	// fuzzy picker; --user alice still works normally.
+	rootCmd.PersistentFlags().Lookup("user").NoOptDefVal = "~"
 
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "table",
 		"Output format: [json, json-colorless, collapsed, yaml, toml, table, table-ascii]. Can be set via GNS3_OUTPUT")

@@ -14,13 +14,18 @@ import (
 )
 
 func TryKeys(kf *pathutils.KeyFileV2, cfg *config.GlobalOptions) ([]byte, error) {
+	// Try standalone GNS3 entries, optionally filtered by cfg.User.
 	for i := range kf.StandaloneGNS3 {
 		entry := &kf.StandaloneGNS3[i]
-		if nwutils.NormalizeURL(cfg.Server) == nwutils.NormalizeURL(entry.URL) {
-			result, success := tryKey(entry.AccessToken, cfg)
-			if success {
-				return result, nil
-			}
+		if nwutils.NormalizeURL(cfg.Server) != nwutils.NormalizeURL(entry.URL) {
+			continue
+		}
+		if cfg.User != "" && entry.User != cfg.User {
+			continue
+		}
+		result, success := tryKey(entry.AccessToken, cfg)
+		if success {
+			return result, nil
 		}
 	}
 
@@ -82,24 +87,12 @@ func SaveAuthData(cfg *config.GlobalOptions, token schemas.Token, username strin
 		return err
 	}
 
-	newEntry := pathutils.GNS3ServerEntry{
+	kf.UpsertUserForServer(&pathutils.GNS3ServerEntry{
 		URL:         cfg.Server,
 		User:        username,
 		AccessToken: *token.AccessToken,
 		TokenType:   *token.TokenType,
-	}
-
-	found := false
-	for i, entry := range kf.StandaloneGNS3 {
-		if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
-			kf.StandaloneGNS3[i] = newEntry
-			found = true
-			break
-		}
-	}
-	if !found {
-		kf.StandaloneGNS3 = append(kf.StandaloneGNS3, newEntry)
-	}
+	})
 
 	return pathutils.SaveKeysFile(keyFileLocation, kf)
 }
@@ -115,10 +108,9 @@ func GetKeyForServer(cfg *config.GlobalOptions) (string, error) {
 		return "", err
 	}
 
-	for _, entry := range kf.StandaloneGNS3 {
-		if nwutils.NormalizeURL(entry.URL) == nwutils.NormalizeURL(cfg.Server) {
-			return entry.AccessToken, nil
-		}
+	// Standalone GNS3: respect cfg.User if set; otherwise return the default.
+	if entry, ok := kf.GetUserForServer(cfg.Server, cfg.User); ok {
+		return entry.AccessToken, nil
 	}
 
 	for i := range kf.Clusters {

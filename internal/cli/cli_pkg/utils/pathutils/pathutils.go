@@ -10,6 +10,7 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 
 	"github.com/0xveya/gns3util/pkg/models"
+	"github.com/0xveya/gns3util/pkg/utils/nwutils"
 )
 
 type ServiceType string
@@ -46,6 +47,13 @@ type GNS3ServerEntry struct {
 	User        string `json:"user"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
+	Default     bool   `json:"default,omitempty"`
+}
+
+type ClusterUser struct {
+	User        string `json:"user"`
+	AccessToken string `json:"access_token"`
+	Default     bool   `json:"default,omitempty"`
 }
 
 type ClusterEntry struct {
@@ -55,6 +63,7 @@ type ClusterEntry struct {
 	RootFingerprint string            `json:"root_fingerprint,omitempty"`
 	CaCert          string            `json:"ca_cert,omitempty"`
 	GNS3Servers     []GNS3ServerEntry `json:"gns3_servers,omitempty"`
+	Users           []ClusterUser     `json:"users,omitempty"`
 }
 
 type ServiceEntry struct {
@@ -342,6 +351,160 @@ func (k *KeyFileV2) SyncNodes(freshNodes []ServiceEntry, cluster *ClusterEntry) 
 			k.Clusters[i].Nodes = freshNodes
 			break
 		}
+	}
+}
+
+func (k *KeyFileV2) ListUsersForServer(serverURL string) []GNS3ServerEntry {
+	norm := nwutils.NormalizeURL(serverURL)
+	var out []GNS3ServerEntry
+	for _, e := range k.StandaloneGNS3 {
+		if nwutils.NormalizeURL(e.URL) == norm {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func (k *KeyFileV2) GetUserForServer(serverURL, name string) (*GNS3ServerEntry, bool) {
+	norm := nwutils.NormalizeURL(serverURL)
+	var first *GNS3ServerEntry
+	for i := range k.StandaloneGNS3 {
+		e := &k.StandaloneGNS3[i]
+		if nwutils.NormalizeURL(e.URL) != norm {
+			continue
+		}
+		if first == nil {
+			first = e
+		}
+		if name == "" && e.Default {
+			return e, true
+		}
+		if name != "" && e.User == name {
+			return e, true
+		}
+	}
+	if name == "" && first != nil {
+		return first, true // implicit first-entry default
+	}
+	return nil, false
+}
+
+func (k *KeyFileV2) SetDefaultUserForServer(serverURL, userName string) error {
+	norm := nwutils.NormalizeURL(serverURL)
+	found := false
+	for i := range k.StandaloneGNS3 {
+		e := &k.StandaloneGNS3[i]
+		if nwutils.NormalizeURL(e.URL) != norm {
+			continue
+		}
+		if e.User == userName {
+			e.Default = true
+			found = true
+		} else {
+			e.Default = false
+		}
+	}
+	if !found {
+		return fmt.Errorf("user %q not found for server %s", userName, serverURL)
+	}
+	return nil
+}
+
+func (k *KeyFileV2) UpsertUserForServer(entry *GNS3ServerEntry) {
+	norm := nwutils.NormalizeURL(entry.URL)
+	isFirst := true
+	for i := range k.StandaloneGNS3 {
+		e := &k.StandaloneGNS3[i]
+		if nwutils.NormalizeURL(e.URL) == norm {
+			isFirst = false
+			if e.User == entry.User {
+				entry.Default = e.Default // preserve existing default flag
+				k.StandaloneGNS3[i] = *entry
+				return
+			}
+		}
+	}
+	if isFirst {
+		entry.Default = true
+	}
+	k.StandaloneGNS3 = append(k.StandaloneGNS3, *entry)
+}
+
+func (k *KeyFileV2) ListClusterUsers(clusterName string) []ClusterUser {
+	for i := range k.Clusters {
+		if k.Clusters[i].Name == clusterName {
+			return k.Clusters[i].Users
+		}
+	}
+	return nil
+}
+
+func (k *KeyFileV2) GetClusterUser(clusterName, name string) (*ClusterUser, bool) {
+	var first *ClusterUser
+	for i := range k.Clusters {
+		c := &k.Clusters[i]
+		if c.Name != clusterName {
+			continue
+		}
+		for j := range c.Users {
+			u := &c.Users[j]
+			if first == nil {
+				first = u
+			}
+			if name == "" && u.Default {
+				return u, true
+			}
+			if name != "" && u.User == name {
+				return u, true
+			}
+		}
+	}
+	if name == "" && first != nil {
+		return first, true
+	}
+	return nil, false
+}
+
+func (k *KeyFileV2) SetDefaultClusterUser(clusterName, userName string) error {
+	for i := range k.Clusters {
+		if k.Clusters[i].Name != clusterName {
+			continue
+		}
+		found := false
+		for j := range k.Clusters[i].Users {
+			u := &k.Clusters[i].Users[j]
+			if u.User == userName {
+				u.Default = true
+				found = true
+			} else {
+				u.Default = false
+			}
+		}
+		if !found {
+			return fmt.Errorf("user %q not found in cluster %q", userName, clusterName)
+		}
+		return nil
+	}
+	return fmt.Errorf("cluster %q not found", clusterName)
+}
+
+func (k *KeyFileV2) UpsertClusterUser(clusterName string, cu ClusterUser) {
+	for i := range k.Clusters {
+		if k.Clusters[i].Name != clusterName {
+			continue
+		}
+		if len(k.Clusters[i].Users) == 0 {
+			cu.Default = true
+		}
+		for j := range k.Clusters[i].Users {
+			if k.Clusters[i].Users[j].User == cu.User {
+				cu.Default = k.Clusters[i].Users[j].Default // preserve
+				k.Clusters[i].Users[j] = cu
+				return
+			}
+		}
+		k.Clusters[i].Users = append(k.Clusters[i].Users, cu)
+		return
 	}
 }
 

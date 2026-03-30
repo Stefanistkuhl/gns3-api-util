@@ -12,40 +12,40 @@ import (
 )
 
 type DocsConfig struct {
-	Schema      string         `json:"$schema"`
-	Theme       string         `json:"theme"`
-	Name        string         `json:"name"`
-	PrimaryTab  map[string]string `json:"primaryTab"`
-	ModeToggle  map[string]interface{} `json:"modeToggle"`
-	Colors      map[string]string `json:"colors"`
-	Favicon     string         `json:"favicon"`
-	Navigation  Navigation     `json:"navigation"`
-	Logo        map[string]string `json:"logo"`
-	Navbar      map[string]interface{} `json:"navbar"`
+	Schema     string                 `json:"$schema"`
+	Theme      string                 `json:"theme"`
+	Name       string                 `json:"name"`
+	PrimaryTab map[string]string      `json:"primaryTab"`
+	ModeToggle map[string]interface{} `json:"modeToggle"`
+	Colors     map[string]string      `json:"colors"`
+	Favicon    string                 `json:"favicon"`
+	Navigation Navigation             `json:"navigation"`
+	Logo       map[string]string      `json:"logo"`
+	Navbar     map[string]interface{} `json:"navbar"`
 }
 
 type Navigation struct {
-	Tabs   []Tab           `json:"tabs"`
+	Tabs   []Tab                  `json:"tabs"`
 	Global map[string]interface{} `json:"global,omitempty"`
 }
 
 type Tab struct {
-	Tab      string   `json:"tab"`
-	Groups   []Group  `json:"groups,omitempty"`
-	OpenAPI  string   `json:"openapi,omitempty"`
-	Href     string   `json:"href,omitempty"`
+	Tab     string  `json:"tab"`
+	Groups  []Group `json:"groups,omitempty"`
+	OpenAPI string  `json:"openapi,omitempty"`
+	Href    string  `json:"href,omitempty"`
 }
 
 type Group struct {
-	Group  string   `json:"group"`
-	Pages  []string `json:"pages"`
+	Group string   `json:"group"`
+	Pages []string `json:"pages"`
 }
 
 type CommandInfo struct {
-	Name      string   // e.g., "cluster"
-	Path      []string // e.g., ["cluster", "config"]
-	FilePath  string   // e.g., "cli/gns3util_cluster_config.md"
-	Category  string   // "root" or "subcommand"
+	Name     string   // e.g., "cluster"
+	Path     []string // e.g., ["cluster", "config"]
+	FilePath string   // e.g., "cli/gns3util_cluster_config.md"
+	Category string   // "root" or "subcommand"
 }
 
 // GenerateDocsJSON scans CLI docs and updates docs.json with complete hierarchy

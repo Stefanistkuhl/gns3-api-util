@@ -20,6 +20,7 @@ type GlobalOptions struct {
 	CommandPath  string
 	Cluster      string
 	ClusterEntry *pathutils.ClusterEntry
+	User         string
 }
 
 func GetGlobalOptionsFromContext(ctx context.Context) (*GlobalOptions, error) {

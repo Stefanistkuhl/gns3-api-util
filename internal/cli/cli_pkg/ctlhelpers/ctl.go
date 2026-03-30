@@ -13,7 +13,7 @@ func DiscoverAndSyncNodes(ctx context.Context, cfg *config.GlobalOptions) error 
 	settings := api.NewSettings(
 		api.WithBaseURLV2(cfg.ClusterEntry.Master.URL+"/api/v1"),
 		api.WithToken(cfg.ClusterEntry.Master.AccessToken),
-		api.WithVerify(!cfg.Insecure),
+		api.WithVerify(true),
 		api.WithCA([]byte(cfg.ClusterEntry.CaCert)),
 	)
 	client := api.NewClientV2(&settings)

@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/0xveya/gns3util/pkg/state/pb"
-	"github.com/0xveya/gns3util/pkg/web/scopes"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	sharedpb "github.com/0xveya/gns3util/internal/shared/pb"
+	"github.com/0xveya/gns3util/pkg/state/pb"
+	"github.com/0xveya/gns3util/pkg/utils/globals"
 )
 
 type StateManager struct {
@@ -86,7 +88,7 @@ func (s *StateManager) Close() error {
 }
 
 func (s *StateManager) IsTokenRevoked(ctx context.Context, jti string) (bool, error) {
-	resp, err := s.MasterClient.Get(ctx, fmt.Sprintf("/auth/revoked/%s", jti))
+	resp, err := s.LocalClient.Get(ctx, fmt.Sprintf("/auth/revoked/%s", jti))
 	if err != nil {
 		return false, err
 	}
@@ -98,18 +100,17 @@ func (s *StateManager) RevokeToken(ctx context.Context, jti string) error {
 	return err
 }
 
-func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, userScopes []string) error {
+func (s *StateManager) PutUserPermissions(ctx context.Context, userID string, roleNames []string, denyScopes []*pb.Scope) error {
 	msg := &pb.UserPermissions{
-		UserId:    userID,
-		Scopes:    userScopes,
-		UpdatedAt: timestamppb.Now(),
+		UserId:     userID,
+		RoleNames:  roleNames,
+		UpdatedAt:  timestamppb.Now(),
+		DenyScopes: denyScopes,
 	}
-
 	data, err := proto.Marshal(msg)
 	if err != nil {
 		return err
 	}
-
 	_, err = s.MasterClient.Put(ctx, s.userKey(userID), string(data))
 	return err
 }
@@ -135,9 +136,10 @@ func (s *StateManager) GetUserPermissions(ctx context.Context, userID string) (*
 func (s *StateManager) CheckPermission(
 	ctx context.Context,
 	userID string,
-	requiredScope string,
+	requiredAction sharedpb.Action,
+	requiredResource sharedpb.Resource,
 ) (bool, error) {
-	perms, err := s.GetUserPermissions(ctx, userID)
+	userPerms, err := s.GetUserPermissions(ctx, userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			return false, nil
@@ -145,23 +147,111 @@ func (s *StateManager) CheckPermission(
 		return false, err
 	}
 
-	if slices.Contains(perms.Scopes, scopes.Superuser) {
-		return true, nil
+	if userPerms == nil || userPerms.UserId == "" {
+		return false, nil
+	}
+	effectiveScopes, err := s.effectiveScopesForRoles(ctx, userPerms.RoleNames)
+	if err != nil {
+		return false, err
 	}
 
-	if slices.Contains(perms.Scopes, requiredScope) {
-		return true, nil
+	requiredScope := &pb.Scope{
+		Action:   requiredAction,
+		Resource: requiredResource,
+	}
+
+	for _, scope := range userPerms.DenyScopes {
+		if scopesMatch(scope, requiredScope) {
+			return false, nil
+		}
+	}
+
+	for _, scope := range effectiveScopes {
+		if scopesMatch(scope, requiredScope) {
+			return true, nil
+		}
 	}
 
 	return false, nil
 }
 
-func (s *StateManager) GetUserScopes(ctx context.Context, userID string) (string, error) {
+func scopesMatch(have, need *pb.Scope) bool {
+	if have == nil || need == nil {
+		return false
+	}
+
+	if have.Action == need.Action && (have.Resource == need.Resource || have.Resource == sharedpb.Resource_RESOURCE_UNSPECIFIED) {
+		return true
+	}
+
+	if have.Action == sharedpb.Action_ACTION_ADMIN {
+		return have.Resource == need.Resource || have.Resource == sharedpb.Resource_RESOURCE_UNSPECIFIED
+	}
+
+	return false
+}
+
+func (s *StateManager) GetRole(ctx context.Context, roleName string) (*pb.Role, error) {
+	resp, err := s.MasterClient.Get(ctx, s.roleKey(roleName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role from etcd: %w", err)
+	}
+
+	if len(resp.Kvs) == 0 {
+		return nil, fmt.Errorf("role %s not found", roleName)
+	}
+
+	var role pb.Role
+	err = proto.Unmarshal(resp.Kvs[0].Value, &role)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal role: %w", err)
+	}
+
+	return &role, nil
+}
+
+func (s *StateManager) GetUserScopes(ctx context.Context, userID string) ([]*pb.Scope, error) {
 	perms, err := s.GetUserPermissions(ctx, userID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return strings.Join(perms.Scopes, ","), nil
+	return s.effectiveScopesForRoles(ctx, perms.RoleNames)
+}
+
+func (s *StateManager) GetUserDenyScopes(ctx context.Context, userID string) ([]*pb.Scope, error) {
+	perms, err := s.GetUserPermissions(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return perms.DenyScopes, nil
+}
+
+func (s *StateManager) effectiveScopesForRoles(ctx context.Context, roleNames []string) ([]*pb.Scope, error) {
+	effectiveScopes := make([]*pb.Scope, 0)
+
+	if slices.Contains(roleNames, globals.RoleAdmin) {
+		effectiveScopes = append(effectiveScopes, &pb.Scope{
+			Action:   sharedpb.Action_ACTION_ADMIN,
+			Resource: sharedpb.Resource_RESOURCE_UNSPECIFIED,
+		})
+	}
+
+	for _, roleName := range roleNames {
+		if roleName == globals.RoleAdmin {
+			continue
+		}
+		role, err := s.GetRole(ctx, roleName)
+		if err != nil {
+			continue
+		}
+		effectiveScopes = append(effectiveScopes, role.Scopes...)
+	}
+
+	return effectiveScopes, nil
+}
+
+func (s *StateManager) roleKey(roleName string) string {
+	return fmt.Sprintf("%s/roles/%s", RootPrefix, roleName)
 }
 
 func (s *StateManager) userKey(userID string) string {
@@ -182,7 +272,7 @@ func (s *StateManager) PutNode(ctx context.Context, node *pb.Node) error {
 	return err
 }
 
-func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, nodeScopes []string) (bool, error) {
+func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, roleNames []string) (bool, error) {
 	nodeKey := s.nodeKey(node.Id)
 	userKey := s.userKey(node.Id)
 
@@ -192,9 +282,10 @@ func (s *StateManager) RegisterNodeTxn(ctx context.Context, node *pb.Node, nodeS
 	}
 
 	perms := &pb.UserPermissions{
-		UserId:    node.Id,
-		Scopes:    nodeScopes,
-		UpdatedAt: timestamppb.Now(),
+		UserId:     node.Id,
+		RoleNames:  roleNames,
+		UpdatedAt:  timestamppb.Now(),
+		DenyScopes: nil,
 	}
 	permData, err := proto.Marshal(perms)
 	if err != nil {
@@ -271,9 +362,115 @@ func (s *StateManager) GetNodes(ctx context.Context) ([]*pb.Node, error) {
 func (s *StateManager) HasEffectivePermission(
 	ctx context.Context,
 	userID string,
-	requiredScope string,
+	requiredAction sharedpb.Action,
+	requiredResource sharedpb.Resource,
 ) (bool, error) {
-	return s.CheckPermission(ctx, userID, requiredScope)
+	return s.CheckPermission(ctx, userID, requiredAction, requiredResource)
+}
+
+func (s *StateManager) CreateUser(ctx context.Context, userID string, roleNames []string, denyScopes []*pb.Scope) error {
+	msg := &pb.UserPermissions{
+		UserId:     userID,
+		RoleNames:  roleNames,
+		UpdatedAt:  timestamppb.Now(),
+		DenyScopes: denyScopes,
+	}
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal user permissions: %w", err)
+	}
+	_, err = s.MasterClient.Put(ctx, s.userKey(userID), string(data))
+	if err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+	return nil
+}
+
+func (s *StateManager) CreateRole(ctx context.Context, role *pb.Role) error {
+	if role.CreatedAt == nil {
+		role.CreatedAt = timestamppb.Now()
+	}
+	role.UpdatedAt = timestamppb.Now()
+
+	data, err := proto.Marshal(role)
+	if err != nil {
+		return fmt.Errorf("failed to marshal role: %w", err)
+	}
+
+	_, err = s.MasterClient.Put(ctx, s.roleKey(role.Name), string(data))
+	if err != nil {
+		return fmt.Errorf("failed to create role: %w", err)
+	}
+
+	return nil
+}
+
+func (s *StateManager) UpdateRole(ctx context.Context, role *pb.Role) error {
+	role.UpdatedAt = timestamppb.Now()
+
+	data, err := proto.Marshal(role)
+	if err != nil {
+		return fmt.Errorf("failed to marshal role: %w", err)
+	}
+
+	_, err = s.MasterClient.Put(ctx, s.roleKey(role.Name), string(data))
+	if err != nil {
+		return fmt.Errorf("failed to update role: %w", err)
+	}
+
+	return nil
+}
+
+func (s *StateManager) DeleteRole(ctx context.Context, roleName string) error {
+	_, err := s.MasterClient.Delete(ctx, s.roleKey(roleName))
+	if err != nil {
+		return fmt.Errorf("failed to delete role: %w", err)
+	}
+	return nil
+}
+
+func (s *StateManager) DeleteUser(ctx context.Context, userID string) error {
+	_, err := s.MasterClient.Delete(ctx, s.userKey(userID))
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	return nil
+}
+
+func (s *StateManager) ListUsers(ctx context.Context) ([]*pb.UserPermissions, error) {
+	prefix := fmt.Sprintf("%s/auth/scopes/", RootPrefix)
+	resp, err := s.LocalClient.Get(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list users: %w", err)
+	}
+
+	users := make([]*pb.UserPermissions, 0, len(resp.Kvs))
+	for _, kv := range resp.Kvs {
+		u := &pb.UserPermissions{}
+		if err := proto.Unmarshal(kv.Value, u); err != nil {
+			continue
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func (s *StateManager) ListRoles(ctx context.Context) ([]*pb.Role, error) {
+	prefix := fmt.Sprintf("%s/roles/", RootPrefix)
+	resp, err := s.LocalClient.Get(ctx, prefix, clientv3.WithPrefix())
+	if err != nil {
+		return nil, fmt.Errorf("failed to list roles: %w", err)
+	}
+
+	roles := make([]*pb.Role, 0, len(resp.Kvs))
+	for _, kv := range resp.Kvs {
+		r := &pb.Role{}
+		if err := proto.Unmarshal(kv.Value, r); err != nil {
+			continue
+		}
+		roles = append(roles, r)
+	}
+	return roles, nil
 }
 
 // Job management
