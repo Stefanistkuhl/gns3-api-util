@@ -62,11 +62,17 @@ INSERT INTO
     project_files (
         file_uuid,
         project_id,
+        project_name,
         version_tag,
-        is_read_only
+        is_read_only,
+        include_snapshots,
+        include_images,
+        reset_mac_addresses,
+        keep_compute_ids,
+        compression
     )
 VALUES
-    (?, ?, ?, ?);
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: CreatePublicFileToken :one
 INSERT INTO

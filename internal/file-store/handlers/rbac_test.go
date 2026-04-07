@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -249,5 +250,53 @@ func TestGeneratePublicTokenAllowsFileWriteACL(t *testing.T) {
 	}
 	if resp.BucketUUID != "bucket-a" {
 		t.Fatalf("BucketUUID = %q, want %q", resp.BucketUUID, "bucket-a")
+	}
+}
+
+func TestDownloadFileRejectsTombstonedFile(t *testing.T) {
+	handlers, store, dirs := newTestFilestoreHandlers(t)
+	initTestFile(t, store, "file-1", "owner", models.GlobalBucketID, string(models.FileStatusPending))
+
+	sha := strings.Repeat("c", 64)
+	dstDir, err := dirs.CreateShardDirsIfNeed(sha)
+	if err != nil {
+		t.Fatalf("CreateShardDirsIfNeed() error = %v", err)
+	}
+	path := filepath.Join(dstDir, sha)
+	if err := os.WriteFile(path, []byte("hello"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	if err := store.WithTx(context.Background(), func(q *sqlc_file_store.Queries) error {
+		if upsertErr := q.UpsertBlob(context.Background(), sqlc_file_store.UpsertBlobParams{
+			Sha256:    sha,
+			FilePath:  path,
+			SizeBytes: 5,
+		}); upsertErr != nil {
+			return upsertErr
+		}
+
+		_, finalizeErr := q.FinalizeFile(context.Background(), sqlc_file_store.FinalizeFileParams{
+			BlobSha256: dbutils.NullString(&sha),
+			FileUuid:   "file-1",
+		})
+		return finalizeErr
+	}); err != nil {
+		t.Fatalf("WithTx() error = %v", err)
+	}
+
+	if err := store.MarkFileTombstoned(context.Background(), "file-1"); err != nil {
+		t.Fatalf("MarkFileTombstoned() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/files/file-1", http.NoBody)
+	req = withClaims(req, &auth.Claims{UserID: "owner"})
+	req = withURLParam(req, "file_uuid", "file-1")
+
+	rr := httptest.NewRecorder()
+	handlers.DownloadFileHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d; body=%s", rr.Code, http.StatusConflict, rr.Body.String())
 	}
 }

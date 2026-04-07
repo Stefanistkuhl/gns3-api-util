@@ -29,8 +29,6 @@ type InitUploadRequest struct {
 	BucketID        string `json:"bucket_id,omitempty"`
 }
 
-// TODO: add back vms and backups
-
 type InitUploadResponse struct {
 	FileUUID  string     `json:"file_uuid"`
 	Status    FileStatus `json:"status"`
@@ -173,4 +171,179 @@ type ListPermissionsResponse struct {
 type RevokePermissionResponse struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
+}
+
+// ---- VM Image models ----
+
+// ValidVirtTypes lists the accepted virtualisation back-ends.
+var ValidVirtTypes = []string{"qemu", "iou", "docker", "dynamips", "vmware", "virtualbox"}
+
+// ValidBackupTypes lists accepted backup classifications.
+var ValidBackupTypes = []string{"full", "incremental"}
+
+// InitVMUploadRequest is the body for POST /api/v1/vms.
+// It initialises both the file record and the vm_images metadata row
+// in a single request so callers never have to deal with a bare file.
+type InitVMUploadRequest struct {
+	Filename            string `json:"filename"`
+	SizeBytes           int64  `json:"size_bytes"`
+	ContentType         string `json:"content_type"`
+	RetentionPeriod     *int64 `json:"retention_period,omitempty"`
+	BucketID            string `json:"bucket_id,omitempty"`
+	VirtType            string `json:"virt_type"`
+	Format              string `json:"format"`
+	VCPUs               *int64 `json:"vcpus,omitempty"`
+	RAMMB               *int64 `json:"ram_mb,omitempty"`
+	ExtraAttributesJSON string `json:"extra_attributes_json,omitempty"`
+}
+
+// UpdateVMImageRequest is the body for PATCH /api/v1/vms/{file_uuid}.
+// All fields are optional; only non-zero values are applied.
+type UpdateVMImageRequest struct {
+	VirtType            string `json:"virt_type,omitempty"`
+	Format              string `json:"format,omitempty"`
+	VCPUs               *int64 `json:"vcpus,omitempty"`
+	RAMMB               *int64 `json:"ram_mb,omitempty"`
+	ExtraAttributesJSON string `json:"extra_attributes_json,omitempty"`
+}
+
+// VMImageInfo is the combined file + vm_images view returned by the API.
+type VMImageInfo struct {
+	FileUUID            string     `json:"file_uuid"`
+	Filename            string     `json:"filename"`
+	ContentType         string     `json:"content_type"`
+	OwnerID             string     `json:"owner_id"`
+	BucketID            string     `json:"bucket_id"`
+	SizeBytes           int64      `json:"size_bytes"`
+	BlobSHA256          string     `json:"blob_sha256,omitempty"`
+	Status              FileStatus `json:"status"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
+	VirtType            string     `json:"virt_type"`
+	Format              string     `json:"format"`
+	VCPUs               int64      `json:"vcpus"`
+	RAMMB               int64      `json:"ram_mb"`
+	ExtraAttributesJSON string     `json:"extra_attributes_json,omitempty"`
+}
+
+// ListVMImagesResponse wraps a slice of VMImageInfo.
+type ListVMImagesResponse struct {
+	VMs   []VMImageInfo `json:"vms"`
+	Count int           `json:"count"`
+}
+
+// ---- Backup models ----
+
+// InitBackupUploadRequest is the body for POST /api/v1/backups.
+type InitBackupUploadRequest struct {
+	Filename         string `json:"filename"`
+	SizeBytes        int64  `json:"size_bytes"`
+	ContentType      string `json:"content_type"`
+	RetentionPeriod  *int64 `json:"retention_period,omitempty"`
+	BucketID         string `json:"bucket_id,omitempty"`
+	SourceNodeID     string `json:"source_node_id,omitempty"`
+	BackupType       string `json:"backup_type"` // "full" | "incremental"
+	IsCompressed     bool   `json:"is_compressed"`
+	IsEncrypted      bool   `json:"is_encrypted"`
+	ParentBackupUUID string `json:"parent_backup_uuid,omitempty"`
+}
+
+// UpdateBackupRequest is the body for PATCH /api/v1/backups/{file_uuid}.
+type UpdateBackupRequest struct {
+	SourceNodeID     string `json:"source_node_id,omitempty"`
+	BackupType       string `json:"backup_type,omitempty"`
+	IsCompressed     *bool  `json:"is_compressed,omitempty"`
+	IsEncrypted      *bool  `json:"is_encrypted,omitempty"`
+	ParentBackupUUID string `json:"parent_backup_uuid,omitempty"`
+}
+
+// BackupInfo is the combined file + backups view returned by the API.
+type BackupInfo struct {
+	FileUUID         string     `json:"file_uuid"`
+	Filename         string     `json:"filename"`
+	ContentType      string     `json:"content_type"`
+	OwnerID          string     `json:"owner_id"`
+	BucketID         string     `json:"bucket_id"`
+	SizeBytes        int64      `json:"size_bytes"`
+	BlobSHA256       string     `json:"blob_sha256,omitempty"`
+	Status           FileStatus `json:"status"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	SourceNodeID     string     `json:"source_node_id,omitempty"`
+	BackupType       string     `json:"backup_type"`
+	IsCompressed     bool       `json:"is_compressed"`
+	IsEncrypted      bool       `json:"is_encrypted"`
+	ParentBackupUUID string     `json:"parent_backup_uuid,omitempty"`
+}
+
+// ListBackupsResponse wraps a slice of BackupInfo.
+type ListBackupsResponse struct {
+	Backups []BackupInfo `json:"backups"`
+	Count   int          `json:"count"`
+}
+
+// ---- Project file models ----
+
+// ValidCompressionTypes lists the compression formats supported by GNS3 project export.
+var ValidCompressionTypes = []string{"deflate", "bz2", "xz", "zstd", "none"}
+
+// InitProjectFileUploadRequest is the body for POST /api/v1/project-files.
+// It reflects the options available on the GNS3 project export command.
+type InitProjectFileUploadRequest struct {
+	Filename          string `json:"filename"`
+	SizeBytes         int64  `json:"size_bytes"`
+	ContentType       string `json:"content_type"`
+	RetentionPeriod   *int64 `json:"retention_period,omitempty"`
+	BucketID          string `json:"bucket_id,omitempty"`
+	ProjectID         string `json:"project_id"`
+	ProjectName       string `json:"project_name,omitempty"`
+	VersionTag        string `json:"version_tag,omitempty"`
+	IsReadOnly        bool   `json:"is_read_only"`
+	IncludeSnapshots  bool   `json:"include_snapshots"`
+	IncludeImages     bool   `json:"include_images"`
+	ResetMacAddresses bool   `json:"reset_mac_addresses"`
+	KeepComputeIds    bool   `json:"keep_compute_ids"`
+	Compression       string `json:"compression"` // deflate|bz2|xz|zstd|none
+}
+
+// UpdateProjectFileRequest is the body for PATCH /api/v1/project-files/{file_uuid}.
+// All fields are optional; only explicitly provided values are applied.
+type UpdateProjectFileRequest struct {
+	ProjectName       string `json:"project_name,omitempty"`
+	VersionTag        string `json:"version_tag,omitempty"`
+	IsReadOnly        *bool  `json:"is_read_only,omitempty"`
+	IncludeSnapshots  *bool  `json:"include_snapshots,omitempty"`
+	IncludeImages     *bool  `json:"include_images,omitempty"`
+	ResetMacAddresses *bool  `json:"reset_mac_addresses,omitempty"`
+	KeepComputeIds    *bool  `json:"keep_compute_ids,omitempty"`
+	Compression       string `json:"compression,omitempty"`
+}
+
+// ProjectFileInfo is the combined file + project_files view returned by the API.
+type ProjectFileInfo struct {
+	FileUUID          string     `json:"file_uuid"`
+	Filename          string     `json:"filename"`
+	ContentType       string     `json:"content_type"`
+	OwnerID           string     `json:"owner_id"`
+	BucketID          string     `json:"bucket_id"`
+	SizeBytes         int64      `json:"size_bytes"`
+	BlobSHA256        string     `json:"blob_sha256,omitempty"`
+	Status            FileStatus `json:"status"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	ProjectID         string     `json:"project_id"`
+	ProjectName       string     `json:"project_name,omitempty"`
+	VersionTag        string     `json:"version_tag,omitempty"`
+	IsReadOnly        bool       `json:"is_read_only"`
+	IncludeSnapshots  bool       `json:"include_snapshots"`
+	IncludeImages     bool       `json:"include_images"`
+	ResetMacAddresses bool       `json:"reset_mac_addresses"`
+	KeepComputeIds    bool       `json:"keep_compute_ids"`
+	Compression       string     `json:"compression"`
+}
+
+// ListProjectFilesResponse wraps a slice of ProjectFileInfo.
+type ListProjectFilesResponse struct {
+	ProjectFiles []ProjectFileInfo `json:"project_files"`
+	Count        int               `json:"count"`
 }

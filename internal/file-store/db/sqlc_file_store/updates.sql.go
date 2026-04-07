@@ -106,6 +106,86 @@ func (q *Queries) MarkFileTombstoned(ctx context.Context, fileUuid string) error
 	return err
 }
 
+const tombstoneFilesByBlobSHA = `-- name: TombstoneFilesByBlobSHA :exec
+UPDATE
+    files
+SET
+    STATUS = 'tombstoned',
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    blob_sha256 = ?
+    AND STATUS != 'tombstoned'
+`
+
+func (q *Queries) TombstoneFilesByBlobSHA(ctx context.Context, blobSha256 sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, tombstoneFilesByBlobSHA, blobSha256)
+	return err
+}
+
+const updateBackup = `-- name: UpdateBackup :exec
+UPDATE
+    backups
+SET
+    source_node_id = ?,
+    backup_type = ?,
+    is_compressed = ?,
+    is_encrypted = ?,
+    parent_backup_uuid = ?
+WHERE
+    file_uuid = ?
+`
+
+type UpdateBackupParams struct {
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+	FileUuid         string         `json:"file_uuid"`
+}
+
+func (q *Queries) UpdateBackup(ctx context.Context, arg UpdateBackupParams) error {
+	_, err := q.db.ExecContext(ctx, updateBackup,
+		arg.SourceNodeID,
+		arg.BackupType,
+		arg.IsCompressed,
+		arg.IsEncrypted,
+		arg.ParentBackupUuid,
+		arg.FileUuid,
+	)
+	return err
+}
+
+const updateBlobIndexMetadata = `-- name: UpdateBlobIndexMetadata :exec
+UPDATE
+    blobs
+SET
+    file_path = ?,
+    size_bytes = ?,
+    ref_count = ?,
+    last_verified_at = CURRENT_TIMESTAMP,
+    updated_at = CURRENT_TIMESTAMP
+WHERE
+    sha256 = ?
+`
+
+type UpdateBlobIndexMetadataParams struct {
+	FilePath  string `json:"file_path"`
+	SizeBytes int64  `json:"size_bytes"`
+	RefCount  int64  `json:"ref_count"`
+	Sha256    string `json:"sha256"`
+}
+
+func (q *Queries) UpdateBlobIndexMetadata(ctx context.Context, arg UpdateBlobIndexMetadataParams) error {
+	_, err := q.db.ExecContext(ctx, updateBlobIndexMetadata,
+		arg.FilePath,
+		arg.SizeBytes,
+		arg.RefCount,
+		arg.Sha256,
+	)
+	return err
+}
+
 const updateBucket = `-- name: UpdateBucket :exec
 UPDATE
     buckets
@@ -209,5 +289,82 @@ type UpdateFileStatusParams struct {
 
 func (q *Queries) UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error {
 	_, err := q.db.ExecContext(ctx, updateFileStatus, arg.Status, arg.FileUuid)
+	return err
+}
+
+const updateProjectFile = `-- name: UpdateProjectFile :exec
+UPDATE
+    project_files
+SET
+    project_name = ?,
+    version_tag = ?,
+    is_read_only = ?,
+    include_snapshots = ?,
+    include_images = ?,
+    reset_mac_addresses = ?,
+    keep_compute_ids = ?,
+    compression = ?
+WHERE
+    file_uuid = ?
+`
+
+type UpdateProjectFileParams struct {
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
+	FileUuid          string         `json:"file_uuid"`
+}
+
+func (q *Queries) UpdateProjectFile(ctx context.Context, arg UpdateProjectFileParams) error {
+	_, err := q.db.ExecContext(ctx, updateProjectFile,
+		arg.ProjectName,
+		arg.VersionTag,
+		arg.IsReadOnly,
+		arg.IncludeSnapshots,
+		arg.IncludeImages,
+		arg.ResetMacAddresses,
+		arg.KeepComputeIds,
+		arg.Compression,
+		arg.FileUuid,
+	)
+	return err
+}
+
+const updateVMImage = `-- name: UpdateVMImage :exec
+UPDATE
+    vm_images
+SET
+    virt_type = ?,
+    format = ?,
+    vcpus = ?,
+    ram_mb = ?,
+    extra_attributes_json = ?
+WHERE
+    file_uuid = ?
+`
+
+type UpdateVMImageParams struct {
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
+	FileUuid            string         `json:"file_uuid"`
+}
+
+func (q *Queries) UpdateVMImage(ctx context.Context, arg UpdateVMImageParams) error {
+	_, err := q.db.ExecContext(ctx, updateVMImage,
+		arg.VirtType,
+		arg.Format,
+		arg.Vcpus,
+		arg.RamMb,
+		arg.ExtraAttributesJson,
+		arg.FileUuid,
+	)
 	return err
 }

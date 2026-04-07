@@ -231,10 +231,30 @@ func main() {
 		Dirs:                       fsState,
 	}
 
+	objectIndexJob := &backgroundjobs.ObjectIndexJob{
+		Store:  dbStore,
+		Logger: logger,
+		Dirs:   fsState,
+	}
+
 	registerJobsWithMaster(ctx, masterClient, vacuumJob)
 
+	indexResult, indexErr := objectIndexJob.ExecuteIteration(ctx, backgroundjobs.InvocatorStartup)
+	if indexErr != nil {
+		logger.Warn("Startup object index failed", "err", indexErr)
+	} else {
+		logger.Info(
+			"Startup object index completed",
+			"verified_blobs", indexResult.VerifiedBlobs,
+			"repaired_blobs", len(indexResult.RepairedBlobs),
+			"tombstoned_files", len(indexResult.TombstonedFiles),
+			"orphaned_object_files", len(indexResult.OrphanedObjectFiles),
+			"orphaned_tmp_files", len(indexResult.OrphanedTmpFiles),
+		)
+	}
+
 	r := chi.NewRouter()
-	setupRouter(r, idMgr, masterClient, dbStore, otlpEnabled, fsState, metricsMgr, vacuumJob)
+	setupRouter(r, idMgr, masterClient, dbStore, otlpEnabled, fsState, metricsMgr, vacuumJob, objectIndexJob)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: cm.GetCertificate,
@@ -330,6 +350,7 @@ func setupRouter(
 	dirs fs.Dirs,
 	metricsMgr *metrics.Manager,
 	vacuumJob *backgroundjobs.DBVacuumJob,
+	objectIndexJob *backgroundjobs.ObjectIndexJob,
 ) {
 	middleware.SetupCommonMiddleware(r, otelEnabled, cfg.AppName, logger)
 
@@ -352,6 +373,9 @@ func setupRouter(
 	jobRunners := map[string]handlers.JobRunnerFunc{
 		"db-vacuum": func(ctx context.Context, invokedBy backgroundjobs.Invocator) (any, error) {
 			return vacuumJob.ExecuteIteration(ctx, invokedBy)
+		},
+		"object-index": func(ctx context.Context, invokedBy backgroundjobs.Invocator) (any, error) {
+			return objectIndexJob.ExecuteIteration(ctx, invokedBy)
 		},
 	}
 
@@ -436,6 +460,87 @@ func setupRouter(
 			})
 		})
 
+		r.Route("/vms", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_VMS)).
+				Get("/", fileStoreHandlers.ListVMImages)
+
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_VMS)).
+				Post("/", fileStoreHandlers.InitVMUpload)
+
+			r.Route("/{file_uuid}", func(r chi.Router) {
+				r.Use(middleware.FileAccessMiddleware(store, logger))
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_VMS),
+					middleware.HasFilePermission(store, "read"),
+				).Get("/", fileStoreHandlers.GetVMImage)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_VMS),
+					middleware.HasFilePermission(store, "write"),
+				).Patch("/", fileStoreHandlers.UpdateVMImage)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_DELETE, sharedpb.Resource_RESOURCE_VMS),
+					middleware.HasFilePermission(store, "admin"),
+				).Delete("/", fileStoreHandlers.DeleteVMImage)
+			})
+		})
+
+		r.Route("/backups", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_BACKUPS)).
+				Get("/", fileStoreHandlers.ListBackups)
+
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_BACKUPS)).
+				Post("/", fileStoreHandlers.InitBackupUpload)
+
+			r.Route("/{file_uuid}", func(r chi.Router) {
+				r.Use(middleware.FileAccessMiddleware(store, logger))
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_BACKUPS),
+					middleware.HasFilePermission(store, "read"),
+				).Get("/", fileStoreHandlers.GetBackup)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_BACKUPS),
+					middleware.HasFilePermission(store, "write"),
+				).Patch("/", fileStoreHandlers.UpdateBackup)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_DELETE, sharedpb.Resource_RESOURCE_BACKUPS),
+					middleware.HasFilePermission(store, "admin"),
+				).Delete("/", fileStoreHandlers.DeleteBackup)
+			})
+		})
+
+		r.Route("/project-files", func(r chi.Router) {
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_CONFIGS)).
+				Get("/", fileStoreHandlers.ListProjectFiles)
+
+			r.With(middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_CONFIGS)).
+				Post("/", fileStoreHandlers.InitProjectFileUpload)
+
+			r.Route("/{file_uuid}", func(r chi.Router) {
+				r.Use(middleware.FileAccessMiddleware(store, logger))
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_READ, sharedpb.Resource_RESOURCE_CONFIGS),
+					middleware.HasFilePermission(store, "read"),
+				).Get("/", fileStoreHandlers.GetProjectFile)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_WRITE, sharedpb.Resource_RESOURCE_CONFIGS),
+					middleware.HasFilePermission(store, "write"),
+				).Patch("/", fileStoreHandlers.UpdateProjectFile)
+
+				r.With(
+					middleware.RequireScopeRemote(masterClient, sharedpb.Action_ACTION_DELETE, sharedpb.Resource_RESOURCE_CONFIGS),
+					middleware.HasFilePermission(store, "admin"),
+				).Delete("/", fileStoreHandlers.DeleteProjectFile)
+			})
+		})
+
 		r.Route("/public", func(r chi.Router) {
 			r.Get("/files/{bucket_id}/{token}", fileStoreHandlers.PublicFileHandler)
 		})
@@ -453,7 +558,11 @@ func setupRouter(
 	}
 }
 
-func registerJobsWithMaster(ctx context.Context, client *filerpc.MasterSyncClient, vacuumJob *backgroundjobs.DBVacuumJob) {
+func registerJobsWithMaster(
+	ctx context.Context,
+	client *filerpc.MasterSyncClient,
+	vacuumJob *backgroundjobs.DBVacuumJob,
+) {
 	if err := client.RegisterJob(
 		ctx,
 		"db-vacuum",
@@ -464,6 +573,18 @@ func registerJobsWithMaster(ctx context.Context, client *filerpc.MasterSyncClien
 		logger.Warn("Failed to register db-vacuum job with master", "err", err)
 	} else {
 		logger.Info("Registered db-vacuum job with master")
+	}
+
+	if err := client.RegisterJob(
+		ctx,
+		"object-index",
+		cfg.NodeName,
+		"manual",
+		"Fast object-store integrity index that reconciles blob metadata and reports orphaned tmp/object files",
+	); err != nil {
+		logger.Warn("Failed to register object-index job with master", "err", err)
+	} else {
+		logger.Info("Registered object-index job with master")
 	}
 }
 

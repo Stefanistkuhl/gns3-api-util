@@ -238,26 +238,44 @@ INSERT INTO
     project_files (
         file_uuid,
         project_id,
+        project_name,
         version_tag,
-        is_read_only
+        is_read_only,
+        include_snapshots,
+        include_images,
+        reset_mac_addresses,
+        keep_compute_ids,
+        compression
     )
 VALUES
-    (?, ?, ?, ?)
+    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertProjectFileParams struct {
-	FileUuid   string         `json:"file_uuid"`
-	ProjectID  string         `json:"project_id"`
-	VersionTag sql.NullString `json:"version_tag"`
-	IsReadOnly sql.NullBool   `json:"is_read_only"`
+	FileUuid          string         `json:"file_uuid"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
 }
 
 func (q *Queries) InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error {
 	_, err := q.db.ExecContext(ctx, insertProjectFile,
 		arg.FileUuid,
 		arg.ProjectID,
+		arg.ProjectName,
 		arg.VersionTag,
 		arg.IsReadOnly,
+		arg.IncludeSnapshots,
+		arg.IncludeImages,
+		arg.ResetMacAddresses,
+		arg.KeepComputeIds,
+		arg.Compression,
 	)
 	return err
 }

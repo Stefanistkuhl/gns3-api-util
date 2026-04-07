@@ -236,7 +236,7 @@ Use -o json or -o yaml to inspect the permission object directly.`,
 				return err
 			}
 
-			return printer.PrintObj(result, cmd.OutOrStdout())
+			return printer.PrintObj(&result, cmd.OutOrStdout())
 		},
 	}
 

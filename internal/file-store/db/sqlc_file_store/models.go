@@ -75,10 +75,16 @@ type FilePermission struct {
 }
 
 type ProjectFile struct {
-	FileUuid   string         `json:"file_uuid"`
-	ProjectID  string         `json:"project_id"`
-	VersionTag sql.NullString `json:"version_tag"`
-	IsReadOnly sql.NullBool   `json:"is_read_only"`
+	FileUuid          string         `json:"file_uuid"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
 }
 
 type PublicFileToken struct {

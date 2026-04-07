@@ -3,7 +3,7 @@
 > **UNDER DEVELOPMENT** - This project is in active development. APIs and CLI commands are subject to change.
 
 <p align="center">
-  <img width=256 src="https://i.imgur.com/t1PNyl4.gif" alt="surely a temporary logo" />
+  <img width=256 src="https://github.com/0xveya/goobering/blob/master/images/gns3util_real.webp?raw=true" alt="a cat with nerd emoji glasses and an explosion in the backround" />
 </p>
 
 A toolkit for GNS3 lab management with two main components:

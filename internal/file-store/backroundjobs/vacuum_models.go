@@ -13,6 +13,7 @@ type Invocator string
 const (
 	InvocatorMaster   = "master"
 	InvocatorInterval = "interval"
+	InvocatorStartup  = "startup"
 )
 
 type DBVacuumJob struct {

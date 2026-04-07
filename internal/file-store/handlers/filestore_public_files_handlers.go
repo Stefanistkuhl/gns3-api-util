@@ -131,6 +131,16 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	fileSize := file.SizeBytes
+	if file.Status != string(models.FileStatusAvailable) {
+		helpers.WriteAPIError(
+			w,
+			"file not available",
+			helpers.ErrCodeFileNotFound,
+			"file associated with token is not available",
+			http.StatusNotFound,
+		)
+		return
+	}
 
 	incrementErr := f.Store.IncrementTokenAccessCount(r.Context(), token)
 	if incrementErr != nil {

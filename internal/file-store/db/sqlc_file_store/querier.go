@@ -6,6 +6,7 @@ package sqlc_file_store
 
 import (
 	"context"
+	"database/sql"
 )
 
 type Querier interface {
@@ -25,6 +26,7 @@ type Querier interface {
 	DeleteVMImage(ctx context.Context, fileUuid string) error
 	FinalizeFile(ctx context.Context, arg FinalizeFileParams) (File, error)
 	GetBackupByFileUUID(ctx context.Context, fileUuid string) (Backup, error)
+	GetBackupWithFile(ctx context.Context, fileUuid string) (GetBackupWithFileRow, error)
 	GetBlobByFileUUID(ctx context.Context, fileUuid string) (GetBlobByFileUUIDRow, error)
 	GetBlobBySHA256(ctx context.Context, sha256 string) (Blob, error)
 	GetBucketByID(ctx context.Context, bucketID string) (GetBucketByIDRow, error)
@@ -36,11 +38,13 @@ type Querier interface {
 	GetFilesWithPassedRetention(ctx context.Context) ([]string, error)
 	GetFilesWithStatus(ctx context.Context, status string) ([]File, error)
 	GetOwnerOfFileByUUID(ctx context.Context, fileUuid string) (string, error)
-	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error)
+	GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (GetProjectFileByFileUUIDRow, error)
+	GetProjectFileWithFile(ctx context.Context, fileUuid string) (GetProjectFileWithFileRow, error)
 	GetPublicFileToken(ctx context.Context, token string) (PublicFileToken, error)
 	GetPublicFileTokens(ctx context.Context, fileUuid string) ([]PublicFileToken, error)
 	GetUnreferencedBlobs(ctx context.Context) ([]GetUnreferencedBlobsRow, error)
 	GetVMImageByFileUUID(ctx context.Context, fileUuid string) (VmImage, error)
+	GetVMImageWithFile(ctx context.Context, fileUuid string) (GetVMImageWithFileRow, error)
 	HasBucketPermission(ctx context.Context, arg HasBucketPermissionParams) (bool, error)
 	HasFilePermission(ctx context.Context, arg HasFilePermissionParams) (bool, error)
 	IncrementBlobRefCount(ctx context.Context, sha256 string) error
@@ -52,19 +56,34 @@ type Querier interface {
 	InsertFilePermission(ctx context.Context, arg InsertFilePermissionParams) (FilePermission, error)
 	InsertProjectFile(ctx context.Context, arg InsertProjectFileParams) error
 	InsertVMImage(ctx context.Context, arg InsertVMImageParams) error
+	ListBackups(ctx context.Context) ([]ListBackupsRow, error)
+	ListBackupsByOwner(ctx context.Context, ownerID string) ([]ListBackupsByOwnerRow, error)
+	ListBlobsForIndex(ctx context.Context) ([]ListBlobsForIndexRow, error)
 	ListBucketPermissions(ctx context.Context, bucketID string) ([]BucketPermission, error)
 	ListBucketsByOwner(ctx context.Context, ownerID string) ([]ListBucketsByOwnerRow, error)
+	ListFileBlobRefs(ctx context.Context) ([]ListFileBlobRefsRow, error)
 	ListFilePermissions(ctx context.Context, fileUuid string) ([]FilePermission, error)
 	ListFiles(ctx context.Context) ([]File, error)
 	ListFilesByBucket(ctx context.Context, bucketID string) ([]File, error)
 	ListFilesByBucketWithBlob(ctx context.Context, bucketID string) ([]ListFilesByBucketWithBlobRow, error)
 	ListFilesByOwner(ctx context.Context, ownerID string) ([]File, error)
+	ListProjectFiles(ctx context.Context) ([]ListProjectFilesRow, error)
+	ListProjectFilesByOwner(ctx context.Context, ownerID string) ([]ListProjectFilesByOwnerRow, error)
+	ListProjectFilesByProject(ctx context.Context, projectID string) ([]ListProjectFilesByProjectRow, error)
+	ListTmpUploadStatuses(ctx context.Context) ([]ListTmpUploadStatusesRow, error)
+	ListVMImages(ctx context.Context) ([]ListVMImagesRow, error)
+	ListVMImagesByOwner(ctx context.Context, ownerID string) ([]ListVMImagesByOwnerRow, error)
 	MarkFileTombstoned(ctx context.Context, fileUuid string) error
+	TombstoneFilesByBlobSHA(ctx context.Context, blobSha256 sql.NullString) error
+	UpdateBackup(ctx context.Context, arg UpdateBackupParams) error
+	UpdateBlobIndexMetadata(ctx context.Context, arg UpdateBlobIndexMetadataParams) error
 	UpdateBucket(ctx context.Context, arg UpdateBucketParams) error
 	UpdateFileBucket(ctx context.Context, arg UpdateFileBucketParams) error
 	UpdateFileLastAccessedAt(ctx context.Context, fileUuid string) error
 	UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error
 	UpdateFileStatus(ctx context.Context, arg UpdateFileStatusParams) error
+	UpdateProjectFile(ctx context.Context, arg UpdateProjectFileParams) error
+	UpdateVMImage(ctx context.Context, arg UpdateVMImageParams) error
 	UpsertBlob(ctx context.Context, arg UpsertBlobParams) error
 }
 

@@ -19,6 +19,11 @@ import (
 	"github.com/0xveya/gns3util/pkg/web/middleware"
 )
 
+// isNotFound reports whether err is a sql.ErrNoRows sentinel.
+func isNotFound(err error) bool {
+	return errors.Is(err, sql.ErrNoRows)
+}
+
 func mustClaims(w http.ResponseWriter, r *http.Request) (*auth.Claims, bool) {
 	claims, ok := middleware.GetClaims(r)
 	if !ok {

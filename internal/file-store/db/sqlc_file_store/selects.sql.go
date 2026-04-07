@@ -38,6 +38,75 @@ func (q *Queries) GetBackupByFileUUID(ctx context.Context, fileUuid string) (Bac
 	return i, err
 }
 
+const getBackupWithFile = `-- name: GetBackupWithFile :one
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    bk.source_node_id,
+    bk.backup_type,
+    bk.is_compressed,
+    bk.is_encrypted,
+    bk.parent_backup_uuid
+FROM
+    backups bk
+    JOIN files f ON f.file_uuid = bk.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    bk.file_uuid = ?
+`
+
+type GetBackupWithFileRow struct {
+	FileUuid         string         `json:"file_uuid"`
+	Filename         string         `json:"filename"`
+	ContentType      string         `json:"content_type"`
+	OwnerID          string         `json:"owner_id"`
+	BucketID         string         `json:"bucket_id"`
+	CreatedAt        string         `json:"created_at"`
+	UpdatedAt        string         `json:"updated_at"`
+	Status           string         `json:"status"`
+	RetentionPeriod  sql.NullInt64  `json:"retention_period"`
+	BlobSha256       sql.NullString `json:"blob_sha256"`
+	SizeBytes        sql.NullInt64  `json:"size_bytes"`
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+}
+
+func (q *Queries) GetBackupWithFile(ctx context.Context, fileUuid string) (GetBackupWithFileRow, error) {
+	row := q.db.QueryRowContext(ctx, getBackupWithFile, fileUuid)
+	var i GetBackupWithFileRow
+	err := row.Scan(
+		&i.FileUuid,
+		&i.Filename,
+		&i.ContentType,
+		&i.OwnerID,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+		&i.BlobSha256,
+		&i.SizeBytes,
+		&i.SourceNodeID,
+		&i.BackupType,
+		&i.IsCompressed,
+		&i.IsEncrypted,
+		&i.ParentBackupUuid,
+	)
+	return i, err
+}
+
 const getBlobByFileUUID = `-- name: GetBlobByFileUUID :one
 SELECT
     blob_sha256,
@@ -389,14 +458,102 @@ WHERE
     file_uuid = ?
 `
 
-func (q *Queries) GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (ProjectFile, error) {
+type GetProjectFileByFileUUIDRow struct {
+	FileUuid   string         `json:"file_uuid"`
+	ProjectID  string         `json:"project_id"`
+	VersionTag sql.NullString `json:"version_tag"`
+	IsReadOnly sql.NullBool   `json:"is_read_only"`
+}
+
+func (q *Queries) GetProjectFileByFileUUID(ctx context.Context, fileUuid string) (GetProjectFileByFileUUIDRow, error) {
 	row := q.db.QueryRowContext(ctx, getProjectFileByFileUUID, fileUuid)
-	var i ProjectFile
+	var i GetProjectFileByFileUUIDRow
 	err := row.Scan(
 		&i.FileUuid,
 		&i.ProjectID,
 		&i.VersionTag,
 		&i.IsReadOnly,
+	)
+	return i, err
+}
+
+const getProjectFileWithFile = `-- name: GetProjectFileWithFile :one
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    pf.project_id,
+    pf.project_name,
+    pf.version_tag,
+    pf.is_read_only,
+    pf.include_snapshots,
+    pf.include_images,
+    pf.reset_mac_addresses,
+    pf.keep_compute_ids,
+    pf.compression
+FROM
+    project_files pf
+    JOIN files f ON f.file_uuid = pf.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    pf.file_uuid = ?
+`
+
+type GetProjectFileWithFileRow struct {
+	FileUuid          string         `json:"file_uuid"`
+	Filename          string         `json:"filename"`
+	ContentType       string         `json:"content_type"`
+	OwnerID           string         `json:"owner_id"`
+	BucketID          string         `json:"bucket_id"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
+	Status            string         `json:"status"`
+	RetentionPeriod   sql.NullInt64  `json:"retention_period"`
+	BlobSha256        sql.NullString `json:"blob_sha256"`
+	SizeBytes         sql.NullInt64  `json:"size_bytes"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
+}
+
+func (q *Queries) GetProjectFileWithFile(ctx context.Context, fileUuid string) (GetProjectFileWithFileRow, error) {
+	row := q.db.QueryRowContext(ctx, getProjectFileWithFile, fileUuid)
+	var i GetProjectFileWithFileRow
+	err := row.Scan(
+		&i.FileUuid,
+		&i.Filename,
+		&i.ContentType,
+		&i.OwnerID,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+		&i.BlobSha256,
+		&i.SizeBytes,
+		&i.ProjectID,
+		&i.ProjectName,
+		&i.VersionTag,
+		&i.IsReadOnly,
+		&i.IncludeSnapshots,
+		&i.IncludeImages,
+		&i.ResetMacAddresses,
+		&i.KeepComputeIds,
+		&i.Compression,
 	)
 	return i, err
 }
@@ -541,6 +698,292 @@ func (q *Queries) GetVMImageByFileUUID(ctx context.Context, fileUuid string) (Vm
 	return i, err
 }
 
+const getVMImageWithFile = `-- name: GetVMImageWithFile :one
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    v.virt_type,
+    v.format,
+    v.vcpus,
+    v.ram_mb,
+    v.extra_attributes_json
+FROM
+    vm_images v
+    JOIN files f ON f.file_uuid = v.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    v.file_uuid = ?
+`
+
+type GetVMImageWithFileRow struct {
+	FileUuid            string         `json:"file_uuid"`
+	Filename            string         `json:"filename"`
+	ContentType         string         `json:"content_type"`
+	OwnerID             string         `json:"owner_id"`
+	BucketID            string         `json:"bucket_id"`
+	CreatedAt           string         `json:"created_at"`
+	UpdatedAt           string         `json:"updated_at"`
+	Status              string         `json:"status"`
+	RetentionPeriod     sql.NullInt64  `json:"retention_period"`
+	BlobSha256          sql.NullString `json:"blob_sha256"`
+	SizeBytes           sql.NullInt64  `json:"size_bytes"`
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
+}
+
+func (q *Queries) GetVMImageWithFile(ctx context.Context, fileUuid string) (GetVMImageWithFileRow, error) {
+	row := q.db.QueryRowContext(ctx, getVMImageWithFile, fileUuid)
+	var i GetVMImageWithFileRow
+	err := row.Scan(
+		&i.FileUuid,
+		&i.Filename,
+		&i.ContentType,
+		&i.OwnerID,
+		&i.BucketID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.RetentionPeriod,
+		&i.BlobSha256,
+		&i.SizeBytes,
+		&i.VirtType,
+		&i.Format,
+		&i.Vcpus,
+		&i.RamMb,
+		&i.ExtraAttributesJson,
+	)
+	return i, err
+}
+
+const listBackups = `-- name: ListBackups :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    bk.source_node_id,
+    bk.backup_type,
+    bk.is_compressed,
+    bk.is_encrypted,
+    bk.parent_backup_uuid
+FROM
+    backups bk
+    JOIN files f ON f.file_uuid = bk.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+ORDER BY
+    f.created_at DESC
+`
+
+type ListBackupsRow struct {
+	FileUuid         string         `json:"file_uuid"`
+	Filename         string         `json:"filename"`
+	ContentType      string         `json:"content_type"`
+	OwnerID          string         `json:"owner_id"`
+	BucketID         string         `json:"bucket_id"`
+	CreatedAt        string         `json:"created_at"`
+	UpdatedAt        string         `json:"updated_at"`
+	Status           string         `json:"status"`
+	RetentionPeriod  sql.NullInt64  `json:"retention_period"`
+	BlobSha256       sql.NullString `json:"blob_sha256"`
+	SizeBytes        sql.NullInt64  `json:"size_bytes"`
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+}
+
+func (q *Queries) ListBackups(ctx context.Context) ([]ListBackupsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBackups)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBackupsRow{}
+	for rows.Next() {
+		var i ListBackupsRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.SourceNodeID,
+			&i.BackupType,
+			&i.IsCompressed,
+			&i.IsEncrypted,
+			&i.ParentBackupUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBackupsByOwner = `-- name: ListBackupsByOwner :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    bk.source_node_id,
+    bk.backup_type,
+    bk.is_compressed,
+    bk.is_encrypted,
+    bk.parent_backup_uuid
+FROM
+    backups bk
+    JOIN files f ON f.file_uuid = bk.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.owner_id = ?
+ORDER BY
+    f.created_at DESC
+`
+
+type ListBackupsByOwnerRow struct {
+	FileUuid         string         `json:"file_uuid"`
+	Filename         string         `json:"filename"`
+	ContentType      string         `json:"content_type"`
+	OwnerID          string         `json:"owner_id"`
+	BucketID         string         `json:"bucket_id"`
+	CreatedAt        string         `json:"created_at"`
+	UpdatedAt        string         `json:"updated_at"`
+	Status           string         `json:"status"`
+	RetentionPeriod  sql.NullInt64  `json:"retention_period"`
+	BlobSha256       sql.NullString `json:"blob_sha256"`
+	SizeBytes        sql.NullInt64  `json:"size_bytes"`
+	SourceNodeID     sql.NullString `json:"source_node_id"`
+	BackupType       string         `json:"backup_type"`
+	IsCompressed     sql.NullBool   `json:"is_compressed"`
+	IsEncrypted      sql.NullBool   `json:"is_encrypted"`
+	ParentBackupUuid sql.NullString `json:"parent_backup_uuid"`
+}
+
+func (q *Queries) ListBackupsByOwner(ctx context.Context, ownerID string) ([]ListBackupsByOwnerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBackupsByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBackupsByOwnerRow{}
+	for rows.Next() {
+		var i ListBackupsByOwnerRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.SourceNodeID,
+			&i.BackupType,
+			&i.IsCompressed,
+			&i.IsEncrypted,
+			&i.ParentBackupUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBlobsForIndex = `-- name: ListBlobsForIndex :many
+SELECT
+    sha256,
+    file_path,
+    size_bytes,
+    ref_count
+FROM
+    blobs
+`
+
+type ListBlobsForIndexRow struct {
+	Sha256    string `json:"sha256"`
+	FilePath  string `json:"file_path"`
+	SizeBytes int64  `json:"size_bytes"`
+	RefCount  int64  `json:"ref_count"`
+}
+
+func (q *Queries) ListBlobsForIndex(ctx context.Context) ([]ListBlobsForIndexRow, error) {
+	rows, err := q.db.QueryContext(ctx, listBlobsForIndex)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBlobsForIndexRow{}
+	for rows.Next() {
+		var i ListBlobsForIndexRow
+		if err := rows.Scan(
+			&i.Sha256,
+			&i.FilePath,
+			&i.SizeBytes,
+			&i.RefCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBucketsByOwner = `-- name: ListBucketsByOwner :many
 SELECT
     bucket_id,
@@ -586,6 +1029,46 @@ func (q *Queries) ListBucketsByOwner(ctx context.Context, ownerID string) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFileBlobRefs = `-- name: ListFileBlobRefs :many
+SELECT
+    file_uuid,
+    blob_sha256,
+    STATUS
+FROM
+    files
+WHERE
+    blob_sha256 IS NOT NULL
+`
+
+type ListFileBlobRefsRow struct {
+	FileUuid   string         `json:"file_uuid"`
+	BlobSha256 sql.NullString `json:"blob_sha256"`
+	Status     string         `json:"status"`
+}
+
+func (q *Queries) ListFileBlobRefs(ctx context.Context) ([]ListFileBlobRefsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFileBlobRefs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFileBlobRefsRow{}
+	for rows.Next() {
+		var i ListFileBlobRefsRow
+		if err := rows.Scan(&i.FileUuid, &i.BlobSha256, &i.Status); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -825,6 +1308,511 @@ func (q *Queries) ListFilesByOwner(ctx context.Context, ownerID string) ([]File,
 			&i.LastAccessedAt,
 			&i.Status,
 			&i.RetentionPeriod,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectFiles = `-- name: ListProjectFiles :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    pf.project_id,
+    pf.project_name,
+    pf.version_tag,
+    pf.is_read_only,
+    pf.include_snapshots,
+    pf.include_images,
+    pf.reset_mac_addresses,
+    pf.keep_compute_ids,
+    pf.compression
+FROM
+    project_files pf
+    JOIN files f ON f.file_uuid = pf.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+ORDER BY
+    f.created_at DESC
+`
+
+type ListProjectFilesRow struct {
+	FileUuid          string         `json:"file_uuid"`
+	Filename          string         `json:"filename"`
+	ContentType       string         `json:"content_type"`
+	OwnerID           string         `json:"owner_id"`
+	BucketID          string         `json:"bucket_id"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
+	Status            string         `json:"status"`
+	RetentionPeriod   sql.NullInt64  `json:"retention_period"`
+	BlobSha256        sql.NullString `json:"blob_sha256"`
+	SizeBytes         sql.NullInt64  `json:"size_bytes"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
+}
+
+func (q *Queries) ListProjectFiles(ctx context.Context) ([]ListProjectFilesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectFiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectFilesRow{}
+	for rows.Next() {
+		var i ListProjectFilesRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.VersionTag,
+			&i.IsReadOnly,
+			&i.IncludeSnapshots,
+			&i.IncludeImages,
+			&i.ResetMacAddresses,
+			&i.KeepComputeIds,
+			&i.Compression,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectFilesByOwner = `-- name: ListProjectFilesByOwner :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    pf.project_id,
+    pf.project_name,
+    pf.version_tag,
+    pf.is_read_only,
+    pf.include_snapshots,
+    pf.include_images,
+    pf.reset_mac_addresses,
+    pf.keep_compute_ids,
+    pf.compression
+FROM
+    project_files pf
+    JOIN files f ON f.file_uuid = pf.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.owner_id = ?
+ORDER BY
+    f.created_at DESC
+`
+
+type ListProjectFilesByOwnerRow struct {
+	FileUuid          string         `json:"file_uuid"`
+	Filename          string         `json:"filename"`
+	ContentType       string         `json:"content_type"`
+	OwnerID           string         `json:"owner_id"`
+	BucketID          string         `json:"bucket_id"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
+	Status            string         `json:"status"`
+	RetentionPeriod   sql.NullInt64  `json:"retention_period"`
+	BlobSha256        sql.NullString `json:"blob_sha256"`
+	SizeBytes         sql.NullInt64  `json:"size_bytes"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
+}
+
+func (q *Queries) ListProjectFilesByOwner(ctx context.Context, ownerID string) ([]ListProjectFilesByOwnerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectFilesByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectFilesByOwnerRow{}
+	for rows.Next() {
+		var i ListProjectFilesByOwnerRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.VersionTag,
+			&i.IsReadOnly,
+			&i.IncludeSnapshots,
+			&i.IncludeImages,
+			&i.ResetMacAddresses,
+			&i.KeepComputeIds,
+			&i.Compression,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProjectFilesByProject = `-- name: ListProjectFilesByProject :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    pf.project_id,
+    pf.project_name,
+    pf.version_tag,
+    pf.is_read_only,
+    pf.include_snapshots,
+    pf.include_images,
+    pf.reset_mac_addresses,
+    pf.keep_compute_ids,
+    pf.compression
+FROM
+    project_files pf
+    JOIN files f ON f.file_uuid = pf.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    pf.project_id = ?
+ORDER BY
+    f.created_at DESC
+`
+
+type ListProjectFilesByProjectRow struct {
+	FileUuid          string         `json:"file_uuid"`
+	Filename          string         `json:"filename"`
+	ContentType       string         `json:"content_type"`
+	OwnerID           string         `json:"owner_id"`
+	BucketID          string         `json:"bucket_id"`
+	CreatedAt         string         `json:"created_at"`
+	UpdatedAt         string         `json:"updated_at"`
+	Status            string         `json:"status"`
+	RetentionPeriod   sql.NullInt64  `json:"retention_period"`
+	BlobSha256        sql.NullString `json:"blob_sha256"`
+	SizeBytes         sql.NullInt64  `json:"size_bytes"`
+	ProjectID         string         `json:"project_id"`
+	ProjectName       sql.NullString `json:"project_name"`
+	VersionTag        sql.NullString `json:"version_tag"`
+	IsReadOnly        sql.NullBool   `json:"is_read_only"`
+	IncludeSnapshots  bool           `json:"include_snapshots"`
+	IncludeImages     bool           `json:"include_images"`
+	ResetMacAddresses bool           `json:"reset_mac_addresses"`
+	KeepComputeIds    bool           `json:"keep_compute_ids"`
+	Compression       string         `json:"compression"`
+}
+
+func (q *Queries) ListProjectFilesByProject(ctx context.Context, projectID string) ([]ListProjectFilesByProjectRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProjectFilesByProject, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProjectFilesByProjectRow{}
+	for rows.Next() {
+		var i ListProjectFilesByProjectRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.VersionTag,
+			&i.IsReadOnly,
+			&i.IncludeSnapshots,
+			&i.IncludeImages,
+			&i.ResetMacAddresses,
+			&i.KeepComputeIds,
+			&i.Compression,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTmpUploadStatuses = `-- name: ListTmpUploadStatuses :many
+SELECT
+    file_uuid,
+    STATUS
+FROM
+    files
+WHERE
+    STATUS IN ('pending', 'uploading')
+`
+
+type ListTmpUploadStatusesRow struct {
+	FileUuid string `json:"file_uuid"`
+	Status   string `json:"status"`
+}
+
+func (q *Queries) ListTmpUploadStatuses(ctx context.Context) ([]ListTmpUploadStatusesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTmpUploadStatuses)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTmpUploadStatusesRow{}
+	for rows.Next() {
+		var i ListTmpUploadStatusesRow
+		if err := rows.Scan(&i.FileUuid, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVMImages = `-- name: ListVMImages :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    v.virt_type,
+    v.format,
+    v.vcpus,
+    v.ram_mb,
+    v.extra_attributes_json
+FROM
+    vm_images v
+    JOIN files f ON f.file_uuid = v.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+ORDER BY
+    f.created_at DESC
+`
+
+type ListVMImagesRow struct {
+	FileUuid            string         `json:"file_uuid"`
+	Filename            string         `json:"filename"`
+	ContentType         string         `json:"content_type"`
+	OwnerID             string         `json:"owner_id"`
+	BucketID            string         `json:"bucket_id"`
+	CreatedAt           string         `json:"created_at"`
+	UpdatedAt           string         `json:"updated_at"`
+	Status              string         `json:"status"`
+	RetentionPeriod     sql.NullInt64  `json:"retention_period"`
+	BlobSha256          sql.NullString `json:"blob_sha256"`
+	SizeBytes           sql.NullInt64  `json:"size_bytes"`
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
+}
+
+func (q *Queries) ListVMImages(ctx context.Context) ([]ListVMImagesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVMImages)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVMImagesRow{}
+	for rows.Next() {
+		var i ListVMImagesRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.VirtType,
+			&i.Format,
+			&i.Vcpus,
+			&i.RamMb,
+			&i.ExtraAttributesJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVMImagesByOwner = `-- name: ListVMImagesByOwner :many
+SELECT
+    f.file_uuid,
+    f.filename,
+    f.content_type,
+    f.owner_id,
+    f.bucket_id,
+    f.created_at,
+    f.updated_at,
+    f.status,
+    f.retention_period,
+    f.blob_sha256,
+    b.size_bytes,
+    v.virt_type,
+    v.format,
+    v.vcpus,
+    v.ram_mb,
+    v.extra_attributes_json
+FROM
+    vm_images v
+    JOIN files f ON f.file_uuid = v.file_uuid
+    LEFT JOIN blobs b ON b.sha256 = f.blob_sha256
+WHERE
+    f.owner_id = ?
+ORDER BY
+    f.created_at DESC
+`
+
+type ListVMImagesByOwnerRow struct {
+	FileUuid            string         `json:"file_uuid"`
+	Filename            string         `json:"filename"`
+	ContentType         string         `json:"content_type"`
+	OwnerID             string         `json:"owner_id"`
+	BucketID            string         `json:"bucket_id"`
+	CreatedAt           string         `json:"created_at"`
+	UpdatedAt           string         `json:"updated_at"`
+	Status              string         `json:"status"`
+	RetentionPeriod     sql.NullInt64  `json:"retention_period"`
+	BlobSha256          sql.NullString `json:"blob_sha256"`
+	SizeBytes           sql.NullInt64  `json:"size_bytes"`
+	VirtType            string         `json:"virt_type"`
+	Format              string         `json:"format"`
+	Vcpus               sql.NullInt64  `json:"vcpus"`
+	RamMb               sql.NullInt64  `json:"ram_mb"`
+	ExtraAttributesJson sql.NullString `json:"extra_attributes_json"`
+}
+
+func (q *Queries) ListVMImagesByOwner(ctx context.Context, ownerID string) ([]ListVMImagesByOwnerRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVMImagesByOwner, ownerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVMImagesByOwnerRow{}
+	for rows.Next() {
+		var i ListVMImagesByOwnerRow
+		if err := rows.Scan(
+			&i.FileUuid,
+			&i.Filename,
+			&i.ContentType,
+			&i.OwnerID,
+			&i.BucketID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.RetentionPeriod,
+			&i.BlobSha256,
+			&i.SizeBytes,
+			&i.VirtType,
+			&i.Format,
+			&i.Vcpus,
+			&i.RamMb,
+			&i.ExtraAttributesJson,
 		); err != nil {
 			return nil, err
 		}

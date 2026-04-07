@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 	"github.com/go-chi/chi/v5"
 )
@@ -52,6 +53,10 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 	}
 
 	fileSize := file.SizeBytes
+	if file.Status != string(models.FileStatusAvailable) {
+		helpers.WriteAPIError(w, "file not available", helpers.ErrCodeInvalidInput, "file is not available for download", http.StatusConflict)
+		return
+	}
 
 	w.Header().Set("Content-Type", file.ContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.Filename))

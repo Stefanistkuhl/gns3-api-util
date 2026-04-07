@@ -68,8 +68,14 @@ CREATE TABLE IF NOT EXISTS backups (
 CREATE TABLE IF NOT EXISTS project_files (
     file_uuid TEXT PRIMARY KEY NOT NULL,
     project_id TEXT NOT NULL,
+    project_name TEXT,
     version_tag TEXT,
     is_read_only BOOLEAN DEFAULT FALSE,
+    include_snapshots BOOLEAN NOT NULL DEFAULT FALSE,
+    include_images BOOLEAN NOT NULL DEFAULT FALSE,
+    reset_mac_addresses BOOLEAN NOT NULL DEFAULT FALSE,
+    keep_compute_ids BOOLEAN NOT NULL DEFAULT FALSE,
+    compression TEXT NOT NULL DEFAULT 'zstd',
     FOREIGN KEY(file_uuid) REFERENCES files(file_uuid) ON DELETE CASCADE
 );
 
@@ -154,6 +160,8 @@ CREATE INDEX IF NOT EXISTS idx_bucket_perms_principal ON bucket_permissions(prin
 CREATE INDEX IF NOT EXISTS idx_file_perms_file ON file_permissions(file_uuid);
 
 CREATE INDEX IF NOT EXISTS idx_file_perms_principal ON file_permissions(principal_id);
+
+CREATE INDEX IF NOT EXISTS idx_project_files_project ON project_files(project_id);
 
 INSERT INTO
     buckets (bucket_id, name, owner_id, is_public)

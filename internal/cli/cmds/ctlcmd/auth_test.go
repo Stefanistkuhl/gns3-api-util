@@ -1,7 +1,10 @@
 package ctlcmd
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/utils"
 )
 
 func TestNewAuthCmd_Structure(t *testing.T) {
@@ -46,6 +49,25 @@ func TestNewAuthPermsCmd(t *testing.T) {
 	}
 	if cmd.Annotations["auth-mode"] != "flexible" {
 		t.Errorf("auth-mode = %v, want flexible", cmd.Annotations["auth-mode"])
+	}
+}
+
+func TestAuthPermissionsResult_TablePrinterCompatibility(t *testing.T) {
+	result := AuthPermissionsResult{
+		Server: "https://master.example",
+		User:   "alice",
+		Roles:  []string{"admin"},
+		Status: "Authenticated",
+	}
+
+	var out bytes.Buffer
+	printer := &utils.ASCIITablePrinter{}
+	if err := printer.PrintObj(&result, &out); err != nil {
+		t.Fatalf("PrintObj() error = %v", err)
+	}
+
+	if out.Len() == 0 {
+		t.Fatal("PrintObj() produced no output")
 	}
 }
 
