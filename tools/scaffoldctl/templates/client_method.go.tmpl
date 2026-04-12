@@ -1,0 +1,31 @@
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) {{ .Method }}(ctx context.Context{{- range .Args }}, {{ .Name }} {{ .Type }}{{- end }}{{- with .Request }}{{- if and .Body .ArgName .Type }}, {{ .ArgName }} {{ .Type }}{{- end }}{{- end }}) ({{ .Response.PointerType }}, error) {
+{{- with .Request }}
+	{{- if .Body }}
+	data, _ := json.Marshal({{ .ArgName }})
+	{{- end }}
+{{- end }}
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL({{ .URLExpr }}).
+		WithMethod({{ .HTTPMethod }})
+{{- with .Request }}
+	{{- if .Body }}.
+		WithData(string(data))
+	{{- end }}
+{{- end }}
+{{ if .Response.NoResponse -}}
+	_, _, err := c.Do(ctx, opts)
+	return err
+	{{- else }}
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var {{ .Response.DecodeVar }} {{ .Response.ValueType }}
+	if err := json.Unmarshal(body, &{{ .Response.DecodeVar }}); err != nil {
+		return nil, fmt.Errorf({{ printf "%q" (printf "%s: %%w" .Response.DecodeError) }}, err)
+	}
+	return &{{ .Response.DecodeVar }}, nil
+	{{- end }}
+}

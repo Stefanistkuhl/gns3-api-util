@@ -414,8 +414,8 @@ func (f *FilestoreHandlers) ListProjectFiles(w http.ResponseWriter, r *http.Requ
 //	@Tags			project-files
 //	@Accept			json
 //	@Produce		json
-//	@Param			file_uuid	path		string								true	"File UUID"
-//	@Param			request		body		models.UpdateProjectFileRequest		true	"Update request"
+//	@Param			file_uuid	path		string							true	"File UUID"
+//	@Param			request		body		models.UpdateProjectFileRequest	true	"Update request"
 //	@Success		200			{object}	models.ProjectFileInfo
 //	@Failure		400			{object}	helpers.APIErrorResponse
 //	@Failure		401			{object}	helpers.APIErrorResponse

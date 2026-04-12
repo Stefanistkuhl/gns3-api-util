@@ -70,6 +70,8 @@ func (c *ClientV2) parseAPIError(body []byte, statusCode int) error {
 	))
 }
 
+// --- Transport ---
+
 func (c *ClientV2) BootstrapConnect(ctx context.Context) (fingerprint string, certPEM []byte, err error) {
 	tr, ok := c.base.client.Transport.(*http.Transport)
 	if !ok {
@@ -101,7 +103,7 @@ func (c *ClientV2) BootstrapConnect(ctx context.Context) (fingerprint string, ce
 	return fingerprint, certPEM, nil
 }
 
-// ========MASTER-ENDPOINTS=========
+// --- Auth ---
 
 func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
@@ -121,6 +123,8 @@ func (c *ClientV2) GetAuthStatus(ctx context.Context) (*models.AuthStatusRespons
 	return &resp, nil
 }
 
+// --- Cluster ---
+
 func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
 		WithURL("/cluster/nodes").
@@ -139,7 +143,7 @@ func (c *ClientV2) GetNodes(ctx context.Context) (*models.GetNodesResponse, erro
 	return &resp, nil
 }
 
-// ─────────────────────── User management ────────────────────────────────────
+// --- Users ---
 
 func (c *ClientV2) ListUsers(ctx context.Context) (*models.ListUsersResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
@@ -250,7 +254,7 @@ func (c *ClientV2) CreateUser(ctx context.Context, req models.CreateUserRequest)
 	return &resp, nil
 }
 
-// ─────────────────────── Role management ────────────────────────────────────
+// --- Roles ---
 
 func (c *ClientV2) ListRoles(ctx context.Context) (*models.ListRolesResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
@@ -333,7 +337,7 @@ func (c *ClientV2) DeleteRole(ctx context.Context, roleName string) error {
 	return err
 }
 
-// ========FILESTORE-ENDPOINTS=========
+// --- Files ---
 
 func (c *ClientV2) InitUpload(ctx context.Context, req *models.InitUploadRequest) (*models.InitUploadResponse, error) {
 	if req.BucketID == "" {
@@ -373,6 +377,25 @@ func (c *ClientV2) GetUploadStatus(ctx context.Context, fileUUID string) (*model
 	}
 	return &resp, nil
 }
+
+func (c *ClientV2) DeleteFile(ctx context.Context, fileUUID string) (*models.DeleteFileResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/files/%s", fileUUID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.DeleteFileResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &resp, nil
+}
+
+// --- Transfers ---
 
 func (c *ClientV2) StreamUpload(ctx context.Context, fileUUID string, content io.Reader, offset int64) (*models.FinalizeUploadResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
@@ -486,6 +509,8 @@ func (c *ClientV2) DownloadFile(ctx context.Context, fileUUID, outputPath string
 	return nil
 }
 
+// --- Buckets ---
+
 func (c *ClientV2) CreateBucket(ctx context.Context, req models.CreateBucketRequest) (*models.CreateBucketResponse, error) {
 	data, _ := json.Marshal(req)
 	opts := NewRequestOptions(&c.base.settings).
@@ -522,9 +547,11 @@ func (c *ClientV2) ListBucketFiles(ctx context.Context, bucketID string) (*model
 	return &resp, nil
 }
 
-func (c *ClientV2) DeleteFile(ctx context.Context, fileUUID string) (*models.DeleteFileResponse, error) {
+// --- Buckets ---
+
+func (c *ClientV2) DeleteBucket(ctx context.Context, bucketID string) (*models.DeleteBucketResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
-		WithURL(fmt.Sprintf("/files/%s", fileUUID)).
+		WithURL(fmt.Sprintf("/buckets/%s", bucketID)).
 		WithMethod(DELETE)
 
 	body, _, err := c.Do(ctx, opts)
@@ -532,12 +559,33 @@ func (c *ClientV2) DeleteFile(ctx context.Context, fileUUID string) (*models.Del
 		return nil, err
 	}
 
-	var resp models.DeleteFileResponse
+	var resp models.DeleteBucketResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, fmt.Errorf("failed to decode buckets: %w", err)
 	}
+
 	return &resp, nil
 }
+
+func (c *ClientV2) ListBuckets(ctx context.Context) (*models.ListBucketResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/buckets").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListBucketResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode buckets: %w", err)
+	}
+
+	return &resp, nil
+}
+
+// --- Transfers ---
 
 func (c *ClientV2) UploadFileTobucketWrapper(ctx context.Context, bucketID, filePath string, req *models.InitUploadRequest) (*models.FinalizeUploadResponse, error) {
 	file, err := os.Open(filePath) // #nosec G304
@@ -602,6 +650,8 @@ func (c *ClientV2) initUploadToBucket(ctx context.Context, bucketID string, req 
 	return &resp, nil
 }
 
+// --- Public tokens ---
+
 func (c *ClientV2) GeneratePublicToken(ctx context.Context, req *models.PublicTokenRequest) (*models.PublicTokenResponse, error) {
 	data, _ := json.Marshal(req)
 	opts := NewRequestOptions(&c.base.settings).
@@ -621,43 +671,7 @@ func (c *ClientV2) GeneratePublicToken(ctx context.Context, req *models.PublicTo
 	return &resp, nil
 }
 
-func (c *ClientV2) DeleteBucket(ctx context.Context, bucketID string) (*models.DeleteBucketResponse, error) {
-	opts := NewRequestOptions(&c.base.settings).
-		WithURL(fmt.Sprintf("/buckets/%s", bucketID)).
-		WithMethod(DELETE)
-
-	body, _, err := c.Do(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.DeleteBucketResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("failed to decode buckets: %w", err)
-	}
-
-	return &resp, nil
-}
-
-func (c *ClientV2) ListBuckets(ctx context.Context) (*models.ListBucketResponse, error) {
-	opts := NewRequestOptions(&c.base.settings).
-		WithURL("/buckets").
-		WithMethod(GET)
-
-	body, _, err := c.Do(ctx, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp models.ListBucketResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, fmt.Errorf("failed to decode buckets: %w", err)
-	}
-
-	return &resp, nil
-}
-
-// ========JOB-ENDPOINTS=========
+// --- Jobs ---
 
 func (c *ClientV2) ListJobs(ctx context.Context) (*models.ListJobsResponse, error) {
 	opts := NewRequestOptions(&c.base.settings).
@@ -733,7 +747,7 @@ func (c *ClientV2) ListJobRuns(ctx context.Context) (*models.ListJobRunsResponse
 	return &resp, nil
 }
 
-// ======== BUCKET PERMISSION ENDPOINTS ========
+// --- Bucket permissions ---
 
 func (c *ClientV2) GrantBucketPermission(ctx context.Context, bucketID string, req models.GrantPermissionRequest) (*models.PermissionEntry, error) {
 	data, _ := json.Marshal(req)
@@ -788,7 +802,7 @@ func (c *ClientV2) ListBucketPermissions(ctx context.Context, bucketID string) (
 	return &resp, nil
 }
 
-// ======== FILE PERMISSION ENDPOINTS ========
+// --- File permissions ---
 
 func (c *ClientV2) GrantFilePermission(ctx context.Context, fileUUID string, req models.GrantPermissionRequest) (*models.PermissionEntry, error) {
 	data, _ := json.Marshal(req)
@@ -839,6 +853,198 @@ func (c *ClientV2) ListFilePermissions(ctx context.Context, fileUUID string) (*m
 	var resp models.ListPermissionsResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("failed to decode permissions list: %w", err)
+	}
+	return &resp, nil
+}
+
+// --- Backups ---
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) DeleteBackup(ctx context.Context, fileUUID string) (*models.DeleteFileResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/backups/%s", fileUUID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.DeleteFileResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode backup delete response: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) GetBackup(ctx context.Context, fileUUID string) (*models.BackupInfo, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/backups/%s", fileUUID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.BackupInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode backup: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) InitBackupUpload(ctx context.Context, req *models.InitBackupUploadRequest) (*models.InitUploadResponse, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/backups").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.InitUploadResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode backup upload init response: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) ListBackups(ctx context.Context) (*models.ListBackupsResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/backups").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListBackupsResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode backups: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) UpdateBackup(ctx context.Context, fileUUID string, req *models.UpdateBackupRequest) (*models.BackupInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/backups/%s", fileUUID)).
+		WithMethod(PATCH).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.BackupInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode updated backup: %w", err)
+	}
+	return &resp, nil
+}
+
+// --- VM images ---
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) DeleteVMImage(ctx context.Context, fileUUID string) (*models.DeleteFileResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/vms/%s", fileUUID)).
+		WithMethod(DELETE)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.DeleteFileResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode VM image delete response: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) GetVMImage(ctx context.Context, fileUUID string) (*models.VMImageInfo, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/vms/%s", fileUUID)).
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.VMImageInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode VM image: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) InitVMUpload(ctx context.Context, req *models.InitVMUploadRequest) (*models.InitUploadResponse, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/vms").
+		WithMethod(POST).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.InitUploadResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode VM upload init response: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) ListVMImages(ctx context.Context) (*models.ListVMImagesResponse, error) {
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL("/vms").
+		WithMethod(GET)
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ListVMImagesResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode VM images: %w", err)
+	}
+	return &resp, nil
+}
+
+// Scaffolded by tools/scaffoldctl; edit as needed.
+func (c *ClientV2) UpdateVMImage(ctx context.Context, fileUUID string, req *models.UpdateVMImageRequest) (*models.VMImageInfo, error) {
+	data, _ := json.Marshal(req)
+	opts := NewRequestOptions(&c.base.settings).
+		WithURL(fmt.Sprintf("/vms/%s", fileUUID)).
+		WithMethod(PATCH).
+		WithData(string(data))
+
+	body, _, err := c.Do(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.VMImageInfo
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("failed to decode updated VM image: %w", err)
 	}
 	return &resp, nil
 }

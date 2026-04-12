@@ -56,8 +56,10 @@ type ObjectIndexResult struct {
 	UnexpectedDiskEntries []string               `json:"unexpected_disk_entries"`
 }
 
-type blobIndexRow = sqlc_file_store.ListBlobsForIndexRow
-type fileBlobRef = sqlc_file_store.ListFileBlobRefsRow
+type (
+	blobIndexRow = sqlc_file_store.ListBlobsForIndexRow
+	fileBlobRef  = sqlc_file_store.ListFileBlobRefsRow
+)
 
 func (j *ObjectIndexJob) ExecuteIteration(ctx context.Context, invokedBy Invocator) (*ObjectIndexResult, error) {
 	result := &ObjectIndexResult{

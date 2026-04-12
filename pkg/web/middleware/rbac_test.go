@@ -33,6 +33,7 @@ func (s *stubRBACChecker) CheckPermission(
 }
 
 func TestRequirePermissionAllowsJobsExecute(t *testing.T) {
+	ctx := context.Background()
 	checker := &stubRBACChecker{allowed: true}
 	calledNext := false
 	handler := RequirePermission(checker, sharedpb.Action_ACTION_EXECUTE, sharedpb.Resource_RESOURCE_JOBS)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -40,7 +41,7 @@ func TestRequirePermissionAllowsJobsExecute(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "/jobs/test/run", http.NoBody)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/jobs/test/run", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ClaimsKey, &auth.Claims{
 		UserID: "alice",
 		Role:   "worker",
@@ -64,12 +65,13 @@ func TestRequirePermissionAllowsJobsExecute(t *testing.T) {
 }
 
 func TestRequirePermissionDeniesJobsExecute(t *testing.T) {
+	ctx := context.Background()
 	checker := &stubRBACChecker{allowed: false}
 	handler := RequirePermission(checker, sharedpb.Action_ACTION_EXECUTE, sharedpb.Resource_RESOURCE_JOBS)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req := httptest.NewRequest(http.MethodPost, "/jobs/test/run", http.NoBody)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/jobs/test/run", http.NoBody)
 	req = req.WithContext(context.WithValue(req.Context(), ClaimsKey, &auth.Claims{
 		UserID: "alice",
 		Role:   "worker",

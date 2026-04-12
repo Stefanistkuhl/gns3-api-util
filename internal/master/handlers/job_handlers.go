@@ -141,7 +141,12 @@ func (m *Master) RunJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go m.executeJobOnNode(targetNode, jobName, runID, authToken)
+	jobCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+
+	go func() {
+		defer cancel()
+		m.executeJobOnNode(jobCtx, targetNode, jobName, runID, authToken)
+	}()
 
 	resp := models.RunJobResponse{
 		RunID:   runID,
@@ -155,7 +160,7 @@ func (m *Master) RunJob(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (m *Master) executeJobOnNode(node *pb.Node, jobName, runID, authToken string) {
+func (m *Master) executeJobOnNode(ctx context.Context, node *pb.Node, jobName, runID, authToken string) {
 	nodeURL := fmt.Sprintf("https://%s:%d/api/v1/jobs/%s/run", node.IpAddress, node.ApiPort, jobName)
 
 	caPath := filepath.Join(filepath.Clean(m.TLSDir), "ca.crt")

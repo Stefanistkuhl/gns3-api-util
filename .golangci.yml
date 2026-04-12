@@ -23,6 +23,9 @@ linters:
         - fieldalignment
     revive:
       severity: warning
+      rules:
+        - name: exported
+          disabled: true
     gocritic:
       enabled-tags:
         - diagnostic

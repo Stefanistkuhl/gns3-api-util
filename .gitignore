@@ -55,7 +55,6 @@ docs/
 tmp/
 *.etcd
 data/
-CODEGEN_PATTERN_PLAN.md
 
 # GitHub Actions / CI
 .github/event.json

@@ -24,6 +24,7 @@ const (
 	GET            HTTPMethod = "GET"
 	POST           HTTPMethod = "POST"
 	PUT            HTTPMethod = "PUT"
+	PATCH          HTTPMethod = "PATCH"
 	DELETE         HTTPMethod = "DELETE"
 	DefaultTimeout            = 30 * time.Second
 	APIVersion                = "/v3"
@@ -183,29 +184,24 @@ func createTLSConfig(settings *Settings) *tls.Config {
 		caCertPool.AppendCertsFromPEM(settings.CACert)
 
 		return &tls.Config{
-			InsecureSkipVerify: true, // #nosec G402 – chain verified below via VerifyPeerCertificate
-			RootCAs:            caCertPool,
-			VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
-				if len(rawCerts) == 0 {
+			InsecureSkipVerify:     true, // #nosec G402 – chain verified below via VerifyConnection
+			RootCAs:                caCertPool,
+			SessionTicketsDisabled: true,
+			VerifyConnection: func(cs tls.ConnectionState) error {
+				if len(cs.PeerCertificates) == 0 {
 					return fmt.Errorf("server presented no certificates")
 				}
-				certs := make([]*x509.Certificate, 0, len(rawCerts))
-				for _, raw := range rawCerts {
-					cert, parseErr := x509.ParseCertificate(raw)
-					if parseErr != nil {
-						return fmt.Errorf("failed to parse server certificate: %w", parseErr)
-					}
-					certs = append(certs, cert)
-				}
+
 				intermediates := x509.NewCertPool()
-				for _, cert := range certs[1:] {
+				for _, cert := range cs.PeerCertificates[1:] {
 					intermediates.AddCert(cert)
 				}
-				_, verifyErr := certs[0].Verify(x509.VerifyOptions{
+
+				_, err := cs.PeerCertificates[0].Verify(x509.VerifyOptions{
 					Roots:         caCertPool,
 					Intermediates: intermediates,
 				})
-				return verifyErr
+				return err
 			},
 		}
 	}

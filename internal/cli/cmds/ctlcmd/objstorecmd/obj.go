@@ -67,5 +67,17 @@ func NewObjCmd() *cobra.Command {
 		filePermsCmd,
 	)
 
+	// Added by scaffoldctl CLI parent registration.
+	backupsCmd := NewBackupsCmd()
+	backupsCmd.GroupID = "object"
+
+	vmImagesCmd := NewVMImagesCmd()
+	vmImagesCmd.GroupID = "object"
+
+	cmd.AddCommand(
+		backupsCmd,
+		vmImagesCmd,
+	)
+
 	return cmd
 }

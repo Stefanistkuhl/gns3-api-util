@@ -20,6 +20,7 @@ air = "1.62.0"
 "go:github.com/swaggo/swag/cmd/swag" = "latest"
 "github:tursodatabase/turso" = "0.5.1"
 bun = "1.3.5"
+ripgrep = "latest"
 
 [tasks.test]
 description = "Run tests"
@@ -59,6 +60,7 @@ description = "Create a test release (dry run)"
 run = "goreleaser release --snapshot --clean"
 
 [tasks.format]
+alias = "fmt"
 description = "Run all formatters (Go and SQL)"
 depends = ["format-go", "format-sql", "format-proto", "format-swag"]
 

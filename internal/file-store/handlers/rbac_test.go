@@ -133,12 +133,13 @@ func grantFilePermission(t *testing.T, store *db.Store, fileUUID, principalID, p
 }
 
 func TestHandleInitUploadRejectsBucketIDMismatch(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, _ := newTestFilestoreHandlers(t)
 	createTestBucket(t, store, "bucket-a", "owner", nil)
 	createTestBucket(t, store, "bucket-b", "owner", nil)
 
 	body := bytes.NewBufferString(`{"filename":"test.bin","size_bytes":10,"content_type":"application/octet-stream","bucket_id":"bucket-b"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/buckets/bucket-a/files", body)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/buckets/bucket-a/files", body)
 	req = withClaims(req, &auth.Claims{UserID: "owner"})
 	req = withURLParam(req, "bucket_id", "bucket-a")
 
@@ -151,11 +152,12 @@ func TestHandleInitUploadRejectsBucketIDMismatch(t *testing.T) {
 }
 
 func TestHandleInitUploadRejectsUnauthorizedBucketWrite(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, _ := newTestFilestoreHandlers(t)
 	createTestBucket(t, store, "bucket-a", "owner", nil)
 
 	body := bytes.NewBufferString(`{"filename":"test.bin","size_bytes":10,"content_type":"application/octet-stream","bucket_id":"bucket-a"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/files", body)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/files", body)
 	req = withClaims(req, &auth.Claims{UserID: "alice"})
 
 	rr := httptest.NewRecorder()
@@ -167,12 +169,13 @@ func TestHandleInitUploadRejectsUnauthorizedBucketWrite(t *testing.T) {
 }
 
 func TestHandleInitUploadAllowsBucketWriteACL(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, _ := newTestFilestoreHandlers(t)
 	createTestBucket(t, store, "bucket-a", "owner", nil)
 	grantBucketPermission(t, store, "bucket-a", "alice", "write")
 
 	body := bytes.NewBufferString(`{"filename":"test.bin","size_bytes":10,"content_type":"application/octet-stream","bucket_id":"bucket-a"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/files", body)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/files", body)
 	req = withClaims(req, &auth.Claims{UserID: "alice"})
 
 	rr := httptest.NewRecorder()
@@ -196,6 +199,7 @@ func TestHandleInitUploadAllowsBucketWriteACL(t *testing.T) {
 }
 
 func TestGetUploadStatusAllowsBucketAdmin(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, dirs := newTestFilestoreHandlers(t)
 	createTestBucket(t, store, "bucket-a", "owner", nil)
 	initTestFile(t, store, "file-1", "owner", "bucket-a", string(models.FileStatusPending))
@@ -206,7 +210,7 @@ func TestGetUploadStatusAllowsBucketAdmin(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/files/file-1/status", http.NoBody)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/files/file-1/status", http.NoBody)
 	req = withClaims(req, &auth.Claims{UserID: "alice"})
 	req = withURLParam(req, "file_uuid", "file-1")
 
@@ -227,13 +231,14 @@ func TestGetUploadStatusAllowsBucketAdmin(t *testing.T) {
 }
 
 func TestGeneratePublicTokenAllowsFileWriteACL(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, _ := newTestFilestoreHandlers(t)
 	createTestBucket(t, store, "bucket-a", "owner", nil)
 	initTestFile(t, store, "file-1", "owner", "bucket-a", string(models.FileStatusAvailable))
 	grantFilePermission(t, store, "file-1", "alice", "write")
 
 	body := bytes.NewBufferString(`{"file_uuid":"file-1","bucket_uuid":"bucket-a"}`)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/files/file-1/public-token", body)
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/files/file-1/public-token", body)
 	req = withClaims(req, &auth.Claims{UserID: "alice"})
 	req = withURLParam(req, "file_uuid", "file-1")
 
@@ -254,6 +259,7 @@ func TestGeneratePublicTokenAllowsFileWriteACL(t *testing.T) {
 }
 
 func TestDownloadFileRejectsTombstonedFile(t *testing.T) {
+	ctx := context.Background()
 	handlers, store, dirs := newTestFilestoreHandlers(t)
 	initTestFile(t, store, "file-1", "owner", models.GlobalBucketID, string(models.FileStatusPending))
 
@@ -289,7 +295,7 @@ func TestDownloadFileRejectsTombstonedFile(t *testing.T) {
 		t.Fatalf("MarkFileTombstoned() error = %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/files/file-1", http.NoBody)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/files/file-1", http.NoBody)
 	req = withClaims(req, &auth.Claims{UserID: "owner"})
 	req = withURLParam(req, "file_uuid", "file-1")
 

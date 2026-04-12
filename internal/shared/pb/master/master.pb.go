@@ -7,13 +7,12 @@
 package master
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	pb "github.com/0xveya/gns3util/internal/shared/pb"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (

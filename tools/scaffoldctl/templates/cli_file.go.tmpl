@@ -1,0 +1,147 @@
+package {{ .PackageName }}
+
+import (
+	"fmt"
+{{- if .NeedsOS }}
+	"os"
+{{- end }}
+{{- if .NeedsFilepath }}
+	"path/filepath"
+{{- end }}
+{{- if .NeedsTime }}
+	"time"
+{{- end }}
+
+	"github.com/spf13/cobra"
+{{- if .NeedsConfig }}
+
+	"github.com/0xveya/gns3util/internal/cli/cli_pkg/config"
+{{- end }}
+{{- if .NeedsModels }}
+	"github.com/0xveya/gns3util/pkg/models"
+{{- end }}
+)
+
+// Scaffolded by tools/scaffoldctl from {{ goString .SpecPath }}; edit command bodies as needed.
+func {{ .Config.CommandFactory }}() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     {{ goString .Config.Use }},
+{{- if .Config.Aliases }}
+		Aliases: {{ goStringSlice .Config.Aliases }},
+{{- end }}
+		Short:   {{ goString .Config.Short }},
+{{- if .Config.Long }}
+		Long:    {{ goString .Config.Long }},
+{{- end }}
+{{- if .Config.Example }}
+		Example: {{ goString .Config.Example }},
+{{- end }}
+		Annotations: map[string]string{
+			"auth-mode": {{ goString .Config.AuthMode }},
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_ = cmd.Help()
+			return nil
+		},
+	}
+{{- if .Groups }}
+
+{{- range .Groups }}
+	{{ .VarName }} := &cobra.Group{ID: {{ goString .ID }}, Title: {{ goString .Title }}}
+{{- end }}
+	cmd.AddGroup(
+{{- range .Groups }}
+		{{ .VarName }},
+{{- end }}
+	)
+{{- end }}
+{{- if .Commands }}
+
+{{- range .Commands }}
+	{{ .VarName }} := {{ .Factory }}()
+{{- if .GroupID }}
+	{{ .VarName }}.GroupID = {{ goString .GroupID }}
+{{- end }}
+{{- end }}
+
+	cmd.AddCommand(
+{{- range .Commands }}
+		{{ .VarName }},
+{{- end }}
+	)
+{{- end }}
+
+	return cmd
+}
+
+{{ range .Rows }}
+type {{ .Type }} struct {
+{{- range .Fields }}
+	{{ .Name }} {{ .GoType }} `json:"{{ .JSONName }}"`
+{{- end }}
+}
+
+func ({{ .Receiver }} *{{ .Type }}) GetHeaders() []string {
+	return []string{
+{{- range .Fields }}
+		{{ goString .Header }},
+{{- end }}
+	}
+}
+
+func ({{ .Receiver }} *{{ .Type }}) GetRow() []string {
+	return []string{
+{{- range .Fields }}
+		{{ .RowValue }},
+{{- end }}
+	}
+}
+
+{{ end -}}
+
+{{ range .Commands }}
+func {{ .Factory }}() *cobra.Command {
+{{- if .Variables }}
+	var (
+{{- range .Variables }}
+		{{ .Name }} {{ .Type }}
+{{- end }}
+	)
+
+{{- end }}
+	cmd := &cobra.Command{
+		Use:     {{ goString .Use }},
+{{- if .Aliases }}
+		Aliases: {{ goStringSlice .Aliases }},
+{{- end }}
+		Short:   {{ goString .Short }},
+{{- if .Long }}
+		Long:    {{ goString .Long }},
+{{- end }}
+{{- if .Example }}
+		Example: {{ goString .Example }},
+{{- end }}
+		Annotations: map[string]string{
+			"auth-mode": {{ goString .AuthMode }},
+		},
+		Args: {{ .CobraArgs }},
+		RunE: func(cmd *cobra.Command, args []string) error {
+{{- range .RunELines }}
+			{{ . }}
+{{- end }}
+		},
+	}
+{{- if .FlagBindings }}
+
+{{- range .FlagBindings }}
+	{{ . }}
+{{- end }}
+{{- range .RequiredFlags }}
+	{{ . }}
+{{- end }}
+{{- end }}
+
+	return cmd
+}
+
+{{ end -}}

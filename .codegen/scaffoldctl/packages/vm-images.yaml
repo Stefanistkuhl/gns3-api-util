@@ -1,0 +1,272 @@
+# yaml-language-server: $schema=../schema.json
+version: 1
+
+package:
+  id: vm-images
+  title: VM images
+  service: filestore
+  source:
+    vcs: jj
+    change_id: pztrunuwlnqurputqrnykpwqrwqmyoro
+    commit_id: fe59faa7100494941bf73713e25e0715a17764fe
+    summary: added endpoints for vm images in the filestore
+
+client:
+  target_file: pkg/api/client_v2.go
+  default_section: vm_images
+  endpoint_group: vm_images
+
+cli:
+  target_file: internal/cli/cmds/ctlcmd/objstorecmd/vm_images.go
+  parent_file: internal/cli/cmds/ctlcmd/objstorecmd/obj.go
+  parent_factory: NewObjCmd
+  command_factory: NewVMImagesCmd
+  use: vm-images
+  aliases: [vms, vm]
+  short: Manage VM image objects in the filestore
+  auth_mode: cluster-only
+  group_id: object
+  groups:
+    - id: query
+      title: "Query commands:"
+    - id: action
+      title: "Action commands:"
+  rows:
+    - type: vmImageRow
+      fields:
+        - name: FileUUID
+          header: FILE UUID
+        - name: Filename
+          header: FILENAME
+        - name: Status
+          header: STATUS
+        - name: VirtType
+          json: virt_type
+          header: VIRT TYPE
+        - name: Format
+          header: FORMAT
+        - name: VCPUs
+          type: int64
+          header: VCPUS
+        - name: RAMMB
+          type: int64
+          json: ram_mb
+          header: RAM MB
+        - name: CreatedAt
+          type: time.Time
+          header: CREATED AT
+          value: v.CreatedAt.Format(time.RFC3339)
+    - type: vmImageUploadResult
+      fields:
+        - name: FileUUID
+          header: FILE UUID
+        - name: Status
+          header: STATUS
+    - type: vmImageDeleteResult
+      fields:
+        - name: FileUUID
+          header: FILE UUID
+        - name: Status
+          header: STATUS
+
+client_methods:
+  - id: list_vm_images
+    section: vm_images
+    method: ListVMImages
+    http_method: GET
+    url_expr: '"/vms"'
+    response:
+      pointer_type: "*models.ListVMImagesResponse"
+      value_type: "models.ListVMImagesResponse"
+      decode_var: resp
+      decode_error: "failed to decode VM images"
+
+  - id: init_vm_upload
+    section: vm_images
+    method: InitVMUpload
+    http_method: POST
+    url_expr: '"/vms"'
+    request:
+      body: true
+      arg_name: req
+      type: "*models.InitVMUploadRequest"
+    response:
+      pointer_type: "*models.InitUploadResponse"
+      value_type: "models.InitUploadResponse"
+      decode_var: resp
+      decode_error: "failed to decode VM upload init response"
+
+  - id: get_vm_image
+    section: vm_images
+    method: GetVMImage
+    http_method: GET
+    args:
+      - name: fileUUID
+        type: string
+    url_expr: 'fmt.Sprintf("/vms/%s", fileUUID)'
+    response:
+      pointer_type: "*models.VMImageInfo"
+      value_type: "models.VMImageInfo"
+      decode_var: resp
+      decode_error: "failed to decode VM image"
+
+  - id: update_vm_image
+    section: vm_images
+    method: UpdateVMImage
+    http_method: PATCH
+    args:
+      - name: fileUUID
+        type: string
+    request:
+      body: true
+      arg_name: req
+      type: "*models.UpdateVMImageRequest"
+    url_expr: 'fmt.Sprintf("/vms/%s", fileUUID)'
+    response:
+      pointer_type: "*models.VMImageInfo"
+      value_type: "models.VMImageInfo"
+      decode_var: resp
+      decode_error: "failed to decode updated VM image"
+
+  - id: delete_vm_image
+    section: vm_images
+    method: DeleteVMImage
+    http_method: DELETE
+    args:
+      - name: fileUUID
+        type: string
+    url_expr: 'fmt.Sprintf("/vms/%s", fileUUID)'
+    response:
+      pointer_type: "*models.DeleteFileResponse"
+      value_type: "models.DeleteFileResponse"
+      decode_var: resp
+      decode_error: "failed to decode VM image delete response"
+
+cli_commands:
+  - id: list_vm_images
+    factory: newListVMImagesCmd
+    use: list
+    short: List VM image objects
+    group_id: query
+    cobra_args: cobra.NoArgs
+    client_method: ListVMImages
+    output:
+      response_field: VMs
+      row_type: vmImageRow
+      empty_message: No VM images found.
+
+  - id: get_vm_image
+    factory: newGetVMImageCmd
+    use: get <file-uuid>
+    short: Get VM image details
+    group_id: query
+    cobra_args: cobra.ExactArgs(1)
+    client_method: GetVMImage
+    positionals:
+      - name: fileUUID
+        usage: VM image file UUID
+        client_arg: fileUUID
+    output:
+      row_type: vmImageRow
+
+  - id: upload_vm_image
+    factory: newUploadVMImageCmd
+    use: upload <file-path>
+    aliases: [add]
+    short: Upload a VM image object
+    group_id: action
+    cobra_args: cobra.ExactArgs(1)
+    client_method: InitVMUpload
+    positionals:
+      - name: filePath
+        usage: Local VM image file path
+    flags:
+      - name: type
+        shorthand: t
+        type: string
+        default: application/octet-stream
+        usage: Explicit Content-Type for the VM image file
+        model_field: ContentType
+      - name: retention
+        shorthand: r
+        type: int64
+        usage: Retention period in hours
+        model_field: RetentionPeriod
+      - name: bucket-id
+        type: string
+        usage: Target bucket ID
+        model_field: BucketID
+      - name: virt-type
+        type: string
+        required: true
+        usage: "Virtualization type: qemu, iou, docker, dynamips, vmware, or virtualbox"
+        model_field: VirtType
+      - name: format
+        type: string
+        required: true
+        usage: VM disk/image format
+        model_field: Format
+      - name: vcpus
+        type: int64
+        usage: Virtual CPU count
+        model_field: VCPUs
+      - name: ram-mb
+        type: int64
+        usage: RAM size in MiB
+        model_field: RAMMB
+      - name: extra-attributes-json
+        type: string
+        usage: Extra metadata JSON for the VM image
+        model_field: ExtraAttributesJSON
+    output:
+      row_type: vmImageUploadResult
+
+  - id: update_vm_image
+    factory: newUpdateVMImageCmd
+    use: update <file-uuid>
+    short: Update VM image metadata
+    group_id: action
+    cobra_args: cobra.ExactArgs(1)
+    client_method: UpdateVMImage
+    positionals:
+      - name: fileUUID
+        usage: VM image file UUID
+        client_arg: fileUUID
+    flags:
+      - name: virt-type
+        type: string
+        usage: "Virtualization type: qemu, iou, docker, dynamips, vmware, or virtualbox"
+        model_field: VirtType
+      - name: format
+        type: string
+        usage: VM disk/image format
+        model_field: Format
+      - name: vcpus
+        type: int64
+        usage: Virtual CPU count
+        model_field: VCPUs
+      - name: ram-mb
+        type: int64
+        usage: RAM size in MiB
+        model_field: RAMMB
+      - name: extra-attributes-json
+        type: string
+        usage: Extra metadata JSON for the VM image
+        model_field: ExtraAttributesJSON
+    output:
+      row_type: vmImageRow
+
+  - id: delete_vm_image
+    factory: newDeleteVMImageCmd
+    use: delete <file-uuid>
+    aliases: [rm]
+    short: Delete a VM image object
+    group_id: action
+    cobra_args: cobra.ExactArgs(1)
+    client_method: DeleteVMImage
+    positionals:
+      - name: fileUUID
+        usage: VM image file UUID
+        client_arg: fileUUID
+    output:
+      row_type: vmImageDeleteResult
