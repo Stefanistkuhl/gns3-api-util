@@ -1,7 +1,7 @@
 # GNS3 API Util
 
-> Complete overhaul of the clustering system and the CLI in progress
-> No changes will happen on `master` until v2 is done.
+> Complete overhaul of the clustering system and the CLI in progress<br>
+> No changes will happen on `master` until v2 is done.<br>
 > Check the `features/orchestration` branch for progress.
 
 <p align="center">
