@@ -282,12 +282,12 @@ func (f *FilestoreHandlers) InitProjectFileUpload(w http.ResponseWriter, r *http
 		expiresAt = time.Now().Add(time.Duration(file.RetentionPeriod.Int64) * time.Hour)
 	}
 
-	writeJSON(w, r, models.InitUploadResponse{
+	f.mustWriteResponse(w, models.InitUploadResponse{
 		FileUUID:  file.FileUuid,
 		Status:    models.FileStatusPending,
 		UploadURL: fmt.Sprintf("/api/v1/files/%s/content", file.FileUuid),
 		ExpiresAt: expiresAt,
-	}, f.Logger)
+	}, map[string]any{"file_uuid": file.FileUuid, "project_id": req.ProjectID, "user_id": claims.UserID})
 }
 
 // GetProjectFile returns combined file and project_files metadata for a single record.
@@ -333,7 +333,8 @@ func (f *FilestoreHandlers) GetProjectFile(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	writeJSON(w, r, projectFileInfoFromRow(&row), f.Logger)
+	f.Logger.Info("project file read", "file_uuid", fileUUID, "user_id", claims.UserID)
+	f.mustWriteResponse(w, projectFileInfoFromRow(&row), map[string]any{"file_uuid": fileUUID})
 }
 
 // ListProjectFiles lists project files accessible to the authenticated user.
@@ -403,7 +404,8 @@ func (f *FilestoreHandlers) ListProjectFiles(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	writeJSON(w, r, models.ListProjectFilesResponse{ProjectFiles: items, Count: len(items)}, f.Logger)
+	f.Logger.Info("project file list", "user_id", claims.UserID, "count", len(items))
+	f.mustWriteResponse(w, models.ListProjectFilesResponse{ProjectFiles: items, Count: len(items)}, map[string]any{"user_id": claims.UserID})
 }
 
 // UpdateProjectFile patches the project_files metadata for an existing record.
@@ -458,7 +460,7 @@ func (f *FilestoreHandlers) UpdateProjectFile(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Merge: keep existing values for unset fields.
+	// merge stuff and keep existing values for unset fields
 	newProjectName := row.ProjectName
 	if req.ProjectName != "" {
 		newProjectName = dbutils.NullString(nullableString(req.ProjectName))
@@ -531,7 +533,7 @@ func (f *FilestoreHandlers) UpdateProjectFile(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
-	writeJSON(w, r, projectFileInfoFromRow(&updated), f.Logger)
+	f.mustWriteResponse(w, projectFileInfoFromRow(&updated), map[string]any{"file_uuid": fileUUID})
 }
 
 // DeleteProjectFile deletes a project file and its underlying file/blob.
@@ -595,8 +597,8 @@ func (f *FilestoreHandlers) DeleteProjectFile(w http.ResponseWriter, r *http.Req
 		"blob_deleted", blobDeleted,
 	)
 
-	writeJSON(w, r, models.DeleteFileResponse{
+	f.mustWriteResponse(w, models.DeleteFileResponse{
 		FileUUID: fileUUID,
 		Status:   models.FileStatusDeleted,
-	}, f.Logger)
+	}, map[string]any{"file_uuid": fileUUID, "user_id": claims.UserID, "project_id": row.ProjectID, "blob_deleted": blobDeleted})
 }

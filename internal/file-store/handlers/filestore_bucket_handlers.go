@@ -73,18 +73,17 @@ func (f *FilestoreHandlers) CreateBucket(w http.ResponseWriter, r *http.Request)
 		"user_id", userID,
 	)
 
-	writeErr := helpers.WriteJSON(w, models.CreateBucketResponse{
+	f.mustWriteResponse(w, models.CreateBucketResponse{
 		BucketID:       bucket.BucketID,
 		Name:           bucket.Name,
 		IsPublic:       bucket.IsPublic.Bool,
 		RequiredScopes: bucket.RequiredScopes.String,
 		CreatedAt:      dbutils.ParseDBTime(bucket.CreatedAt),
+	}, map[string]any{
+		"bucket_id": bucket.BucketID,
+		"name":      bucket.Name,
+		"user_id":   userID,
 	})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "bucket_id", bucket.BucketID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
 }
 
 // ListBucketFiles lists all files in a bucket
@@ -134,12 +133,9 @@ func (f *FilestoreHandlers) ListBucketFiles(w http.ResponseWriter, r *http.Reque
 		})
 	}
 
-	writeErr := helpers.WriteJSON(w, models.ListBucketFilesResponse{BucketUUID: bucketID, Files: fileResponses, Count: len(fileResponses)})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "bucket_id", bucketID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	f.mustWriteResponse(w, models.ListBucketFilesResponse{BucketUUID: bucketID, Files: fileResponses, Count: len(fileResponses)}, map[string]any{
+		"bucket_id": bucketID,
+	})
 }
 
 // DeleteBucket deletes a bucket and all its files
@@ -237,13 +233,10 @@ func (f *FilestoreHandlers) DeleteBucket(w http.ResponseWriter, r *http.Request)
 
 	f.Logger.Info("Bucket deleted", "bucket_id", bucketID, "user_id", claims.UserID)
 
-	writeErr := helpers.WriteJSON(w, models.DeleteBucketResponse{BucketUUID: bucketID, Status: "deleted"})
-
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "bucket_uuid", bucketID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	f.mustWriteResponse(w, models.DeleteBucketResponse{BucketUUID: bucketID, Status: "deleted"}, map[string]any{
+		"bucket_id": bucketID,
+		"user_id":   claims.UserID,
+	})
 }
 
 // ListBuckets lists all buckets owned by the user
@@ -298,10 +291,7 @@ func (f *FilestoreHandlers) ListBuckets(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	writeErr := helpers.WriteJSON(w, models.ListBucketResponse{Buckets: resp, Count: len(resp)})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	f.mustWriteResponse(w, models.ListBucketResponse{Buckets: resp, Count: len(resp)}, map[string]any{
+		"user_id": claims.UserID,
+	})
 }

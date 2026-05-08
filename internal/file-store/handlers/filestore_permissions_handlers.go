@@ -105,7 +105,7 @@ func (f *FilestoreHandlers) GrantBucketPermission(w http.ResponseWriter, r *http
 		"granted_by", claims.UserID,
 	)
 
-	writeJSON(w, r, models.PermissionEntry{
+	f.mustWriteResponse(w, models.PermissionEntry{
 		ID:            entry.ID,
 		PrincipalType: entry.PrincipalType,
 		PrincipalID:   entry.PrincipalID,
@@ -113,7 +113,7 @@ func (f *FilestoreHandlers) GrantBucketPermission(w http.ResponseWriter, r *http
 		GrantedBy:     entry.GrantedBy,
 		CreatedAt:     entry.CreatedAt,
 		ExpiresAt:     entry.ExpiresAt,
-	}, f.Logger)
+	}, map[string]any{"bucket_id": bucketID, "principal_type": req.PrincipalType, "principal_id": req.PrincipalID, "permission": req.Permission, "granted_by": claims.UserID})
 }
 
 // RevokeBucketPermission deletes a specific permission entry from a bucket.
@@ -167,7 +167,7 @@ func (f *FilestoreHandlers) RevokeBucketPermission(w http.ResponseWriter, r *htt
 
 	f.Logger.Info("bucket permission revoked", "perm_id", permID, "bucket_id", bucketID, "revoked_by", claims.UserID)
 
-	writeJSON(w, r, models.RevokePermissionResponse{ID: permID, Deleted: true}, f.Logger)
+	f.mustWriteResponse(w, models.RevokePermissionResponse{ID: permID, Deleted: true}, map[string]any{"perm_id": permID, "bucket_id": bucketID, "revoked_by": claims.UserID})
 }
 
 // ListBucketPermissions returns all delegated permission entries for a bucket.
@@ -227,8 +227,9 @@ func (f *FilestoreHandlers) ListBucketPermissions(w http.ResponseWriter, r *http
 			ExpiresAt:     row.ExpiresAt,
 		})
 	}
+	f.Logger.Info("bucket permission list", "bucket_id", bucketID, "count", len(entries), "user_id", claims.UserID)
 
-	writeJSON(w, r, models.ListPermissionsResponse{Permissions: entries, Count: len(entries)}, f.Logger)
+	f.mustWriteResponse(w, models.ListPermissionsResponse{Permissions: entries, Count: len(entries)}, map[string]any{"bucket_id": bucketID})
 }
 
 // GrantFilePermission grants a permission entry on a specific file.
@@ -319,7 +320,7 @@ func (f *FilestoreHandlers) GrantFilePermission(w http.ResponseWriter, r *http.R
 		"granted_by", claims.UserID,
 	)
 
-	writeJSON(w, r, models.PermissionEntry{
+	f.mustWriteResponse(w, models.PermissionEntry{
 		ID:            entry.ID,
 		PrincipalType: entry.PrincipalType,
 		PrincipalID:   entry.PrincipalID,
@@ -327,7 +328,7 @@ func (f *FilestoreHandlers) GrantFilePermission(w http.ResponseWriter, r *http.R
 		GrantedBy:     entry.GrantedBy,
 		CreatedAt:     entry.CreatedAt,
 		ExpiresAt:     entry.ExpiresAt,
-	}, f.Logger)
+	}, map[string]any{"file_uuid": fileUUID, "principal_type": req.PrincipalType, "principal_id": req.PrincipalID, "permission": req.Permission, "granted_by": claims.UserID})
 }
 
 // RevokeFilePermission deletes a specific permission entry from a file.
@@ -381,7 +382,7 @@ func (f *FilestoreHandlers) RevokeFilePermission(w http.ResponseWriter, r *http.
 
 	f.Logger.Info("file permission revoked", "perm_id", permID, "file_uuid", fileUUID, "revoked_by", claims.UserID)
 
-	writeJSON(w, r, models.RevokePermissionResponse{ID: permID, Deleted: true}, f.Logger)
+	f.mustWriteResponse(w, models.RevokePermissionResponse{ID: permID, Deleted: true}, map[string]any{"perm_id": permID, "file_uuid": fileUUID, "revoked_by": claims.UserID})
 }
 
 // ListFilePermissions returns all delegated permission entries for a file.
@@ -442,5 +443,7 @@ func (f *FilestoreHandlers) ListFilePermissions(w http.ResponseWriter, r *http.R
 		})
 	}
 
-	writeJSON(w, r, models.ListPermissionsResponse{Permissions: entries, Count: len(entries)}, f.Logger)
+	f.Logger.Info("file permission list", "file_uuid", fileUUID, "count", len(entries), "user_id", claims.UserID)
+
+	f.mustWriteResponse(w, models.ListPermissionsResponse{Permissions: entries, Count: len(entries)}, map[string]any{"file_uuid": fileUUID, "user_id": claims.UserID})
 }

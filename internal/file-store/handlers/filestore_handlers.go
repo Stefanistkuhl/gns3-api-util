@@ -80,7 +80,7 @@ func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 		blobPath = blobInfo.FilePath
 
-		// Decrement blob refcount first; only delete blob row when it reaches 0.
+		// Decrement blob refcount first -> only delete blob row when it reaches 0.
 		if drefErr := q.DecrementBlobRefCount(r.Context(), blobInfo.BlobSha256.String); drefErr != nil {
 			return fmt.Errorf("failed to decrement blob refcount: %w", drefErr)
 		}
@@ -97,7 +97,7 @@ func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 			blobDeleted = true
 		}
 
-		// Finally delete the file row.
+		// delete the file row.
 		if dErr := q.DeleteFile(r.Context(), fileUUID); dErr != nil {
 			return fmt.Errorf("failed to delete file row: %w", dErr)
 		}
@@ -121,13 +121,8 @@ func (f *FilestoreHandlers) DeleteFile(w http.ResponseWriter, r *http.Request) {
 		"blob_deleted", blobDeleted,
 	)
 
-	writeErr := helpers.WriteJSON(w, models.DeleteFileResponse{
+	f.mustWriteResponse(w, models.DeleteFileResponse{
 		FileUUID: fileUUID,
 		Status:   models.FileStatusDeleted,
-	})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	}, map[string]any{"file_uuid": fileUUID, "user_id": claims.UserID, "blob_deleted": blobDeleted})
 }

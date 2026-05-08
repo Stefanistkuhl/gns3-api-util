@@ -228,13 +228,17 @@ func (f *FilestoreHandlers) InitBackupUpload(w http.ResponseWriter, r *http.Requ
 	if file.RetentionPeriod.Valid {
 		expiresAt = time.Now().Add(time.Duration(file.RetentionPeriod.Int64) * time.Hour)
 	}
-
-	writeJSON(w, r, models.InitUploadResponse{
+	f.mustWriteResponse(w, models.InitUploadResponse{
 		FileUUID:  file.FileUuid,
 		Status:    models.FileStatusPending,
 		UploadURL: fmt.Sprintf("/api/v1/files/%s/content", file.FileUuid),
 		ExpiresAt: expiresAt,
-	}, f.Logger)
+	}, map[string]any{
+		"file_uuid":   file.FileUuid,
+		"filename":    file.Filename,
+		"backup_type": req.BackupType,
+		"user_id":     claims.UserID,
+	})
 }
 
 // GetBackup returns combined file and backup metadata for a single backup.
@@ -279,8 +283,11 @@ func (f *FilestoreHandlers) GetBackup(w http.ResponseWriter, r *http.Request) {
 		helpers.WriteAPIError(w, "forbidden", helpers.ErrCodeForbidden, "you do not have permission to read this backup", http.StatusForbidden)
 		return
 	}
-
-	writeJSON(w, r, backupInfoFromRow(&row), f.Logger)
+	f.Logger.Info("GetBackup", "user_id", claims.UserID, "file_uuid", fileUUID)
+	f.mustWriteResponse(w, backupInfoFromRow(&row), map[string]any{
+		"file_uuid": fileUUID,
+		"user_id":   claims.UserID,
+	})
 }
 
 // ListBackups lists backups accessible to the authenticated user.
@@ -325,8 +332,11 @@ func (f *FilestoreHandlers) ListBackups(w http.ResponseWriter, r *http.Request) 
 			items = append(items, backupInfoFromOwnerRow(&rows[i]))
 		}
 	}
+	f.Logger.Info("ListBackups", "user_id", claims.UserID, "count", len(items))
 
-	writeJSON(w, r, models.ListBackupsResponse{Backups: items, Count: len(items)}, f.Logger)
+	f.mustWriteResponse(w, models.ListBackupsResponse{Backups: items, Count: len(items)}, map[string]any{
+		"user_id": claims.UserID,
+	})
 }
 
 // UpdateBackup patches the backups metadata for an existing backup.
@@ -433,7 +443,11 @@ func (f *FilestoreHandlers) UpdateBackup(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
-	writeJSON(w, r, backupInfoFromRow(&updated), f.Logger)
+	f.mustWriteResponse(w, backupInfoFromRow(&updated), map[string]any{
+		"file_uuid":   fileUUID,
+		"user_id":     claims.UserID,
+		"backup_type": newBackupType,
+	})
 }
 
 // DeleteBackup deletes a backup and its underlying file/blob.
@@ -497,8 +511,9 @@ func (f *FilestoreHandlers) DeleteBackup(w http.ResponseWriter, r *http.Request)
 		"blob_deleted", blobDeleted,
 	)
 
-	writeJSON(w, r, models.DeleteFileResponse{
-		FileUUID: fileUUID,
-		Status:   models.FileStatusDeleted,
-	}, f.Logger)
+	f.mustWriteResponse(w, models.DeleteFileResponse{FileUUID: fileUUID, Status: models.FileStatusDeleted}, map[string]any{
+		"file_uuid":    fileUUID,
+		"user_id":      claims.UserID,
+		"blob_deleted": blobDeleted,
+	})
 }

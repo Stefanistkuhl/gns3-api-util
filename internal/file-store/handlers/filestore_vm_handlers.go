@@ -231,12 +231,12 @@ func (f *FilestoreHandlers) InitVMUpload(w http.ResponseWriter, r *http.Request)
 		expiresAt = time.Now().Add(time.Duration(file.RetentionPeriod.Int64) * time.Hour)
 	}
 
-	writeJSON(w, r, models.InitUploadResponse{
+	f.mustWriteResponse(w, models.InitUploadResponse{
 		FileUUID:  file.FileUuid,
 		Status:    models.FileStatusPending,
 		UploadURL: fmt.Sprintf("/api/v1/files/%s/content", file.FileUuid),
 		ExpiresAt: expiresAt,
-	}, f.Logger)
+	}, map[string]any{"file_uuid": file.FileUuid, "user_id": claims.UserID})
 }
 
 // GetVMImage returns combined file and VM metadata for a single VM image.
@@ -282,7 +282,8 @@ func (f *FilestoreHandlers) GetVMImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, r, vmInfoFromRow(&row), f.Logger)
+	f.Logger.Info("VM image read", "file_uuid", fileUUID, "user_id", claims.UserID)
+	f.mustWriteResponse(w, vmInfoFromRow(&row), map[string]any{"file_uuid": fileUUID})
 }
 
 // ListVMImages lists VM images accessible to the authenticated user.
@@ -328,7 +329,8 @@ func (f *FilestoreHandlers) ListVMImages(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	writeJSON(w, r, models.ListVMImagesResponse{VMs: items, Count: len(items)}, f.Logger)
+	f.Logger.Info("VM image list", "user_id", claims.UserID, "count", len(items))
+	f.mustWriteResponse(w, models.ListVMImagesResponse{VMs: items, Count: len(items)}, map[string]any{"user_id": claims.UserID})
 }
 
 // UpdateVMImage updates the vm_images metadata for an existing VM image.
@@ -436,7 +438,7 @@ func (f *FilestoreHandlers) UpdateVMImage(w http.ResponseWriter, r *http.Request
 	if !ok {
 		return
 	}
-	writeJSON(w, r, vmInfoFromRow(&updated), f.Logger)
+	f.mustWriteResponse(w, vmInfoFromRow(&updated), map[string]any{"file_uuid": fileUUID})
 }
 
 // DeleteVMImage deletes a VM image and its underlying file/blob.
@@ -500,10 +502,10 @@ func (f *FilestoreHandlers) DeleteVMImage(w http.ResponseWriter, r *http.Request
 		"blob_deleted", blobDeleted,
 	)
 
-	writeJSON(w, r, models.DeleteFileResponse{
+	f.mustWriteResponse(w, models.DeleteFileResponse{
 		FileUUID: fileUUID,
 		Status:   models.FileStatusDeleted,
-	}, f.Logger)
+	}, map[string]any{"file_uuid": fileUUID, "user_id": claims.UserID, "blob_deleted": blobDeleted})
 }
 
 // ---- internal shared deletion helper ----
@@ -560,7 +562,6 @@ func deleteFileAndBlob(
 }
 
 // nullableString returns nil when s is empty, otherwise a pointer to s.
-// This keeps NullString helpers clean for optional JSON string fields.
 func nullableString(s string) *string {
 	if s == "" {
 		return nil

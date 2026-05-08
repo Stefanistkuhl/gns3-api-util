@@ -45,16 +45,6 @@ func decodeJSON[T any](w http.ResponseWriter, r *http.Request, v *T) bool {
 	return true
 }
 
-func writeJSON(w http.ResponseWriter, r *http.Request, v any, logger interface {
-	Error(string, ...any)
-},
-) {
-	if err := helpers.WriteJSON(w, v); err != nil {
-		logger.Error("failed to write response", "err", err)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, err.Error(), http.StatusInternalServerError)
-	}
-}
-
 func lookupBucketOrErr(
 	ctx context.Context,
 	w http.ResponseWriter,
@@ -277,4 +267,29 @@ func parseRange(s string, size int64) ([]httpRange, error) {
 	}
 
 	return ranges, nil
+}
+
+func (f *FilestoreHandlers) mustWriteResponse(
+	w http.ResponseWriter,
+	data any,
+	logFields map[string]any,
+) {
+	if err := helpers.WriteJSON(w, data); err != nil {
+		fields := make([]any, 0, 2+2*len(logFields))
+		fields = append(fields, "err", err)
+
+		for k, v := range logFields {
+			fields = append(fields, k, v)
+		}
+
+		f.Logger.Error("Failed to write response", fields...)
+
+		helpers.WriteAPIError(
+			w,
+			"failed to write response",
+			helpers.ErrCodeInternal,
+			err.Error(),
+			http.StatusInternalServerError,
+		)
+	}
 }

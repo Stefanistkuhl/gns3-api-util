@@ -4,9 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/0xveya/gns3util/internal/file-store/db/sqlc_file_store"
@@ -38,107 +36,43 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 	token := chi.URLParam(r, "token")
 
 	if bucketID == "" {
-		helpers.WriteAPIError(
-			w,
-			"bucket_id is required",
-			helpers.ErrCodeInvalidInput,
-			"missing bucket_id in URL path",
-			http.StatusBadRequest,
-		)
+		f.writeDownloadObjectError(w, ErrorNoBucketID)
 		return
 	}
 
 	if token == "" {
-		helpers.WriteAPIError(
-			w,
-			"token is required",
-			helpers.ErrCodeInvalidInput,
-			"missing token in URL path",
-			http.StatusBadRequest,
-		)
+		f.writeDownloadObjectError(w, ErrorNoPubToken)
 		return
 	}
 
-	publicToken, queryErr := f.Store.GetPublicFileToken(r.Context(), token)
+	publicToken, queryErr := f.getPublicFiletoken(r.Context(), token)
 	if queryErr != nil {
-		if errors.Is(queryErr, sql.ErrNoRows) {
-			helpers.WriteAPIError(
-				w,
-				"token not found",
-				helpers.ErrCodeFileNotFound,
-				"invalid or expired token",
-				http.StatusNotFound,
-			)
-			return
-		}
-		f.Logger.Error("Failed to get public token", "err", queryErr, "token", token)
-		helpers.WriteAPIError(
-			w,
-			"failed to query db for token",
-			helpers.ErrCodeDBErr,
-			queryErr.Error(),
-			http.StatusInternalServerError,
-		)
+		f.writeDownloadObjectError(w, queryErr)
 		return
 	}
 
 	if publicToken.BucketID != bucketID {
-		helpers.WriteAPIError(
-			w,
-			"token not found",
-			helpers.ErrCodeFileNotFound,
-			"invalid or expired token",
-			http.StatusNotFound,
-		)
+		f.writeDownloadObjectError(w, ErrorBucketIDMissmatch)
 		return
 	}
 
 	if publicToken.ExpiresAt != "" {
 		expiresAt := dbutils.ParseDBTime(publicToken.ExpiresAt)
 		if !expiresAt.IsZero() && expiresAt.Before(time.Now()) {
-			helpers.WriteAPIError(
-				w,
-				"token expired",
-				helpers.ErrCodeFileNotFound,
-				"token has expired",
-				http.StatusNotFound,
-			)
+			f.writeDownloadObjectError(w, ErrorExpiredToken)
 			return
 		}
 	}
 
-	file, fileErr := f.Store.GetFileWithBlobByUUID(r.Context(), publicToken.FileUuid)
+	file, fileErr := f.getDownloadObjectByUUID(r.Context(), publicToken.FileUuid)
 	if fileErr != nil {
-		if errors.Is(fileErr, sql.ErrNoRows) {
-			helpers.WriteAPIError(
-				w,
-				"file not found",
-				helpers.ErrCodeFileNotFound,
-				"file associated with token not found",
-				http.StatusNotFound,
-			)
-			return
-		}
-		f.Logger.Error("Failed to get file", "err", fileErr, "file_uuid", publicToken.FileUuid)
-		helpers.WriteAPIError(
-			w,
-			"failed to query db for file",
-			helpers.ErrCodeDBErr,
-			fileErr.Error(),
-			http.StatusInternalServerError,
-		)
+		f.writeDownloadObjectError(w, fileErr)
 		return
 	}
 
-	fileSize := file.SizeBytes
-	if file.Status != string(models.FileStatusAvailable) {
-		helpers.WriteAPIError(
-			w,
-			"file not available",
-			helpers.ErrCodeFileNotFound,
-			"file associated with token is not available",
-			http.StatusNotFound,
-		)
+	fileSize := file.Size
+	if file.FileStatus != models.FileStatusAvailable {
+		f.writeDownloadObjectError(w, ErrorFileNotAvailable)
 		return
 	}
 
@@ -147,86 +81,18 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 		f.Logger.Warn("Failed to increment token access count", "err", incrementErr, "token", token)
 	}
 
-	w.Header().Set("Content-Type", file.ContentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.Filename))
-	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("ETag", fmt.Sprintf("%q", file.BlobSha256.String))
-	w.Header().Set("Cache-Control", "public, max-age=3600")
+	writeDownloadHeaders(w, file)
 
-	rangeHeader := r.Header.Get("Range")
-	if rangeHeader != "" {
-		ranges, err := parseRange(rangeHeader, fileSize)
-		if err != nil {
-			helpers.WriteAPIError(
-				w,
-				"invalid range header",
-				helpers.ErrCodeInvalidInput,
-				err.Error(),
-				http.StatusBadRequest,
-			)
+	if r.Header.Get("Range") != "" {
+		if err := writeRangeObject(w, r, file); err != nil {
+			f.writeRangeObjectError(w, err)
 			return
 		}
 
-		if len(ranges) == 1 {
-			ra := ranges[0]
-			w.Header().Set(
-				"Content-Range",
-				fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, fileSize),
-			)
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", ra.length))
-			w.WriteHeader(http.StatusPartialContent)
-
-			srcFile, openErr := os.Open(file.FilePath) // #nosec G304
-			if openErr != nil {
-				f.Logger.Error("Failed to open file", "err", openErr, "file_uuid", publicToken.FileUuid)
-				helpers.WriteAPIError(
-					w,
-					"Failed to open file",
-					helpers.ErrCodeInternal,
-					openErr.Error(),
-					http.StatusBadRequest,
-				)
-				return
-			}
-			defer srcFile.Close()
-
-			if _, seekErr := srcFile.Seek(ra.start, io.SeekStart); seekErr != nil {
-				f.Logger.Error("Failed to seek file", "err", seekErr, "file_uuid", publicToken.FileUuid)
-				helpers.WriteAPIError(
-					w,
-					"Failed to seek file",
-					helpers.ErrCodeInternal,
-					seekErr.Error(),
-					http.StatusBadRequest,
-				)
-				return
-			}
-
-			if _, copyErr := io.CopyN(w, srcFile, ra.length); copyErr != nil && !errors.Is(copyErr, io.EOF) {
-				f.Logger.Error("Failed to copy file", "err", copyErr, "file_uuid", publicToken.FileUuid)
-				return
-			}
-
-			f.Logger.Info(
-				"Partial public file downloaded",
-				"file_uuid",
-				publicToken.FileUuid,
-				"token",
-				token,
-				"range",
-				fmt.Sprintf("%d-%d", ra.start, ra.start+ra.length-1),
-			)
-			return
-		}
-
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-		helpers.WriteAPIError(
-			w,
-			"Multiple ranges not supported",
-			helpers.ErrCodeInternal,
-			"Multiple range not supported",
-			http.StatusRequestedRangeNotSatisfiable,
+		f.Logger.Info("Partial file downloaded",
+			"file_uuid", file.Path,
 		)
+
 		return
 	}
 
@@ -234,15 +100,13 @@ func (f *FilestoreHandlers) PublicFileHandler(w http.ResponseWriter, r *http.Req
 
 	f.Logger.Info(
 		"Public file accessed",
-		"file_uuid",
-		file.FileUuid,
 		"filename",
 		file.Filename,
 		"token",
 		token,
 	)
 
-	http.ServeFile(w, r, file.FilePath)
+	http.ServeFile(w, r, file.Filename)
 }
 
 // GeneratePublicToken creates a public access token for a file
@@ -345,16 +209,11 @@ func (f *FilestoreHandlers) GeneratePublicToken(w http.ResponseWriter, r *http.R
 		"expires_at", expiresAt,
 	)
 
-	writeErr := helpers.WriteJSON(w, models.PublicTokenResponse{
+	f.mustWriteResponse(w, models.PublicTokenResponse{
 		Token:      token.Token,
 		BucketUUID: file.BucketID,
 		FileUUID:   fileUUID,
 		ExpiresAt:  expiresAt,
 		URL:        fmt.Sprintf("https://%s/api/v1/public/files/%s/%s", nwutils.GetFirstNonLoopbackIP(), file.BucketID, token.Token),
-	})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	}, map[string]any{"file_uuid": fileUUID, "token": token.Token, "user_id": claims.UserID, "expires_at": expiresAt})
 }

@@ -1,14 +1,9 @@
 package handlers
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 
-	"github.com/0xveya/gns3util/pkg/models"
 	"github.com/0xveya/gns3util/pkg/web/helpers"
 	"github.com/go-chi/chi/v5"
 )
@@ -41,82 +36,35 @@ func (f *FilestoreHandlers) DownloadFileHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	file, fileErr := f.Store.GetFileWithBlobByUUID(r.Context(), fileUUID)
-	if fileErr != nil {
-		if errors.Is(fileErr, sql.ErrNoRows) {
-			helpers.WriteAPIError(w, "file not found", helpers.ErrCodeFileNotFound, "no file found with the provided uuid", http.StatusNotFound)
-			return
-		}
-		f.Logger.Error("Failed to get file", "err", fileErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to query db for file", helpers.ErrCodeDBErr, fileErr.Error(), http.StatusInternalServerError)
+	obj, err := f.getDownloadObjectByUUID(r.Context(), fileUUID)
+	if err != nil {
+		f.writeDownloadObjectError(w, err)
 		return
 	}
 
-	fileSize := file.SizeBytes
-	if file.Status != string(models.FileStatusAvailable) {
-		helpers.WriteAPIError(w, "file not available", helpers.ErrCodeInvalidInput, "file is not available for download", http.StatusConflict)
-		return
-	}
+	writeDownloadHeaders(w, obj)
 
-	w.Header().Set("Content-Type", file.ContentType)
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", file.Filename))
-	w.Header().Set("Accept-Ranges", "bytes")
-	w.Header().Set("ETag", fmt.Sprintf("%q", file.BlobSha256.String))
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-
-	rangeHeader := r.Header.Get("Range")
-	if rangeHeader != "" {
-		ranges, err := parseRange(rangeHeader, fileSize)
-		if err != nil {
-			helpers.WriteAPIError(w, "invalid range header", helpers.ErrCodeInvalidInput, err.Error(), http.StatusBadRequest)
+	if r.Header.Get("Range") != "" {
+		if err := writeRangeObject(w, r, obj); err != nil {
+			f.writeRangeObjectError(w, err)
 			return
 		}
 
-		if len(ranges) == 1 {
-			ra := ranges[0]
-			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", ra.start, ra.start+ra.length-1, fileSize))
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", ra.length))
-			w.WriteHeader(http.StatusPartialContent)
+		f.Logger.Info("Partial file downloaded",
+			"file_uuid", fileUUID,
+			"user_id", claims.UserID,
+		)
 
-			srcFile, openErr := os.Open(file.FilePath) // #nosec G304
-			if openErr != nil {
-				f.Logger.Error("Failed to open file", "err", openErr, "file_uuid", fileUUID)
-				return
-
-			}
-			defer srcFile.Close()
-
-			if _, seekErr := srcFile.Seek(ra.start, io.SeekStart); seekErr != nil {
-				f.Logger.Error("Failed to seek file", "err", seekErr, "file_uuid", fileUUID)
-				helpers.WriteAPIError(w, "Failed to seek file", helpers.ErrCodeInternal, seekErr.Error(), http.StatusBadRequest)
-				return
-			}
-
-			if _, copyErr := io.CopyN(w, srcFile, ra.length); copyErr != nil && !errors.Is(copyErr, io.EOF) {
-				f.Logger.Error("Failed to copy file", "err", copyErr, "file_uuid", fileUUID)
-				return
-			}
-
-			f.Logger.Info("Partial file downloaded",
-				"file_uuid", fileUUID,
-				"user_id", claims.UserID,
-				"range", fmt.Sprintf("%d-%d", ra.start, ra.start+ra.length-1),
-			)
-			return
-		}
-
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", fileSize))
-		helpers.WriteAPIError(w, "Multiple ranges not supported", helpers.ErrCodeInternal, "Multiple range not supported", http.StatusRequestedRangeNotSatisfiable)
 		return
 	}
 
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileSize))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", obj.Size))
 
 	f.Logger.Info("File downloaded",
 		"file_uuid", fileUUID,
 		"user_id", claims.UserID,
-		"size_bytes", fileSize,
+		"size_bytes", obj.Size,
 	)
 
-	http.ServeFile(w, r, file.FilePath)
+	http.ServeFile(w, r, obj.Path)
 }

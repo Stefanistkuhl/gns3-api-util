@@ -4,12 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/0xveya/gns3util/internal/file-store/db/sqlc_file_store"
@@ -122,17 +119,12 @@ func (f *FilestoreHandlers) HandleInitUpload(w http.ResponseWriter, r *http.Requ
 	}
 
 	status := models.FileStatusPending
-	writeErr := helpers.WriteJSON(w, models.InitUploadResponse{
+	f.mustWriteResponse(w, models.InitUploadResponse{
 		FileUUID:  file.FileUuid,
 		Status:    status,
 		UploadURL: fmt.Sprintf("/api/v1/files/%s/content", file.FileUuid),
 		ExpiresAt: expiresAt,
-	})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", file.FileUuid)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	}, map[string]any{"file_uuid": file.FileUuid, "user_id": userID})
 }
 
 // HandleStreamUpload streams file content to the filestore
@@ -179,76 +171,39 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 		helpers.WriteAPIError(w, "forbidden", helpers.ErrCodeForbidden, "you do not have permission to upload to this file", http.StatusForbidden)
 		return
 	}
-	path := filepath.Join(f.Dirs.TmpDir, fmt.Sprintf("%s.tmp", fileUUID))
-	var offset int64
-	if info, statErr := os.Stat(path); statErr == nil {
-		offset = info.Size()
-	}
-	if cr := r.Header.Get("Content-Range"); cr != "" {
-		parts := strings.Split(cr, " ")
-		if len(parts) == 2 && parts[0] == "bytes" {
-			rangeParts := strings.Split(parts[1], "-")
-			if len(rangeParts) >= 1 {
-				clientStart, _ := strconv.ParseInt(rangeParts[0], 10, 64)
-				if clientStart != offset {
-					helpers.WriteAPIError(w, "upload offset mismatch", helpers.ErrCodeOffsetMismatch,
-						fmt.Sprintf("expected start at %d, client sent %d", offset, clientStart),
-						http.StatusConflict)
-					return
-				}
-			}
-		}
-	}
-	statusErr := f.Store.UpdateFileStatus(
-		r.Context(),
-		sqlc_file_store.UpdateFileStatusParams{
-			Status:   string(models.FileStatusUploading),
-			FileUuid: fileUUID,
-		},
-	)
-	if statusErr != nil {
-		f.Logger.Error("Failed to update file status", "err", statusErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to update file status", helpers.ErrCodeInternal, "failed to update file status", http.StatusInternalServerError)
+	path := uploadTempPath(f.Dirs.TmpDir, fileUUID)
+	offset := getExistingUploadOffset(path)
+	if err := validateUploadOffset(r.Header.Get("Content-Range"), offset); err != nil {
+		f.writeUploadObjectError(w, err)
 		return
 	}
+
+	markErr := f.markFileUploading(r.Context(), fileUUID)
+	if markErr != nil {
+		f.writeUploadObjectError(w, markErr)
+	}
+
 	hasher := sha256.New()
 	if offset > 0 {
-		existingFile, openErr := os.Open(path) // #nosec G304
-		if openErr != nil {
-			f.Logger.Error("Failed to open existing partial file", "err", openErr)
-			helpers.WriteAPIError(w, "failed to resume upload", helpers.ErrCodeInternal, openErr.Error(), http.StatusInternalServerError)
+		if err := hashExistingPartialFile(path, hasher); err != nil {
+			f.writeUploadObjectError(w, err)
 			return
-		}
-
-		if _, resumeCopyErr := io.Copy(hasher, existingFile); resumeCopyErr != nil {
-			if closeErr := existingFile.Close(); closeErr != nil {
-				f.Logger.Error("Failed to close existing file", "err", closeErr)
-			}
-			f.Logger.Error("Failed to hash existing partial file", "err", resumeCopyErr)
-			helpers.WriteAPIError(w, "failed to hash existing data", helpers.ErrCodeInternal, resumeCopyErr.Error(), http.StatusInternalServerError)
-			return
-		}
-		if closeErr := existingFile.Close(); closeErr != nil {
-			f.Logger.Error("Failed to close existing file", "err", closeErr)
 		}
 	}
 
-	dst, createFileErr := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o600) // #nosec G304
-	if createFileErr != nil {
-		f.Logger.Error("Failed to create file on disk", "err", createFileErr, "file_uuid", fileUUID, "path", path)
-		helpers.WriteAPIError(w, "failed to create file on disk", helpers.ErrCodeInternal, createFileErr.Error(), http.StatusInternalServerError)
-		return
+	dst, openErr := openUploadTempFile(path)
+	if openErr != nil {
+		f.writeUploadObjectError(w, openErr)
 	}
-	if _, err := dst.Seek(0, io.SeekEnd); err != nil {
-		if closeErr := dst.Close(); closeErr != nil {
-			f.Logger.Error("Failed to close file", "err", closeErr)
-		}
-		f.Logger.Error("Failed to seek to end", "err", err)
-		helpers.WriteAPIError(w, "failed to seek file", helpers.ErrCodeInternal, err.Error(), http.StatusInternalServerError)
-		return
+
+	seekErr := seekUploadEnd(dst)
+	if seekErr != nil {
+		f.writeUploadObjectError(w, seekErr)
 	}
+
 	var moved bool
 	defer func() {
+		// TODO: make this in resuable cleanup function
 		closeErr := dst.Close()
 		if closeErr != nil {
 			f.Logger.Error("Failed to close file", "err", closeErr, "file_uuid", fileUUID)
@@ -260,60 +215,29 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 			}
 		}
 	}()
-	teeReader := io.TeeReader(r.Body, hasher)
-	written, copyErr := io.Copy(dst, teeReader)
-	if copyErr != nil {
-		f.Logger.Error("Streaming failed", "err", copyErr)
-		helpers.WriteAPIError(w, "upload interrupted", helpers.ErrCodeInternal, copyErr.Error(), http.StatusInternalServerError)
-		return
+
+	written, streamErr := streamUploadChunk(dst, r.Body, hasher)
+	if streamErr != nil {
+		f.writeUploadObjectError(w, streamErr)
 	}
-	if syncErr := dst.Sync(); syncErr != nil {
-		f.Logger.Error("Failed to sync file", "err", syncErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to sync file", helpers.ErrCodeInternal, syncErr.Error(), http.StatusInternalServerError)
-		return
+
+	syncErr := syncUploadFile(dst)
+	if syncErr != nil {
+		f.writeUploadObjectError(w, syncErr)
 	}
+
 	finalHash := hex.EncodeToString(hasher.Sum(nil))
 	totalSize := offset + written
 
-	dstDir, checkDirErr := f.Dirs.CreateShardDirsIfNeed(finalHash)
-	if checkDirErr != nil {
-		f.Logger.Error("Failed to create shard directories", "err", checkDirErr, "file_uuid", fileUUID, "hash", finalHash)
-		helpers.WriteAPIError(w, "failed to create shard directories", helpers.ErrCodeInternal, checkDirErr.Error(), http.StatusInternalServerError)
-		return
+	finalPath, moveErr := f.moveUploadToBlob(path, finalHash)
+	if moveErr != nil {
+		f.writeUploadObjectError(w, moveErr)
 	}
-	finalPath := filepath.Join(dstDir, finalHash)
 	moved = true
-	renameErr := os.Rename(path, finalPath)
-	if renameErr != nil {
-		f.Logger.Error("Failed to move file to object store", "err", renameErr, "file_uuid", fileUUID, "hash", finalHash)
-		helpers.WriteAPIError(w, "failed to move file to object store", helpers.ErrCodeInternal, renameErr.Error(), http.StatusInternalServerError)
-		return
-	}
 
-	finalizeErr := f.Store.WithTx(r.Context(), func(q *sqlc_file_store.Queries) error {
-		upsertErr := q.UpsertBlob(r.Context(), sqlc_file_store.UpsertBlobParams{
-			Sha256:    finalHash,
-			FilePath:  finalPath,
-			SizeBytes: totalSize,
-		})
-		if upsertErr != nil {
-			return fmt.Errorf("failed to upsert blob: %w", upsertErr)
-		}
-
-		_, fErr := q.FinalizeFile(r.Context(), sqlc_file_store.FinalizeFileParams{
-			BlobSha256: dbutils.NullString(&finalHash),
-			FileUuid:   fileUUID,
-		})
-		if fErr != nil {
-			return fmt.Errorf("failed to finalize file: %w", fErr)
-		}
-		return nil
-	})
-
+	finalizeErr := f.finalizeUploadDB(r.Context(), fileUUID, finalHash, finalPath, totalSize)
 	if finalizeErr != nil {
-		f.Logger.Error("Failed to finalize upload in database", "err", finalizeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to finalize upload in database", helpers.ErrCodeDBErr, finalizeErr.Error(), http.StatusInternalServerError)
-		return
+		f.writeUploadObjectError(w, finalizeErr)
 	}
 
 	ret := models.FinalizeUploadResponse{
@@ -322,12 +246,9 @@ func (f *FilestoreHandlers) HandleStreamUpload(w http.ResponseWriter, r *http.Re
 		BlobSHA256: finalHash,
 		SizeBytes:  totalSize,
 	}
-	writeErr := helpers.WriteJSON(w, ret)
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	f.mustWriteResponse(w, ret, map[string]any{
+		"file_uuid": fileUUID,
+	})
 }
 
 // GetUploadStatus retrieves the current upload progress
@@ -377,12 +298,7 @@ func (f *FilestoreHandlers) GetUploadStatus(w http.ResponseWriter, r *http.Reque
 		offset = info.Size()
 	}
 
-	writeErr := helpers.WriteJSON(w, models.GetUploadStatusResponse{
+	f.mustWriteResponse(w, models.GetUploadStatusResponse{
 		Offset: offset,
-	})
-	if writeErr != nil {
-		f.Logger.Error("Failed to write response", "err", writeErr, "file_uuid", fileUUID)
-		helpers.WriteAPIError(w, "failed to write response", helpers.ErrCodeInternal, writeErr.Error(), http.StatusInternalServerError)
-		return
-	}
+	}, map[string]any{"file_uuid": fileUUID})
 }
