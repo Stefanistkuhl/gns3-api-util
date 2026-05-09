@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/0xveya/gns3util/internal/file-store/db/sqlc_file_store"
 	"github.com/golang-migrate/migrate/v4"
@@ -69,7 +70,7 @@ func NewStore(dbPath string, isPrimary bool) (*Store, error) {
 
 	setupSQL := `
         PRAGMA foreign_keys = ON;
-        PRAGMA journal_mode = 'experimental_mvcc';
+        PRAGMA journal_mode = 'mvcc';
         PRAGMA busy_timeout = 5000;
 	`
 	if _, err := db.ExecContext(context.Background(), setupSQL); err != nil {
@@ -266,36 +267,53 @@ WHERE owner_id = ?
 	return items, rows.Err()
 }
 
-func (s *Store) WithTx(
-	ctx context.Context,
-	fn func(*sqlc_file_store.Queries) error,
-) (err error) {
-	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if p := recover(); p != nil {
-			_ = tx.Rollback()
-			panic(p)
-		}
+func (s *Store) WithTx(ctx context.Context, fn func(*sqlc_file_store.Queries) error) error {
+	const maxRetries = 10
+	for i := 0; i < maxRetries; i++ {
+		// acquire a dedicated conn for this transaction block
+		conn, err := s.DB.Conn(ctx)
 		if err != nil {
-			_ = tx.Rollback()
+			return err
 		}
-	}()
 
-	q := sqlc_file_store.New(&TracedDB{
-		inner:  tx,
-		tracer: s.tracer,
-	})
+		// start the concurrent tx
+		if _, err := conn.ExecContext(ctx, "BEGIN CONCURRENT"); err != nil {
+			conn.Close()
+			return err
+		}
 
-	err = fn(q)
-	if err != nil {
-		return err
+		err = func() (err error) {
+			defer func() {
+				if p := recover(); p != nil {
+					_, _ = conn.ExecContext(ctx, "ROLLBACK")
+					panic(p) // re-panic after cleanup
+				}
+			}()
+
+			// pass the dedicated conn to sqlc
+			q := sqlc_file_store.New(&TracedDB{inner: conn, tracer: s.tracer})
+			if err := fn(q); err != nil {
+				_, _ = conn.ExecContext(ctx, "ROLLBACK")
+				return err
+			}
+
+			_, err = conn.ExecContext(ctx, "COMMIT")
+			return err
+		}()
+
+		conn.Close()
+
+		if err != nil {
+			// check for busy errs
+			if strings.Contains(err.Error(), "busy") || strings.Contains(err.Error(), "conflict") {
+				time.Sleep(time.Duration(i*i*10) * time.Millisecond) // Exponential backoff
+				continue
+			}
+			return err
+		}
+		return nil
 	}
-
-	return tx.Commit()
+	return fmt.Errorf("transaction timed out after retries")
 }
 
 func (t *TracedDB) ExecContext(
