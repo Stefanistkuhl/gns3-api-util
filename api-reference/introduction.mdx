@@ -1,0 +1,33 @@
+---
+title: 'Introduction'
+description: 'Example section for showcasing API endpoints'
+---
+
+<Note>
+  If you're not looking to build API reference documentation, you can delete
+  this section by removing the api-reference folder.
+</Note>
+
+## Welcome
+
+The gns3util Master API provides comprehensive management for cluster resources, authentication, and more.
+
+<Card
+  title="gns3util API Endpoints"
+  icon="network-wired"
+  href="https://github.com/0xveya/gns3util/blob/master/documentation/api-reference/gns3util-master-api-docs.json"
+>
+  View the OpenAPI specification file
+</Card>
+
+## Authentication
+
+All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+
+```json
+"security": [
+  {
+    "bearerAuth": []
+  }
+]
+```
