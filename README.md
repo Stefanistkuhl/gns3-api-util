@@ -1,8 +1,41 @@
 # GNS3 API Util
 
-> Complete overhaul of the clustering system and the CLI in progress<br>
-> No changes will happen on `master` until v2 is done.<br>
-> Check the `features/orchestration` branch for progress.
+## Dead Project
+
+This project is basically dead.
+
+GNS3 was not flexible enough for what I wanted. It is hard to scale, hard to integrate with other systems, and not really built to run in a distributed way. Because of that I started working on [**tethux**](https://github.com/0xveya/tethux), which is meant to replace it for my use cases.
+
+tethux is still in development and not usable yet. The only reason this repo is not archived is in case there is a serious bug in the CLI that needs fixing.
+
+It probably will not be ready in 2026. Depending on when you are reading this, it might exist or it might still be unfinished.
+
+tethux is basically what I originally tried to do with `gns3util`, but instead of gluing things on top of GNS3, it is built in from the start.
+
+## Why tethux Exists
+
+This is mostly about the problems I ran into with GNS3.
+
+* **Compute and clustering are awkward.** GNS3 has a “compute” concept, but it feels bolted on. You have to manually assign nodes to servers, and it does not feel like a real cluster. With `gns3util` I ended up using SQLite as glue just to track where things were and what API calls to make, which is not a good solution.
+* **No real abstraction over where things run.** You still have to care which server a node is on. There is no proper scheduling or automatic placement.
+* **No replication or HA.** If something dies, it dies. There is no built-in way to replicate nodes or services.
+* **Integration is painful.** Things like object storage, backups, or external systems are not easy to plug in.
+* **Auth and RBAC are weak.** Roles are mostly cosmetic. You cannot properly assign roles to users or groups in a meaningful way. There is no solid OAuth/OIDC story either.
+* **Single server mindset.** You often end up connecting to specific servers instead of interacting with a cluster as a whole.
+
+On top of that, the direction of the project did not help.
+
+With GNS3 3.1 they did a big frontend rewrite, added an AI assistant, and changed the UI in ways that feel like a regression. Meanwhile, a lot of backend issues are still there. The project feels messy and not very focused.
+
+Because of all that I lost interest in trying to work around it.
+
+tethux is me trying to build something that actually treats compute, clustering, and integration as first class parts of the system. I also want things like importing Packet Tracer topologies, proper OAuth for users, and real RBAC that actually works.
+
+It is not done, and it might take a long time, but it is closer to what I wanted than trying to keep patching GNS3.
+
+> ~~Complete overhaul of the clustering system and the CLI in progress~~ <br>
+> ~~No changes will happen on `master` until v2 is done.~~ <br>
+> ~~Check the `features/orchestration` branch for progress.~~
 
 <p align="center">
   <img width=256 src="https://i.imgur.com/t1PNyl4.gif" alt="surely a temporary logo" />
